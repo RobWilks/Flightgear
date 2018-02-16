@@ -4882,25 +4882,25 @@ var dodge = func(myNodeName) {
 				
 	#amount to dodge, up to dodgeMax_deg in either direction
 	# (1-rand()*rand()) favors rolls towards the high end of the allowed range
-	dodgeAmount_deg=(evas.dodgeMax_deg-evas.dodgeMin_deg)*(1-rand()*rand())+evas.dodgeMin_deg;
+	dodgeAmount_deg = (evas.dodgeMax_deg-evas.dodgeMin_deg)*(1-rand()*rand())+evas.dodgeMin_deg;
 	#cut the amount of dodging down some for less skilled pilots
 	dodgeAmount_deg *= (skill+6)/12;
 				
 	# If we're rolling hard one way then 'dodge' means roll the opposite way.
 	# Otherwise we set the roll direction randomly according to the preferences
-	#    file
+	# file
 	currRoll_deg=getprop(""~myNodeName~"/orientation/roll-deg");
 	if (math.abs(currRoll_deg) > 30) dodgeAmount_deg = - math.sgn(currRoll_deg)* dodgeAmount_deg;
 	else if (rand() > evas.dodgeROverLPreference_percent/100) dodgeAmount_deg = -dodgeAmount_deg;
 
-	#we want to mostly dodge to upper/lower extremes of our altitude limits
-	var dodgeAltFact=1-rand()*rand()*rand();
-	#worse pilots don't dodge as far
+	# we want to mostly dodge to upper/lower extremes of our altitude limits
+	var dodgeAltFact = 1 - rand() * rand() * rand();
+	# worse pilots don't dodge as far
 	dodgeAltFact*= (skill+3)/9;
-	#the direction of the Alt dodge will favor the direction that has more
+	# the direction of the Alt dodge will favor the direction that has more
 	# feet to dodge in the evasions definitions.  Some aircraft heavily favor
 	# diving to escape, for instance.
-	var dodgeAltDirection=(evas.dodgeAltMax_ft - evas.dodgeAltMin_ft) * rand()+evas.dodgeAltMin_ft;
+	var dodgeAltDirection = (evas.dodgeAltMax_ft - evas.dodgeAltMin_ft) * rand() + evas.dodgeAltMin_ft;
 				
 	#target amount to climb or drop
 	if (dodgeAltDirection>=0)
@@ -4915,14 +4915,14 @@ var dodge = func(myNodeName) {
 	if (type=="aircraft") {
 		if (evas.rollRateMax_degpersec==nil or evas.rollRateMax_degpersec<=0)
 		evas.rollRateMax_degpersec=40;
-		var rollTime_sec= math.abs(dodgeAmount_deg/evas.rollRateMax_degpersec);
-		dodgeDelay_remainder_sec=dodgeDelay-rollTime_sec;
-		if (dodgeDelay_remainder_sec<0) dodgeDelay_remainder_sec=.1;
+		var rollTime_sec = math.abs(dodgeAmount_deg/evas.rollRateMax_degpersec);
+		dodgeDelay_remainder_sec = dodgeDelay - rollTime_sec;
+		if (dodgeDelay_remainder_sec < 0) dodgeDelay_remainder_sec = .1;
 
 		var currSpeed_kt=getprop (""~myNodeName~"/velocities/true-airspeed-kt");
 		if (currSpeed_kt==nil) currSpeed_kt=0;
 					
-		#more skilled pilots to acrobatics more often
+		# more skilled pilots to acrobatics more often
 		# in the Zero 130 kt is about the minimum speed needed to
 		# complete a loop without stalling.  TODO: This may vary by AC.
 		# This could be linked to stall speed and maybe some other things.
@@ -4979,11 +4979,10 @@ var dodge = func(myNodeName) {
 		stores.reduceFuel (myNodeName, dodgeDelay ); #deduct the amount of fuel from the tank, for this dodge
 		settimer ( func {
 			setprop(""~myNodeName~"/bombable/dodge-inprogress", 0);
-			#This resets the aircraft to 0 deg roll (via FG's
+			# This resets the aircraft to 0 deg roll (via FG's
 			# AI system target roll; leaves target altitude
 			# unchanged  )
-			#rudder_roll_climb (myNodeName, -dodgeAmount_deg, dodgeAltAmount_ft, rollTime_sec);
-						
+			# rudder_roll_climb (myNodeName, -dodgeAmount_deg, dodgeAltAmount_ft, rollTime_sec);						
 		}
 		, rollTime_sec+dodgeDelay_remainder_sec );
 					
@@ -8855,4 +8854,4 @@ var killEngines = func(myNodeName) {
 			}			
 		}
 	}
-########################## END ###########################
+########################## 	END ###########################
