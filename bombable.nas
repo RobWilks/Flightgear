@@ -62,7 +62,7 @@ var bombableVersion = "4.6";
 #
 #
 #AUTHORS
-#   Base code for M1 Abrams tank by Emmanuel BARANGER - David BASTIEN
+# 	Base code for M1 Abrams tank by Emmanuel BARANGER - David BASTIEN
 #   Modded heavily by Brent HUGH to add re-location and ground altitude
 #   functionality, crashes for ships and aircraft, evasive maneuvers when
 #   under attack, multiplayer functionality, other functionality,
@@ -8855,4 +8855,4 @@ var killEngines = func(myNodeName) {
 			}			
 		}
 	}
-########################## 	END ###########################
+########################## END ###########################
