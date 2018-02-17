@@ -340,10 +340,10 @@ var start_terrain_fire = func ( lat_deg, lon_deg, alt_m = 0, ballisticMass_lb = 
 		settimer (func { put_remove_model(lat_deg:lat_deg, lon_deg:lon_deg, elev_m:alt_m, time_sec:time_sec2, startSize_m: nil, endSize_m:nil, path:fp2 )} , time_sec);
 		
 		time_sec3 = 120; fp3 = "AI/Aircraft/Fire-Particles/fire-particles-very-very-small.xml";
-		settimer (func { put_remove_model(lat_deg:lat_deg, lon_deg:lon_deg, elev_m:alt_m, time_sec:time_sec3, startSize_m: nil, endSize_m:nil, path:fp3 )} , time_sec+time_sec2);
+		settimer (func { put_remove_model(lat_deg:lat_deg, lon_deg:lon_deg, elev_m:alt_m, time_sec:time_sec3, startSize_m: nil, endSize_m:nil, path:fp3 )} , time_sec + time_sec2);
 		
 		time_sec4 = 120; fp4 = "AI/Aircraft/Fire-Particles/fire-particles-very-very-very-small.xml";
-		settimer (func { put_remove_model(lat_deg:lat_deg, lon_deg:lon_deg, elev_m:alt_m, time_sec:time_sec4, startSize_m: nil, endSize_m:nil, path:fp4 )} , time_sec+time_sec2+time_sec3);
+		settimer (func { put_remove_model(lat_deg:lat_deg, lon_deg:lon_deg, elev_m:alt_m, time_sec:time_sec4, startSize_m: nil, endSize_m:nil, path:fp4 )} , time_sec + time_sec2+time_sec3);
 		
 	}
 
@@ -2578,8 +2578,8 @@ var fire_loop = func(id, myNodeName = "") {
 }
 
 ##########################################################
-#Puts myNodeName right at ground level, explodes, sets up
-#for full damage & on-ground trigger to make it stop real fast now
+# Puts myNodeName right at ground level, explodes, sets up
+# for full damage & on-ground trigger to make it stop real fast now
 #
 var hitground_stop_explode = func (myNodeName, alt) {
 	#var b = props.globals.getNode (""~myNodeName~"/bombable/attributes");
@@ -2587,27 +2587,28 @@ var hitground_stop_explode = func (myNodeName, alt) {
 			
 
 	startFire( myNodeName ); #if it wasn't on fire before it is now
-	#debprint ("Bombable: setprop 4256");
+	# debprint ("Bombable: setprop 4256");
 	setprop (""~myNodeName~"/position/altitude-ft",  alt  );
 	setprop (""~myNodeName~"/bombable/on-ground",  1 ); #this affects the slow-down system which is handled by add-damage, and will stop any forward movement very quickly
+	killEngines(myNodeName);					
 	add_damage(1, myNodeName, "nonweapon");  #and once we have buried ourselves in the ground we are surely dead; this also will stop any & all forward movement
 			
-	#check if this object has exploded already
+	# check if this object has exploded already
 	exploded = getprop (""~myNodeName~"/bombable/exploded" );
 			
-	#if not, explode for ~3 seconds
+	# if not, explode for ~3 seconds
 	if ( exploded == nil or !exploded ){
-		#and we cover our tracks by making a really big explosion momentarily
-		#if it hit the ground that hard it's justified, right?
+		# and we cover our tracks by making a really big explosion momentarily
+		# if it hit the ground that hard it's justified, right?
 		if (vuls.explosiveMass_kg < 0) vuls.explosiveMass_kg = 1;
-		lnexpl = math.ln (vuls.explosiveMass_kg/10);
+		lnexpl = math.ln (vuls.explosiveMass_kg / 10);
 		var smokeStartsize = rand() * lnexpl * 20 + 30;
 		setprop ("/bombable/fire-particles/smoke-startsize", smokeStartsize);
 		setprop ("/bombable/fire-particles/smoke-startsize-small", smokeStartsize * (rand()/2 + 0.5));
 		setprop ("/bombable/fire-particles/smoke-startsize-very-small", smokeStartsize * (rand()/8 + 0.2));
 		setprop ("/bombable/fire-particles/smoke-startsize-large", smokeStartsize * (rand() * 4 + 1));
 				
-		#explode for, say, 3 seconds but then we're done for this object
+		# explode for, say, 3 seconds but then we're done for this object
 		settimer (   func {setprop(""~myNodeName~"/bombable/exploded" , 1 ); }, 3 + rand() );
 	}
 
@@ -2662,7 +2663,7 @@ var setVerticalSpeed = func (myNodeName, targetVertSpeed_fps = 70, maxChange_fps
 			
 	iterations  -= 1;
 			
-	if (iterations > -0) {
+	if (iterations > 0) {
 		settimer (func {
 			setVerticalSpeed (myNodeName, targetVertSpeed_fps, maxChange_fps, iterations, time);
 		} , time);
@@ -6625,6 +6626,7 @@ var aircraftRollControl = func (myNodeName, id, rolldegrees = -90, rolltime = 5,
 	if (startRoll_deg == nil) startRoll_deg = 0;
 	delta_deg = (rolldegrees-startRoll_deg) * updateinterval_sec/rolltime;
 	currRoll_deg = getprop(""~myNodeName~ "/orientation/roll-deg-bombable");
+	#rjw why do we use roll-deg-bombable rather than roll-deg?
 	if (currRoll_deg == nil) currRoll_deg = 0;
 	targetRoll_deg = currRoll_deg + delta_deg;
 	#Fg turns too quickly to be believable if the roll gets about 78 degrees or so.
@@ -6704,13 +6706,15 @@ var aircraftCrashControl = func (myNodeName) {
 	#If we reset the damage levels, stop crashing:
 	if (getprop(""~myNodeName~"/bombable/attributes/damage") < 1 )return;
 				
-	var loopTime = .1;
+	var loopTime = .05;
+	# rjwchanged from 0.1 to 0.05
 	#props.globals.getNode(""~myNodeName~ "/position");
 	#ac_position = props.globals.getNode(myNodeName, 1).getParent().getPath();
 
 	elapsed = getprop(""~myNodeName~ "/position/crashTimeElapsed");
 	if (elapsed == nil) elapsed = 0;
-	delta_ft = 176 * loopTime * elapsed / (elapsed + 5);
+	delta_ft = 8.53 * loopTime * elapsed / (elapsed + 5);
+	# rjw changed from 5.87 to 8.53
 				
 	# we're using 176 ft/sec as the terminal velocity & running this loop 30X per second
 	# t/(t+5) is a crude approximation of tanh(t), which is the real equation
@@ -6739,7 +6743,7 @@ var aircraftCrashControl = func (myNodeName) {
 	var onGround = getprop (""~myNodeName~"/bombable/on-ground");
 	if (onGround == nil) onGround = 0;
 				
-	#the main aircraft.  This is experimental/non-working.
+	# the main aircraft.  This is experimental/non-working.
 	# rjw:if not working why is it not commented out? What is it supposed to do?
 	if (myNodeName == "") {
 					
@@ -6793,6 +6797,18 @@ var aircraftCrash = func (myNodeName) {
 				
 	#if (crashListener != 0 ) return;
 	debprint ("Bombable: Starting aircraft crash routine");
+
+	# rjw: turn-off timers for current maneuvers
+	if ( getprop ( ""~myNodeName~"/bombable/dodge-inprogress") == 1 )
+	setprop ( ""~myNodeName~"/bombable/dodge-inprogress", 0);
+	if ( getprop ( ""~myNodeName~"/bombable/attack-inprogress") == 1 )
+	setprop ( ""~myNodeName~"/bombable/attack-inprogress", 0);
+	inc_loopid(myNodeName, "roll");
+	inc_loopid(myNodeName, "speed-adjust");
+	inc_loopid(myNodeName, "attack");
+	# end of rjw mod
+
+	
 	elapsed = props.globals.getNode(""~myNodeName~ "/position/crashTimeElapsed", 1).getValue( );
 	if (elapsed == nil) elapsed = 0;
 	debprint ("Bombable: Starting crash routine, elapsed = ",elapsed);
@@ -7122,15 +7138,15 @@ var callsign = getCallSign (myNodeName);
 		var msg = "Damage added: " ~ damageRiseDisplay ~ "% - Total damage: " ~ round ( damageValue * 100 ) ~ "% for " ~  string.trim(callsign);
 		debprint ("Bombable: " ~ msg ~ " (" ~ myNodeName ~ ", " ~ origDamageRise ~")" );
 						
-		#Always display the message if a weapon hit or large damageRise. Otherwise
-		#only display about 1 in 20 of the messages.
-		#If we don't do this the small 0.4 damageRises from fires overwhelm the message area
-		#and we don't know what's going on.
+		# Always display the message if a weapon hit or large damageRise. Otherwise
+		# only display about 1 in 20 of the messages.
+		# If we don't do this the small 0.4 damageRises from fires overwhelm the message area
+		# and we don't know what's going on.
 		if (damagetype == "weapon" or damageRise > 4 or rand() < .05) targetStatusPopupTip (msg, 20);
 		}
 
 	if ( damageValue == 1 and damageValue > prevDamageValue and type == "aircraft") {
-		#rjw: aircraft will now crash
+		# rjw: aircraft will now crash
 		reduceRPM(myNodeName);
 		aircraftCrash (myNodeName);
 		}
@@ -7142,19 +7158,18 @@ var callsign = getCallSign (myNodeName);
 					
 	if (onGround) {
 						
-		#all to a complete stop
-		#debprint ("Bombable: setprop 3263");
+		# all to a complete stop
+		# this will be executed several times since extra damage occurs on ground 
+		# debprint ("Bombable: setprop 3263");
 		setprop(""~myNodeName~"/controls/tgt-speed-kts", 0);
 
 		setprop(""~myNodeName~"/controls/flight/target-spd", 0);
 						
 		setprop(""~myNodeName~"/velocities/true-airspeed-kt", 0);
 						
-		#we hit the ground, now we are 100% dead
+		# we hit the ground, now we are 100% dead
 		setprop(""~myNodeName~"/bombable/attributes/damage", 1);
 		
-		killEngines(myNodeName);
-						
 		if (liveriesCount > 0 and liveriesCount != nil ) {							
 			livery = livs.damageLivery [ int ( damageValue * ( liveriesCount - 1 ) ) ];
 			setprop(""~myNodeName~"/bombable/texture-corps-path",
@@ -7743,7 +7758,7 @@ var update_m_per_deg_latlon_loop = func (id) {
 	var loopid = getprop("/bombable/loopids/update_m_per_deg_latlon-loopid");
 	id == loopid or return;
 	#debprint ("update_m_per_deg_latlon_loop starting");
-	settimer ( func { update_m_per_deg_latlon_loop(id)}, 63.2345);
+	settimer (func {update_m_per_deg_latlon_loop(id)}, 63.2345);
 
 	update_m_per_deg_latlon();
 						
@@ -7979,7 +7994,7 @@ var ground_init_func = func( myNodeName ) {
 	#damageAltAdd is the (maximum) amount the object will descend
 	#when it is damaged.
 						
-	settimer(func { ground_loop(loopid, myNodeName); }, 4.1 + rand());
+	settimer(func {ground_loop(loopid, myNodeName); }, 4.1 + rand());
 						
 	debprint ("Bombable: Effect * maintain altitude above ground level * loaded for "~ myNodeName);
 	# altitude adjustment = ", alts.wheelsOnGroundAGL_ft, " max drop/fall when damaged = ",
@@ -8111,14 +8126,14 @@ var attack_init_func = func(myNodeName) {
 	if (rand() > .5) pilotAbility = -pilotAbility;
 	setprop(""~myNodeName~"/bombable/attack-pilot-ability", pilotAbility);
 						
-	settimer(func { attack_loop(loopid, myNodeName, attackCheckTime); }, attackCheckTime + rand());
+	settimer(func {attack_loop(loopid, myNodeName, attackCheckTime); }, attackCheckTime + rand());
 						
 	#start the speed adjust loop.  Adjust speed up/down depending on climbing/
 	# diving, or level flight; only for AI aircraft.
-	if (type == "aircraft") {
-							
+	
+	if (type == "aircraft") {							
 		var saloopid = inc_loopid (myNodeName, "speed-adjust");
-		settimer (func { speed_adjust_loop ( saloopid, myNodeName, .3 + rand()/30); }, 12+rand());
+		settimer (func {speed_adjust_loop ( saloopid, myNodeName, .3 + rand()/30); }, 12+rand());
 	}
 
 	debprint ("Bombable: Effect * attack * loaded for "~ myNodeName~ " loopid = "~ loopid, " attackCheckTime = ", attackCheckTime);
@@ -8141,9 +8156,9 @@ var weaponsOrientationPositionUpdate_loop = func (id, myNodeName) {
 	var loopid = getprop(""~myNodeName~"/bombable/loopids/weaponsOrientation-loopid");
 	id == loopid or return;
 						
-	settimer (func { weaponsOrientationPositionUpdate_loop (id, myNodeName)}, .16 + rand()/50);
+	settimer (func {weaponsOrientationPositionUpdate_loop (id, myNodeName)}, .16 + rand()/50);
 						
-	#no need to do this if any of these are turned off
+	# no need to do this if any of these are turned off
 	# though we may update weapons_loop to rely on these numbers as well
 	if (! getprop("/bombable/fire-particles/ai-weapon-firing")
 	or ! getprop ( trigger1_pp~"ai-weapon-fire-visual"~trigger2_pp)
@@ -8423,11 +8438,11 @@ var bombable_del = func(myNodeName, id = "") {
 ########################## ground_del ###########################
 # del/destructor function for ground_init
 # Put this nasal code in your object's unload:
-#      bombable.bombable_del (cmdarg().getPath());
+# bombable.bombable_del (cmdarg().getPath());
 var ground_del = func(myNodeName) {
 						
-	#we increment this each time we are inited or de-inited
-	#when the loopid is changed it kills the timer loops that have that id
+	# we increment this each time we are inited or de-inited
+	# when the loopid is changed it kills the timer loops that have that id
 	var loopid = inc_loopid(myNodeName, "ground");
 
 	#set this to 0/false when de-inited
@@ -8616,11 +8631,9 @@ settimer (func {mpprocesssendqueue()}, 5.2534241); #wait ~5 seconds before initi
 
 #Add damage when aircraft is accelerated beyond reasonable bounds
 var damageCheckTime = 1 + rand()/10;
-settimer (func { damageCheck () }, 60.11); #wait 30 sec before first damage check because sometimes there is a very high transient g-force on initial startup
+settimer (func {damageCheck () }, 60.11); #wait 30 sec before first damage check because sometimes there is a very high transient g-force on initial startup
 					
 var bombableInit = func {
-
-
 	debprint("Bombable: Initializing variables.");
 	screenHProp = props.globals.getNode("/sim/startup/ysize");
 	tipArgTarget = props.Node.new({ "dialog-name" : "PopTipTarget" });
