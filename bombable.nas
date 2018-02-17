@@ -4780,7 +4780,7 @@ skill, currAlt_m, targetAlt_m, elevTarget_m){
 }
 
 
-#########################################################
+############################# rudder_roll_climb ############################
 #rudder_roll_climb - sets the rudder position/roll degrees
 #roll degrees controls aircraft & rudder position
 #and for aircraft, sets an amount of climb
@@ -4850,8 +4850,8 @@ var rudder_roll_climb = func (myNodeName, degrees=15, alt_ft=-20, time=10, roll_
 	#debprint (myNodeName, " dodging ", degrees, " degrees ", alt_ft, " feet");
 }
 
-################################################################
-#function makes an object dodge
+############################### dodge #################################
+# function makes an object dodge
 #
 var dodge = func(myNodeName) {
 				
@@ -4864,33 +4864,34 @@ var dodge = func(myNodeName) {
 	or getprop("" ~ myNodeName~"/bombable/attributes/damage") == 1
 	or ! getprop(bomb_menu_pp~"bombable-enabled") )
 	return;
+	# rjw: unsure where to find attack-enabled on bombable menu. However it is set for B-17 scenario
 				
-	node= props.globals.getNode(myNodeName);
-	var type=node.getName();
+	node = props.globals.getNode(myNodeName);
+	var type = node.getName();
 	debprint ("Bombable: Starting Dodge", myNodeName, " type= ", type);
 				
-	#Don't change rudder/roll again until the delay
+	# Don't change rudder/roll again until the delay
 	setprop ( ""~myNodeName~"/bombable/dodge-inprogress" , 1);
 				
-	evas= attributes[myNodeName].evasions;
+	evas = attributes[myNodeName].evasions;
 				
-	#skill ranges 0-5; 0=disabled, so 1-5;
+	# skill ranges 0-5; 0=disabled, so 1-5;
 	var skill = calcPilotSkill (myNodeName);
 	if (skill<=.2) skillMult=3/0.2;
 	else skillMult= 3/skill;
 
 				
-	#amount to dodge, up to dodgeMax_deg in either direction
+	# amount to dodge left-right, up to dodgeMax_deg in either direction
 	# (1-rand()*rand()) favors rolls towards the high end of the allowed range
-	dodgeAmount_deg = (evas.dodgeMax_deg-evas.dodgeMin_deg)*(1-rand()*rand())+evas.dodgeMin_deg;
-	#cut the amount of dodging down some for less skilled pilots
+	dodgeAmount_deg = (evas.dodgeMax_deg - evas.dodgeMin_deg) * (1 - rand() * rand()) + evas.dodgeMin_deg;
+	# cut the amount of dodging down some for less skilled pilots
 	dodgeAmount_deg *= (skill+6)/12;
 				
 	# If we're rolling hard one way then 'dodge' means roll the opposite way.
 	# Otherwise we set the roll direction randomly according to the preferences
 	# file
-	currRoll_deg=getprop(""~myNodeName~"/orientation/roll-deg");
-	if (math.abs(currRoll_deg) > 30) dodgeAmount_deg = - math.sgn(currRoll_deg)* dodgeAmount_deg;
+	currRoll_deg = getprop(""~myNodeName~"/orientation/roll-deg");
+	if (math.abs(currRoll_deg) > 30) dodgeAmount_deg = -math.sgn(currRoll_deg) * dodgeAmount_deg;
 	else if (rand() > evas.dodgeROverLPreference_percent/100) dodgeAmount_deg = -dodgeAmount_deg;
 
 	# we want to mostly dodge to upper/lower extremes of our altitude limits
@@ -4903,24 +4904,25 @@ var dodge = func(myNodeName) {
 	var dodgeAltDirection = (evas.dodgeAltMax_ft - evas.dodgeAltMin_ft) * rand() + evas.dodgeAltMin_ft;
 				
 	#target amount to climb or drop
-	if (dodgeAltDirection>=0)
-	dodgeAltAmount_ft=dodgeAltFact*evas.dodgeAltMax_ft;
+	if (dodgeAltDirection >= 0)
+	dodgeAltAmount_ft = dodgeAltFact * evas.dodgeAltMax_ft;
 	else
-	dodgeAltAmount_ft=dodgeAltFact*evas.dodgeAltMin_ft;
+	dodgeAltAmount_ft = dodgeAltFact * evas.dodgeAltMin_ft;
 				
 	debprint ("Bombable: Dodge alt:", dodgeAltAmount_ft, " degrees:", dodgeAmount_deg);
-	var dodgeDelay=(evas.dodgeDelayMax_sec-evas.dodgeDelayMin_sec)*rand()+evas.dodgeDelayMin_sec;
+	
+	var dodgeDelay = (evas.dodgeDelayMax_sec - evas.dodgeDelayMin_sec) * rand() + evas.dodgeDelayMin_sec;
 				
 				
 	if (type=="aircraft") {
-		if (evas.rollRateMax_degpersec==nil or evas.rollRateMax_degpersec<=0)
-		evas.rollRateMax_degpersec=40;
-		var rollTime_sec = math.abs(dodgeAmount_deg/evas.rollRateMax_degpersec);
+		if (evas.rollRateMax_degpersec == nil or evas.rollRateMax_degpersec <= 0)
+		evas.rollRateMax_degpersec = 40;
+		var rollTime_sec = math.abs(dodgeAmount_deg / evas.rollRateMax_degpersec);
 		dodgeDelay_remainder_sec = dodgeDelay - rollTime_sec;
 		if (dodgeDelay_remainder_sec < 0) dodgeDelay_remainder_sec = .1;
 
-		var currSpeed_kt=getprop (""~myNodeName~"/velocities/true-airspeed-kt");
-		if (currSpeed_kt==nil) currSpeed_kt=0;
+		var currSpeed_kt = getprop (""~myNodeName~"/velocities/true-airspeed-kt");
+		if (currSpeed_kt == nil) currSpeed_kt=0;
 					
 		# more skilled pilots to acrobatics more often
 		# in the Zero 130 kt is about the minimum speed needed to
@@ -4932,25 +4934,28 @@ var dodge = func(myNodeName) {
 		# bomber type a/c don't usually do acrobatics & loops.
 		# TODO: This really all needs to be specified per a/c on the bombableinclude
 		# file.
-		vels= attributes[myNodeName].velocities;
-		dims= attributes[myNodeName].dimensions;
-		if (currSpeed_kt>2*vels.minSpeed_kt and
-		currSpeed_kt>.75*vels.cruiseSpeed_kt
+		vels = attributes[myNodeName].velocities;
+		dims = attributes[myNodeName].dimensions;
+		
+		# rjw: check whether to start acrobatics
+		if (currSpeed_kt > 2 * vels.minSpeed_kt and
+		currSpeed_kt > .75 * vels.cruiseSpeed_kt
 		and rand()< skill/7 and skill>=3
-		and dims.length_m < 22 and dims.width_m < 18 ) {
+		and dims.length_m < 22 and dims.width_m < 18 ) 
+			{
 			choose_random_acrobatic(myNodeName);
 			return;
-		}
+			}
 					
 		#set rudder or roll degrees to that amount
 		rudder_roll_climb (myNodeName, dodgeAmount_deg, dodgeAltAmount_ft, rollTime_sec);
 
 		dodgeVertSpeed_fps = 0;
-		currRoll_deg=getprop (""~myNodeName~"/orientation/roll-deg");
+		currRoll_deg = getprop (""~myNodeName~"/orientation/roll-deg");
 					
 					
-		if ( dodgeAltAmount_ft > 0 )  dodgeVertSpeed_fps = math.abs ( evas.dodgeVertSpeedClimb_fps * dodgeAltAmount_ft/evas.dodgeAltMax_ft);
-		if ( dodgeAltAmount_ft < 0 )  dodgeVertSpeed_fps = - math.abs ( evas.dodgeVertSpeedDive_fps * dodgeAltAmount_ft/evas.dodgeAltMin_ft );
+		if ( dodgeAltAmount_ft > 0 )  dodgeVertSpeed_fps = math.abs ( evas.dodgeVertSpeedClimb_fps * dodgeAltAmount_ft / evas.dodgeAltMax_ft);
+		if ( dodgeAltAmount_ft < 0 )  dodgeVertSpeed_fps = - math.abs ( evas.dodgeVertSpeedDive_fps * dodgeAltAmount_ft / evas.dodgeAltMin_ft );
 					
 		#velocities/vertical-speed-fps seems to be fps * 1000 for some reason?  At least, approximately, 300,000 seems to be about 300 fps climb, for instance.
 		# and we reduce the amount of climb/dive possible depending on the current roll angle (can't climb/dive rapidly if rolled to 90 degrees . . . )
@@ -4968,7 +4973,8 @@ var dodge = func(myNodeName) {
 		#will return it to near-level flight
 
 		settimer ( func { aircraftRoll (myNodeName, dodgeAmount_deg, dodgeDelay_remainder_sec, evas.dodgeMax_deg); }, rollTime_sec);
-					
+		# rjw: expect that this timer causes aircraft to jitter when enter crash routine.  Crash routine establishes a hard bank.  While
+		# Aircraft roll establishes close to zero -> the plane jitter_rolls
 					
 					
 		# Roll/climb for dodgeDelay seconds, then wait dodgeDelay seconds (to allow
@@ -4984,25 +4990,26 @@ var dodge = func(myNodeName) {
 			# unchanged  )
 			# rudder_roll_climb (myNodeName, -dodgeAmount_deg, dodgeAltAmount_ft, rollTime_sec);						
 		}
-		, rollTime_sec+dodgeDelay_remainder_sec );
-					
-		} else {  #other types besides aircraft
-					
-		#set rudder or roll degrees to that amount
+		, rollTime_sec + dodgeDelay_remainder_sec );
+		
+		} 
+		else 
+		{  
+		# for other types besides aircraft			
+		# set rudder or roll degrees to that amount
 		rudder_roll_climb (myNodeName, dodgeAmount_deg, dodgeAltAmount_ft, dodgeDelay);
 					
 					
-		# Roll/climb for dodgeDelay seconds, then wait dodgeDelay seconds (to allow the change in direction
+		# Roll/climb for dodgeDelay seconds, then wait dodgeDelay seconds to allow the change in direction
 					
 		stores.reduceFuel (myNodeName, 2*dodgeDelay ); #deduct the amount of fuel from the tank, for this dodge
 		settimer ( func {setprop(""~myNodeName~"/bombable/dodge-inprogress", 0);
-		rudder_roll_climb (myNodeName, 0, 0, dodgeDelay );}, 2*dodgeDelay );
-					
+		rudder_roll_climb (myNodeName, 0, 0, dodgeDelay );}, 2*dodgeDelay );					
 	}
 				
 }
 
-###############################################
+##################### getCallSign ##########################
 # FUNCTION getCallSign
 # returns call sign for AI, MP, or Main AC
 # If no callsign, uses one of several defaults
@@ -5977,7 +5984,7 @@ var courseToMainAircraft = func (myNodeName){
 }
 
 ######################### attack_loop ###########################
-#attack_loop
+# attack_loop
 # Main loop for calculating attacks, changing direction, altitude, etc.
 #
 
@@ -5998,7 +6005,7 @@ var attack_loop = func (id, myNodeName, looptime) {
 	else skillMult= 3/skill;
 				
 	#Higher skill makes the AI pilot react faster/more often:
-	var looptimeActual=skillMult*looptime;
+	var looptimeActual = skillMult * looptime;
 	settimer ( func { attack_loop (id, myNodeName, looptime) }, looptimeActual);
 				
 	#we're going to say that dodging takes priority over attacking
@@ -6016,14 +6023,14 @@ var attack_loop = func (id, myNodeName, looptime) {
 				
 				
 	var dist =  distAItoMainAircraft (myNodeName);
-	var courseToTarget_deg=courseToMainAircraft(myNodeName);
+	var courseToTarget_deg = courseToMainAircraft(myNodeName);
 	#debprint ("Bombable: Checking attack parameters: ", dist[0], " ", atts.maxDistance_m, " ",atts.minDistance_m, " ",dist[1], " ",-atts.altitudeLowerCutoff_m, " ",dist[1] < atts.altitudeHigherCutoff_m );
 				
 				
-	var myHeading_deg=getprop (""~myNodeName~"/orientation/true-heading-deg");
-	var deltaHeading_deg=myHeading_deg - courseToTarget_deg;
+	var myHeading_deg = getprop (""~myNodeName~"/orientation/true-heading-deg");
+	var deltaHeading_deg = myHeading_deg - courseToTarget_deg;
 	deltaHeading_deg = math.mod (deltaHeading_deg + 180, 360) - 180;
-	var targetHeading_deg= getprop("/orientation/heading-deg");
+	var targetHeading_deg = getprop("/orientation/heading-deg");
 				
 	#whether or not to continue the attack when within minDistance
 	#If we are headed basically straight towards the Target aircraft
@@ -6044,7 +6051,7 @@ var attack_loop = func (id, myNodeName, looptime) {
 					
 	}
 				
-	#readiness=0 means it has little fuel/weapons left.  It will cease
+	# readiness=0 means it has little fuel/weapons left.  It will cease
 	# attacking UNLESS the main AC comes very close by & attacks it.
 	# However there is no point in attacking if no ammo at all, in that
 	# case only dodging/evading will happen.
@@ -6589,6 +6596,7 @@ var aircraftTurnToHeading = func (myNodeName, targetdegrees=0, rolldegrees=45, t
 
 
 ################### aircraftRollControl ###################
+# rjw: function called by timer to progress the roll of the aircraft
 # internal - for making AI aircraft roll/turn
 # rolldegrees means the absolute roll degrees to move to, from whatever
 # rolldegrees the AC currently is at.
@@ -6604,28 +6612,29 @@ var aircraftRollControl = func (myNodeName, id, rolldegrees=-90, rolltime=5, rol
 	#than realistically. 90 degrees is basically instant turn, so we're going
 	# to disallow that, but allow anything up to that.
 				
-	if (math.abs(rolldegrees)>= 90 ) rolldegrees=88*math.sgn(rolldegrees);
+	if (math.abs(rolldegrees)>= 90 ) rolldegrees = 88 * math.sgn(rolldegrees);
 				
-	var updateinterval_sec=.1;
-	if (rolltime<updateinterval_sec) rolltime=updateinterval_sec;
+	var updateinterval_sec = .1;
+	if (rolltime < updateinterval_sec) rolltime = updateinterval_sec;
 	#props.globals.getNode(""~myNodeName~ "/position");
 	#ac_position=props.globals.getNode(myNodeName, 1).getParent().getPath();
-	var rollTimeElapsed=getprop(""~myNodeName~ "/orientation/rollTimeElapsed");
-	if (rollTimeElapsed==nil) rollTimeElapsed=0;
-	var startRoll_deg=getprop(""~myNodeName~ "/orientation/start-roll-deg");
-	if (startRoll_deg==nil) startRoll_deg=0;
+
+	var rollTimeElapsed = getprop(""~myNodeName~ "/orientation/rollTimeElapsed");
+	if (rollTimeElapsed == nil) rollTimeElapsed = 0;
+	var startRoll_deg = getprop(""~myNodeName~ "/orientation/start-roll-deg");
+	if (startRoll_deg == nil) startRoll_deg = 0;
 	delta_deg=(rolldegrees-startRoll_deg)*updateinterval_sec/rolltime;
 	currRoll_deg=getprop(""~myNodeName~ "/orientation/roll-deg-bombable");
-	if (currRoll_deg==nil) currRoll_deg=0;
-	targetRoll_deg= currRoll_deg+delta_deg;
-	#Fg turns too quickly to be believable if the roll gets about 78 degrees
-	# or so.
+	if (currRoll_deg == nil) currRoll_deg = 0;
+	targetRoll_deg = currRoll_deg + delta_deg;
+	#Fg turns too quickly to be believable if the roll gets about 78 degrees or so.
 	#Fg seems to go totally whacky if the roll gets to, or close to, 90 degrees
+
 	if (targetRoll_deg >  roll_limit_deg ) targetRoll_deg = roll_limit_deg;
 	if (targetRoll_deg < -roll_limit_deg) targetRoll_deg =-roll_limit_deg;
 				
 				
-	if (math.abs(targetRoll_deg)>roll_limit_deg) targetRoll_deg=roll_limit_deg*math.sgn(targetRoll_deg);
+	if (math.abs(targetRoll_deg) > roll_limit_deg) targetRoll_deg=roll_limit_deg*math.sgn(targetRoll_deg);
 	#rollMax_deg=getprop(""~myNodeName~"/bombable/attributes/attacks/rollMax_deg");
 	rollMax_deg = attributes[myNodeName].attacks.rollMax_deg;
 	if (rollMax_deg==nil) rollMax_deg = 50;
@@ -6638,25 +6647,26 @@ var aircraftRollControl = func (myNodeName, id, rolldegrees=-90, rolltime=5, rol
 	setprop (""~myNodeName~ "/orientation/roll-deg", targetRoll_deg);
 				
 				
-	#we keep the 'uncorrected' amount internally because normal behavior
+	# we keep the 'uncorrected' amount internally because normal behavior
 	# is to go to a certain degree & then return.  If we capped at 85 deg
 	# then we would end up returning too far
-	setprop (""~myNodeName~ "/orientation/roll-deg-bombable", currRoll_deg+delta_deg);
+	setprop (""~myNodeName~ "/orientation/roll-deg-bombable", currRoll_deg + delta_deg);
 				
 	#debprint("Bombable: RollControl: delta=",delta_deg, " ",targetRoll_deg," ", myNodeName);
 	# Make it roll:
-	setprop(""~myNodeName~ "/orientation/rollTimeElapsed", rollTimeElapsed+updateinterval_sec);
+	setprop(""~myNodeName~ "/orientation/rollTimeElapsed", rollTimeElapsed + updateinterval_sec);
 				
 	if ( rollTimeElapsed < rolltime ) settimer (func { aircraftRollControl(myNodeName, loopid, rolldegrees, rolltime, roll_limit_deg)}, updateinterval_sec, roll_limit_deg );
-	else {
+	else 
+	{
 		setprop(""~myNodeName~ "/orientation/rollTimeElapsed", 0);
 		#debprint ("Bombable: Ending aircraft roll routine");
 	}
 }
 
 ################################## aircraftRoll ################################
-# Will roll the AC from whatever roll deg it is at, to rolldegrees in
-# rolltime
+# Will roll the AC from whatever roll deg it is at, to rolldegrees in rolltime
+# Initialises aircraftRollControl
 var aircraftRoll = func (myNodeName, rolldegrees=-60, rolltime=5, roll_limit_deg=85) {
 				
 	#if (crashListener != 0 ) return;
@@ -6665,7 +6675,7 @@ var aircraftRoll = func (myNodeName, rolldegrees=-60, rolltime=5, roll_limit_deg
 				
 	var loopid = getprop(""~myNodeName~"/bombable/loopids/roll-loopid");
 	if (loopid==nil) loopid=0;
-	loopid +=1;
+	loopid += 1;
 	setprop(""~myNodeName~"/bombable/loopids/roll-loopid", loopid);
 
 	debprint ("Bombable: Starting roll routine, loopid=",loopid, " ", rolldegrees, " ", rolltime);
@@ -7033,7 +7043,7 @@ gui.showHelpDialog ("/bombable/dialogs/records");
 }
 			
 
-################################################################
+################################ add_damage ################################
 # function adds damage to an AI aircraft
 # (called by the fire loop and ballistic impact
 # listener function, typically)
@@ -7145,17 +7155,15 @@ var callsign = getCallSign (myNodeName);
 		
 		killEngines(myNodeName);
 						
-		if (liveriesCount > 0 and liveriesCount != nil ) {
-							
+		if (liveriesCount > 0 and liveriesCount != nil ) {							
 			livery = livs.damageLivery [ int ( damageValue * ( liveriesCount - 1 ) ) ];
 			setprop(""~myNodeName~"/bombable/texture-corps-path",
 			livery );
-		}
-						
-						
+			}
+			
 		return  damageIncrease;
 		# rjw: what is the function of a return in an if block? Presumably it forces early exit from add-damage
-	}
+		}
 					
 					
 	# debprint (damageRise, " ", myNodeName);
@@ -7215,9 +7223,9 @@ var callsign = getCallSign (myNodeName);
 			if (flight_tgt_spd > minSpeed)
 			setprop(""~myNodeName~"/controls/flight/target-spd",
 			flight_tgt_spd * speedReduce);
-			else setprop(""~myNodeName~"/controls/flight/target-spd",
-			minSpeed);
-		}
+			else 
+			setprop(""~myNodeName~"/controls/flight/target-spd", minSpeed);
+			}
 						
 		#ships etc we control all these ways, making sure the speed decreases but
 		#not below the minimum allowed
@@ -7234,7 +7242,7 @@ var callsign = getCallSign (myNodeName);
 		if (true_spd > minSpeed)
 		setprop(""~myNodeName~"/velocities/true-airspeed-kt",
 		true_spd * speedReduce);
-	}
+		}
 					
 
 	var fireStarted = getprop(""~myNodeName~"/bombable/fire-particles/fire-burning");
@@ -7247,8 +7255,6 @@ var callsign = getCallSign (myNodeName);
 	#if (!fireStarted or damageRise > vuls.fireDamageRate_percentpersecond * 2.5 ) debprint ("Damage added: ", damageRise, ", Total damage: ", damageValue);
 	#Start damaged engine smoke but only sometimes; greater chance when hitting an aircraft
 
-						
-					
 	if (!damageEngineSmokeStarted and !fireStarted and rand() < damageRise * vuls.engineDamageVulnerability_percent / 2 ) {
 	startSmoke("damagedengine",myNodeName);
 	#rjw: can reduce engine rpm at startSmoke or at this point
