@@ -2685,16 +2685,19 @@ var setVerticalSpeed = func (myNodeName, targetVertSpeed_fps = 70, maxChange_fps
 # as it becomes disabled
 # TODO: This is one of the biggest framerate sucks in Bombable.  It can probably
 # be optimized in many ways.
+
+# rjw: the ground_loop affects the descent of aircraft. It initialises slowly, e.g. possible for aircraft to enter a crash sequence before ground_loop is first called
+# the ground_loop attempts to control descent of aircraft for high damage values, so does aircraftCrashControl
 var ground_loop = func( id, myNodeName ) {
 	var loopid = getprop(""~myNodeName~"/bombable/loopids/ground-loopid");
 	id == loopid or return;
 
-	#var b = props.globals.getNode (""~myNodeName~"/bombable/attributes");
+	# var b = props.globals.getNode (""~myNodeName~"/bombable/attributes");
 	var updateTime_s = attributes[myNodeName].updateTime_s;
 			
-	#reset the timer loop first so we don't lose it entirely in case of a runtime
+	# reset the timer loop first so we don't lose it entirely in case of a runtime
 	# error or such
-	#    add rand() so that all objects don't do this function simultaneously
+	# add rand() so that all objects don't do this function simultaneously
 	settimer(func { ground_loop(id, myNodeName)}, (0.5 + rand()) * updateTime_s );
 
 	#Allow this function to be disabled via menu/it can kill framerate at times
@@ -2845,11 +2848,11 @@ var ground_loop = func( id, myNodeName ) {
 	#The first time this is called just initializes all the altitudes and exit
 	if ( alts.initialized != 1 ) {
 		var initial_altitude_ft = getprop (""~myNodeName~"/position/altitude-ft");
-		if (initial_altitude_ft < alt_ft + alts.wheelsOnGroundAGL_ft +  alts.minimumAGL_ft) {
-			initial_altitude_ft = alt_ft + alts.wheelsOnGroundAGL_ft +  alts.minimumAGL_ft;
+		if (initial_altitude_ft < alt_ft + alts.wheelsOnGroundAGL_ft + alts.minimumAGL_ft) {
+			initial_altitude_ft = alt_ft + alts.wheelsOnGroundAGL_ft + alts.minimumAGL_ft;
 		}
-		if (initial_altitude_ft > alt_ft + alts.wheelsOnGroundAGL_ft +  alts.maximumAGL_ft) {
-			initial_altitude_ft = alt_ft + alts.wheelsOnGroundAGL_ft +  alts.maximumAGL_ft;
+		if (initial_altitude_ft > alt_ft + alts.wheelsOnGroundAGL_ft + alts.maximumAGL_ft) {
+			initial_altitude_ft = alt_ft + alts.wheelsOnGroundAGL_ft + alts.maximumAGL_ft;
 		}
 				
 		target_alt_AGL_ft = initial_altitude_ft - alt_ft - alts.wheelsOnGroundAGL_ft;
@@ -2857,11 +2860,11 @@ var ground_loop = func( id, myNodeName ) {
 		debprint ("Bombable: Initial Altitude: "~ initial_altitude_ft~ " target AGL: "~target_alt_AGL_ft~ " object = "~ myNodeName);
 		debprint ("Bombable: ", alt_ft, " ", toRightAlt_ft, " ",toLeftAlt_ft, " ",toFrontAlt_ft," ", toLeftAlt_ft, " ", alts.wheelsOnGroundAGL_ft);
 				
-		#debprint ("Bombable: setprop 1430");
+		# debprint ("Bombable: setprop 1430");
 		setprop (""~myNodeName~"/position/altitude-ft", initial_altitude_ft );
 		setprop (""~myNodeName~"/controls/flight/target-alt",  initial_altitude_ft);
-		#debprint ("1349 ", getprop (""~myNodeName~"/controls/flight/target-alt")) ;
-		#set target AGL here. This way the aircraft file can simply set altitude
+		# debprint ("1349 ", getprop (""~myNodeName~"/controls/flight/target-alt")) ;
+		# set target AGL here. This way the aircraft file can simply set altitude
 		# limits for the craft while the scenario files sets the specific altitude
 		# target for a specific plane in a specific scenario
 		#var b = props.globals.getNode (""~myNodeName~"/bombable/attributes");
@@ -7941,6 +7944,9 @@ var bombable_init_func = func(myNodeName) {
 						
 }
 
+
+######################### ground_init ############################
+
 var ground_init = func (myNodeName = "") {
 
 	debprint ("Bombable: Delaying ground_init . . . ", myNodeName);
@@ -7948,11 +7954,11 @@ var ground_init = func (myNodeName = "") {
 
 }
 
-#####################################################
+######################### ground_init_func ############################
 # Call to make your object stay on the ground, or at a constant
 # distance above ground level--like a jeep or tank that drives along
 # the ground, or an aircraft that moves along at, say, 500 ft AGL.
-# The altitide will be continually readjusted
+# The altitude will be continually readjusted
 # as the object (set up as, say, and AI ship or aircraft moves.
 # In addition, for "ships" the pitch will change to (roughly) match
 # when going up or downhill.
