@@ -1,10 +1,10 @@
 #####################################################
-## Bombable
-## Brent Hugh, brent@brenthugh.com
+# Bombable
+# Brent Hugh, brent@brenthugh.com
 var bombableVersion = "4.6";
-##
-## Copyright (C) 2009 - 2011  Brent Hugh  (brent@brenthugh.com)
-## This file is licensed under the GPL license version 2 or later.
+#
+# Copyright (C) 2009 - 2011  Brent Hugh  (brent@brenthugh.com)
+# This file is licensed under the GPL license version 2 or later.
 #
 # The Bombable module implements several different but interrelated functions
 # that can be used by, for example, AI objects and scenery objects.  The
@@ -3577,11 +3577,11 @@ var cartesianDistance = func  (elem...){
 	return math.sqrt(dist);
 }
 
-################################################
+####################### test_impact #########################
 #FUNCTION test_impact
 #
-#listener function on ballistic impacts
-#checks if the impact has hit our object and if so, adds the damage
+# listener function on ballistic impacts
+# checks if the impact has hit our object and if so, adds the damage
 # damageMult can be set high (for easy to damage things) or low (for
 # hard to damage things).  Default/normal value (M1 tank) should be 1.
 
@@ -3602,8 +3602,8 @@ var cartesianDistance = func  (elem...){
 #  MAX_OBJECTS };
 # http://gitorious.org/fg/flightgear/blobs/next/src/AIModel/AIBase.hxx
 
-#So Aircraft is assumed to be 50 feet high, 100 ft long; multiplayer the same, etc.
-#That is where any ballistic objects are detected and stopped by FG.
+# So Aircraft is assumed to be 50 feet high, 100 ft long; multiplayer the same, etc.
+# That is where any ballistic objects are detected and stopped by FG.
 #
 # A main point of the function below is to improve on this impact detection
 # by projecting the point of closest approach of the impactor, then assigning
@@ -3681,7 +3681,7 @@ var test_impact = func(changedNode, myNodeName) {
 		return;
 	}
 
-	#Since FG kindly intercepts collisions along a fairly large target cylinder surrounding the
+	# Since FG kindly intercepts collisions along a fairly large target cylinder surrounding the
 	# object, we simply project the last known heading of the ballistic object along
 	# its path to determine how close to the center of the object it would have struck,
 	# if it continued along its present heading in a straight line.
@@ -3702,19 +3702,19 @@ var test_impact = func(changedNode, myNodeName) {
 	# We could speed this up by leaving out the cos term in deg_lat and/or calculating these
 	# occasionally as the main A/C flies around and storing them (they dont change that)
 	# much from one mile to the next)
-	#var iLat_rad = iLat_deg/rad2degrees;
-	#m_per_deg_lat = 111699.7 - 1132.978 * math.cos (iLat_rad);
-	#m_per_deg_lon = 111321.5 * math.cos (iLat_rad);
+	# var iLat_rad = iLat_deg/rad2degrees;
+	# m_per_deg_lat = 111699.7 - 1132.978 * math.cos (iLat_rad);
+	# m_per_deg_lon = 111321.5 * math.cos (iLat_rad);
 			
-	#m_per_deg_lat = getprop ("/bombable/sharedconstants/m_per_deg_lat");
-	#m_per_deg_lon = getprop ("/bombable/sharedconstants/m_per_deg_lon");
+	# m_per_deg_lat = getprop ("/bombable/sharedconstants/m_per_deg_lat");
+	# m_per_deg_lon = getprop ("/bombable/sharedconstants/m_per_deg_lon");
 			
-	#the following plus deltaAlt_m make a < vector > where impactor is at < 0,0,0 > 
+	# the following plus deltaAlt_m make a < vector > where impactor is at < 0,0,0 > 
 	# and target object is at < deltaX,deltaY,deltaAlt > in relation to it.
 	var deltaY_m = deltaLat_deg * m_per_deg_lat;
 	var deltaX_m = deltaLon_deg * m_per_deg_lon;
 			
-	#calculate point & distance of closest approach.
+	# calculate point & distance of closest approach.
 	# if the main aircraft (myNodeName == "") then we just
 	# use FG's impact detection point.  If an AI or MP
 	# aircraft, we project it into actual point of closest approach.
@@ -3724,14 +3724,14 @@ var test_impact = func(changedNode, myNodeName) {
 				
 		} else {
 				
-		#debprint ("MPDL:", m_per_deg_lat, " MPDLon: ", m_per_deg_lon, " dL:", deltaLat_deg, " dLon:", deltaLon_deg);
+		# debprint ("MPDL:", m_per_deg_lat, " MPDLon: ", m_per_deg_lon, " dL:", deltaLat_deg, " dLon:", deltaLon_deg);
 				
 		impactorHeading_deg = getprop (""~impactNodeName~"/impact/heading-deg");
-		#if perchance this doesn't exist we'll just randomize it; it must be -90 to 90 or it wouldn't have hit.
+		# if perchance this doesn't exist we'll just randomize it; it must be -90 to 90 or it wouldn't have hit.
 		if (impactorHeading_deg == nil ) impactorHeading_deg = rand() * 180 - 90;
 				
 		impactorPitch_deg = getprop (""~impactNodeName~"/impact/pitch-deg");
-		#if perchance this doesn't exist we'll just randomize it; it must be -90 to 90 or it wouldn't have hit.
+		# if perchance this doesn't exist we'll just randomize it; it must be -90 to 90 or it wouldn't have hit.
 		if (impactorPitch_deg == nil ) impactorPitch_deg = rand() * 180 - 90;
 				
 				
@@ -3745,13 +3745,13 @@ var test_impact = func(changedNode, myNodeName) {
 		var impactorDirectionY = math.cos(impactorHeading_rad) * impactordirectionZcos; #heading
 		var impactorDirectionZ = math.sin(impactorPitch_rad); #pitch
 				
-		#now we have a simple vector algebra problem: the impactor is at < 0,0,0 > moving
+		# now we have a simple vector algebra problem: the impactor is at < 0,0,0 > moving
 		# in the direction of the < impactorDirection > vector and the object is
 		# at point < deltaX,deltaY,deltaAlt > .
 		# So the closest approach of the line through < 0,0,0 > in the direction of < impactorDirection > 
 		# to point < deltaX,deltaY,deltaAlt > is the length of the cross product  vector
 		# < impactorDirection > X < deltaX,deltaY,deltaAlt > divided by the length of
-		#  < impactorDirection > .  We have cleverly chosen < impactDirection > so as to always
+		# < impactorDirection >.  We have cleverly chosen < impactDirection > so as to always
 		# have length one (unit vector), so we can skip that calculation.
 		# So the cross product vector:
 				
@@ -4788,7 +4788,7 @@ skill, currAlt_m, targetAlt_m, elevTarget_m){
 #controls ships, so we just change both, to be safe
 var rudder_roll_climb = func (myNodeName, degrees = 15, alt_ft = -20, time = 10, roll_limit_deg = 85 ){
 
-	debprint ("Bombable: rudder_roll_climb starting, deg:", degrees," time:", time);
+	debprint ("Bombable: rudder_roll_climb starting, deg:", degrees," time:", time, " for "~ myNodeName);
 	#var b = props.globals.getNode (""~myNodeName~"/bombable/attributes");
 	var alts = attributes[myNodeName].altitudes;
 				
@@ -6279,14 +6279,14 @@ var attack_loop = func (id, myNodeName, looptime) {
 			if (targetAGL_m < alts.minimumAGL_m) targetAGL_m = alts.minimumAGL_m;
 			if (targetAGL_m > alts.maximumAGL_m) targetAGL_m = alts.maximumAGL_m;
 						
-			#debprint ("Bombable: Starting attack turn/loop for ", myNodeName," targetAGL_m = ", targetAGL_m);
+			debprint ("Bombable: Starting attack turn/loop for ", myNodeName," targetAGL_m = ", targetAGL_m);
 			setprop(""~myNodeName~"/bombable/attackClimbDive-inprogress", "1");
 			setprop(""~myNodeName~"/bombable/attackClimbDive-targetAGL_m", targetAGL_m);
 		}
 					
 		} else {
 		setprop(""~myNodeName~"/bombable/attackClimbDive-inprogress", "0");
-		#debprint ("Bombable: Ending attack turn/loop for ", myNodeName);
+		debprint ("Bombable: Ending attack turn/loop for ", myNodeName);
 	}
 				
 	targetAlt_m = targetAGL_m + elevTarget_m;
@@ -6680,7 +6680,7 @@ var aircraftRoll = func (myNodeName, rolldegrees = -60, rolltime = 5, roll_limit
 	loopid  +=  1;
 	setprop(""~myNodeName~"/bombable/loopids/roll-loopid", loopid);
 
-	debprint ("Bombable: Starting roll routine, loopid = ",loopid, " ", rolldegrees, " ", rolltime);
+	debprint ("Bombable: Starting roll routine, loopid = ",loopid, " ", rolldegrees, " ", rolltime, " for " ~ myNodeName);
 	props.globals.getNode(""~myNodeName~ "/orientation/rollTimeElapsed", 1).setValue( 0 );
 	currRoll_deg = getprop (""~myNodeName~ "/orientation/roll-deg");
 	if (currRoll_deg == nil) currRoll_deg = 0;
@@ -6801,9 +6801,9 @@ var aircraftCrashControl = func (myNodeName) {
 	# rjw note timer is called once after the set time elapses rather than recursively
 	else {
 		setprop(""~myNodeName~ "/position/crashTimeElapsed", 0);
-		#we should be crashed at this point but just in case:
+		# we should be crashed at this point but just in case:
 		if ( currAlt_ft <= -1371 ) add_damage(1, myNodeName,"crash");
-		debprint ("Bombable: Ending aircraft crash routine");
+		debprint ("Bombable: Ending aircraft crash routine for " ~ myNodeName);
 	}
 }
 
@@ -6817,7 +6817,7 @@ var aircraftCrash = func (myNodeName) {
 	#if (myNodeName == "") debprint ("Bombable: Updating main aircraft 3154");
 				
 	#if (crashListener != 0 ) return;
-	debprint ("Bombable: Starting aircraft crash routine");
+	debprint ("Bombable: Starting aircraft crash routine for " ~ myNodeName);
 
 	# rjw: turn-off timers for current maneuvers
 	if ( getprop ( ""~myNodeName~"/bombable/dodge-inprogress") == 1 )
@@ -7302,7 +7302,7 @@ var callsign = getCallSign (myNodeName);
 		# a percentage change of starting a fire with each hit
 		if( rand() < .035 * damageRise * (vuls.fireVulnerability_percent) and !fireStarted ) {
 							
-			debprint ("Bombable: Starting fire");
+			debprint ("Bombable: Starting fire for" ~ myNodeName);
 							
 			#use small, medium, large smoke column depending on vuls.damageVulnerability
 			#(high vuls.damageVulnerability means small/light/easily damaged while
@@ -7828,7 +7828,7 @@ var bombable_init = func (myNodeName = "") {
 
 }
 
-#####################################################
+######################### bombable_init_func ############################
 #call to make an object bombable
 #
 # features/parameters are set by a bombableObject and
@@ -8850,7 +8850,7 @@ var reduceRPM = func(myNodeName) {
 		if (engineRevs[noEngine] == nil) break;
 		#debprint("Bombable: revs = ",revs);
 		}
-	debprint("Bombable: noEngines = ",noEngine);
+	debprint("Bombable: noEngines for " ~ myNodeName ~ " = ",noEngine);
 	if (noEngine == 0) return;
 	var offset = int( rand() * noEngine );
 	var chooseEngine = offset; # the engine for which we reduce rpm
