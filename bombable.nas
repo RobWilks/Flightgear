@@ -6713,8 +6713,27 @@ var aircraftCrashControl = func (myNodeName) {
 
 	elapsed = getprop(""~myNodeName~ "/position/crashTimeElapsed");
 	if (elapsed == nil) elapsed = 0;
-	delta_ft = 8.53 * loopTime * elapsed / (elapsed + 5);
-	# rjw changed from 5.87 to 8.53
+	
+	rollPerLoop = getprop(""~myNodeName~ "/position/rollPerLoop");
+	if (rollPerLoop == nil) {
+		evas = attributes[myNodeName].evasions;				
+		if (evas.rollRateMax_degpersec == nil or evas.rollRateMax_degpersec <= 0) evas.rollRateMax_degpersec = 40;
+		rollPerLoop = (rand() * 2 - 1) * evas.rollRateMax_degpersec * loopTime;
+		setprop(""~myNodeName~ "/position/rollPerLoop", rollPerLoop); # degrees rolled per foot of descent
+	}
+
+	termVelocity = getprop(""~myNodeName~ "/position/termVelocity");
+	if (termVelocity == nil) {
+		termVelocity = (rand() + .5) * 176;
+		setprop(""~myNodeName~ "/position/termVelocity",termVelocity);
+	}
+	
+	delta_ft = loopTime * termVelocity * elapsed / (elapsed + 5);
+	# delta_ft is the vertical drop in time interval loopTime
+	# it is calculated assuming that the vertical velocity is some fraction of the terminal velocity
+	# i.e. delta_t * v_vert 
+	
+	# prefer to use combination of glide rate and powered descent
 				
 	# we're using 176 ft/sec as the terminal velocity & running this loop 30X per second
 	# t/(t+5) is a crude approximation of tanh(t), which is the real equation
@@ -6724,9 +6743,9 @@ var aircraftCrashControl = func (myNodeName) {
 	# this approximation is about good enough and definitely much faster than tanh
 	# rjw: with this equation the vertical speed increases from 0 to
 	# terminal velocity seems a poor way to model the descent speed of an unpowered aircraft.
+	# rjw: powered aircraft flying into the ground is more exciting
 	# See http://www.dept.aoe.vt.edu/~lutze/AOE3104/glidingflight.pdf
 	# instead use glide path.  Measure for the aircraft model and include as bombable attribute?
-	# rjw: 176ft/sec /30 equals 5.87 but loopTime is 0.1
 				
 	currAlt_ft = getprop(""~myNodeName~ "/position/altitude-ft");
 				
@@ -6734,9 +6753,11 @@ var aircraftCrashControl = func (myNodeName) {
 	setprop (""~myNodeName~ "/position/altitude-ft", currAlt_ft - delta_ft);
 	#debprint("Bombable: CrashControl: delta = ",delta_ft, " ",currAlt_ft," ", myNodeName);
 
-	# Make it roll:			
-	#debprint ("Bombable: Setting roll-deg for ", myNodeName , " to ", -elapsed * 5 * delta_ft, " 1610");
-	setprop (""~myNodeName~ "/orientation/roll-deg", -elapsed * 5 * delta_ft);
+	# Make it roll
+	var rollAngle = getprop (""~myNodeName~ "/orientation/roll-deg") + rollPerLoop;
+	setprop (""~myNodeName~ "/orientation/roll-deg", rollAngle); 
+	# debprint ("Bombable: Setting roll-deg for ", myNodeName , " to ", rollAngle, " deg 1610");
+	# increment existing roll; choose a roll speed up to the maximum for the aircraft
 
 	setprop(""~myNodeName~ "/position/crashTimeElapsed", elapsed + loopTime);
 				
