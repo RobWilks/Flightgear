@@ -2577,7 +2577,7 @@ var fire_loop = func(id, myNodeName = "") {
 
 }
 
-##########################################################
+############################### hitground_stop_explode ###########################
 # Puts myNodeName right at ground level, explodes, sets up
 # for full damage & on-ground trigger to make it stop real fast now
 #
@@ -2749,7 +2749,8 @@ var ground_loop = func( id, myNodeName ) {
 		debprint ("Bombable: Lon = NIL, ground_loop ", myNodeName);
 	}
 
-			
+	# rjw current conflict between ground_loop and aircraftCrashControl. This statement will direct crash solely by the latter 
+	# if (type == "aircraft" and damageValue == 1 and onGround == 1) return();	
 			
 			
 	# calculate the altitude behind & ahead of the object, this determines the pitch angle and helps determine the overall ground level at this spot
@@ -2766,6 +2767,7 @@ var ground_loop = func( id, myNodeName ) {
 	#This loop is one of our biggest framerate sucks and so if we're an undamaged
 	# aircraft way above our minimum AGL we're just going to skip it entirely.
 	if (type == "aircraft" and damageValue < 0.95 and (currAlt_ft - toFrontAlt_ft) > 3 * alts.minimumAGL_ft) return;
+	# if (type == "aircraft" and (currAlt_ft - toFrontAlt_ft) > 3 * alts.minimumAGL_ft) return;
 			
 			
 	if (thorough) {
@@ -2805,7 +2807,7 @@ var ground_loop = func( id, myNodeName ) {
 		lookingAheadAlt_ft = radarAheadAlt_ft;
 				
 		#if we're low to the ground we add this extra 500 ft just to be safe
-		if (currAlt_ft-radarAheadAlt_ft < 500)
+		if (currAlt_ft - radarAheadAlt_ft < 500)
 		lookingAheadAlt_ft  +=  500;
 		} else {
 		lookingAheadAlt_ft = toFrontAlt_ft;
@@ -2902,9 +2904,9 @@ var ground_loop = func( id, myNodeName ) {
 		#is now exploded to heck & stopped also.  But just in case . . .
 				
 		#and that's it
-		return;
-				
+		return;		
 	}
+	
 	# our target altitude for normal/undamaged forward movement
 	# this isn't based on our current altitude but the results of our
 	# "lookahead radar" to provide the base altitude
@@ -3085,7 +3087,7 @@ var ground_loop = func( id, myNodeName ) {
 	#debprint ("type = ", type);
 	if (type != "aircraft") {
 		#debprint ("Bombable: setprop 1652");
-		setprop (""~myNodeName~"/position/altitude-ft", (calcAlt_ft) ); # feet
+		setprop (""~myNodeName~"/position/altitude-ft", calcAlt_ft ); # feet
 	}
 	# for an aircraft, if it is within feet of the ground (and not forced
 	# there because of damage etc.) then we "rescue" it be putting it 25 feet
@@ -3096,7 +3098,7 @@ var ground_loop = func( id, myNodeName ) {
 		#fast here, not just making an emergency correction . . .
 		#for some reason the pitch is always aiming down when we
 		#need to make a correction up, using pitchangle1.
-		#Kluge, we just always put pitch @30 degrees
+		#Kludge, we just always put pitch @30 degrees
 				
 		#vert-speed prob
 		setprop (""~myNodeName~"/orientation/pitch-deg", 30 );
@@ -3164,13 +3166,13 @@ var ground_loop = func( id, myNodeName ) {
 			#nice
 			#debprint ("damageAltAddCurrent = ", damageAltAddCurrent);
 			#debprint ("Bombable: setprop 1720");
-			setprop (""~myNodeName~"/controls/flight/target-alt",  currAlt_ft -500);
+			setprop (""~myNodeName~"/controls/flight/target-alt",  currAlt_ft - 500);
 			#debprint ("1610 ", getprop (""~myNodeName~"/controls/flight/target-alt")) ;
 			setprop (""~myNodeName~"/controls/flight/target-pitch", -45);
 					
 			#vert-speed prob
 			var orientPitch = getprop (""~myNodeName~"/orientation/pitch-deg");
-			if ( orientPitch > -10) setprop (""~myNodeName~"/orientation/pitch-deg", orientPitch-1);
+			if ( orientPitch > -10) setprop (""~myNodeName~"/orientation/pitch-deg", orientPitch - 1);
 					
 					
 			} elsif (currAlt_ft + damageAltMaxPerCycle_ft > objectsLowestAllowedAlt_ft ) { #put it down by the max allowed rate
@@ -3181,7 +3183,7 @@ var ground_loop = func( id, myNodeName ) {
 			#debprint ("damageAltAddCurrent = ", damageAltAddCurrent);
 			#not that nice
 			#debprint ("Bombable: setprop 1737");
-			setprop (""~myNodeName~"/controls/flight/target-alt",  currAlt_ft -10000);
+			setprop (""~myNodeName~"/controls/flight/target-alt",  currAlt_ft - 10000);
 			#debprint ("1625 ", getprop (""~myNodeName~"/controls/flight/target-alt")) ;
 			setprop (""~myNodeName~"/controls/flight/target-pitch", -70);
 					
@@ -4242,7 +4244,7 @@ var test_impact = func(changedNode, myNodeName) {
 	}
 
 
-#########################################################
+############################# speed_adjust ############################
 # FUNCTION speed_adjust
 #
 # adjusts airspeed of an AI object depending on whether it is climbing, diving,
@@ -6710,7 +6712,7 @@ var aircraftCrashControl = func (myNodeName) {
 	if (getprop(""~myNodeName~"/bombable/attributes/damage") < 1 )return;
 				
 	var loopTime = .05;
-	# rjwchanged from 0.1 to 0.05
+	# rjw changed from 0.1 to 0.05
 	#props.globals.getNode(""~myNodeName~ "/position");
 	#ac_position = props.globals.getNode(myNodeName, 1).getParent().getPath();
 
@@ -6718,10 +6720,13 @@ var aircraftCrashControl = func (myNodeName) {
 	if (elapsed == nil) elapsed = 0;
 	
 	rollPerLoop = getprop(""~myNodeName~ "/position/rollPerLoop");
+	# if (rand() < 1/50) setprop(""~myNodeName~ "/controls/flight/target-roll",rollPerLoop * elapsed);
 	if (rollPerLoop == nil) {
 		evas = attributes[myNodeName].evasions;				
 		if (evas.rollRateMax_degpersec == nil or evas.rollRateMax_degpersec <= 0) evas.rollRateMax_degpersec = 40;
-		rollPerLoop = (rand() * 2 - 1) * evas.rollRateMax_degpersec * loopTime;
+		# rollPerLoop = (rand() * 2 - 1) * evas.rollRateMax_degpersec * loopTime;
+		rollPerLoop = (rand() * .5 + .5) * evas.rollRateMax_degpersec * loopTime;
+		if (rand() > .5) rollPerLoop = -rollPerLoop;
 		setprop(""~myNodeName~ "/position/rollPerLoop", rollPerLoop); # degrees rolled per foot of descent
 	}
 
@@ -6757,8 +6762,11 @@ var aircraftCrashControl = func (myNodeName) {
 	#debprint("Bombable: CrashControl: delta = ",delta_ft, " ",currAlt_ft," ", myNodeName);
 
 	# Make it roll
-	var rollAngle = getprop (""~myNodeName~ "/orientation/roll-deg") + rollPerLoop;
-	setprop (""~myNodeName~ "/orientation/roll-deg", rollAngle); 
+	var rollAngle = getprop (""~myNodeName~ "/orientation/roll-deg");
+	# rjw:  maximum bank is 70 degrees
+	# if (math.abs(rollAngle) < 70) rollAngle +=  rollPerLoop;
+	# if (rand() < .02) setprop (""~myNodeName~ "/controls/flight/target-roll", elapsed * rollPerLoop); 
+	setprop (""~myNodeName~ "/orientation/roll-deg", rollAngle + rollPerLoop); 
 	# debprint ("Bombable: Setting roll-deg for ", myNodeName , " to ", rollAngle, " deg 1610");
 	# increment existing roll; choose a roll speed up to the maximum for the aircraft
 
@@ -6768,30 +6776,30 @@ var aircraftCrashControl = func (myNodeName) {
 	if (onGround == nil) onGround = 0;
 				
 	# the main aircraft.  This is experimental/non-working.
-	# rjw:if not working why is it not commented out? What is it supposed to do?
-	if (myNodeName == "") {
+	# rjw: since not working the next block is commented out
+	# if (myNodeName == "") {
 					
 					
-		var objectGeoCoord = geo.Coord.new();
+		# var objectGeoCoord = geo.Coord.new();
 					
-		objectGeoCoord.set_latlon(getprop("position/latitude-deg"), getprop("position/longitude-deg"), getprop("position/altitude-ft") * feet2meters);
+		# objectGeoCoord.set_latlon(getprop("position/latitude-deg"), getprop("position/longitude-deg"), getprop("position/altitude-ft") * feet2meters);
 					
-		var velocity_kt = getprop("/velocities/groundspeed-kt");
-		var heading_deg = getprop("/orientation/heading-deg");
+		# var velocity_kt = getprop("/velocities/groundspeed-kt");
+		# var heading_deg = getprop("/orientation/heading-deg");
 					
 					
-		objectGeoCoord.apply_course_distance(heading_deg, velocity_kt * 0.514444444 * loopTime);
+		# objectGeoCoord.apply_course_distance(heading_deg, velocity_kt * 0.514444444 * loopTime);
 					
-		#debprint ("Bombable: setprop 3151");
-		setprop("/position/latitude-deg", objectGeoCoord.lat());
-		setprop("/position/longitude-deg", objectGeoCoord.lon());
+		# #debprint ("Bombable: setprop 3151");
+		# setprop("/position/latitude-deg", objectGeoCoord.lat());
+		# setprop("/position/longitude-deg", objectGeoCoord.lon());
 					
-		if (getprop("/position/altitude-agl-ft") <= 5) onGround = 1;
+		# if (getprop("/position/altitude-agl-ft") <= 5) onGround = 1;
 					
-		#exit this immediately if we become un-crashed
-		if (!getprop("/sim/crashed")) return;
+		# #exit this immediately if we become un-crashed
+		# if (!getprop("/sim/crashed")) return;
 					
-	}
+	# }
 				
 				
 				
