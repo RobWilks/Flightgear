@@ -2758,8 +2758,9 @@ var ground_loop = func( id, myNodeName ) {
 	# the elev at the top of the object itself, not the ground . . .
 	var GeoCoord = geo.Coord.new();
 	GeoCoord.set_latlon(lat, lon);
+	# assume lat, lon are at the centre of the object
 	#debprint ("Bombable: GeoCoord.apply_course_distance(heading, dims.length_m/2); ",heading, " ", dims.length_m/2 );
-	GeoCoord.apply_course_distance(heading, dims.length_m/2 + FGAltObjectPerimeterBuffer_m);    #frontreardist in meters
+	GeoCoord.apply_course_distance(heading, dims.length_m / 2 + FGAltObjectPerimeterBuffer_m);    #frontreardist in meters
 	toFrontAlt_ft = elev (GeoCoord.lat(), GeoCoord.lon()  ); #in feet
 			
 	# This loop is one of our biggest framerate sucks and so if we're an undamaged
@@ -2767,20 +2768,12 @@ var ground_loop = func( id, myNodeName ) {
 	if (type == "aircraft" and damageValue < 0.95 and (currAlt_ft - toFrontAlt_ft) > 3 * alts.minimumAGL_ft) return;
 			
 			
-	if (thorough) {
-		# find the slope of the ground in the direction we are heading
-		GeoCoord.apply_course_distance(heading + 180, dims.length_m + 2 * FGAltObjectPerimeterBuffer_m );
-		toRearAlt_ft = elev (GeoCoord.lat(), GeoCoord.lon()  ); #in feet
-		} else {
-		toRearAlt_ft = toFrontAlt_ft;
-	}
-			
-			
-	#debprint ("toFront:", toFrontAlt_ft);
 	if (type == "aircraft" and ! onGround ) {
+		# rjw: is it possible to have types of object other than aircraft that are not on the ground? 
 		#poor man's look-ahead radar
 				
 		GeoCoord.apply_course_distance(heading, dims.length_m + speed_kt * 0.5144444 * 10 );
+		# rjw: knots to meters per sec to meters travelled in 2 minutes * .5111111 * 120???
 				
 		var radarAheadAlt_ft = elev (GeoCoord.lat(), GeoCoord.lon()  ); #in feet
 				
@@ -2788,7 +2781,7 @@ var ground_loop = func( id, myNodeName ) {
 		#debprint ("result: "~ radarAheadAlt_ft);
 		# our target altitude (for aircraft purposes) is the greater of the
 		# altitude immediately in front and the altitude from our
-		# poor man's lookahead radar. (ie, up to 2 min out at current
+		# poor man's lookahead radar. (i.e. up to 2 min out at current
 		# speed).  If the terrain is rising we add 300 to our target
 		# alt just to be on the safe side.
 		# But if we're crashing, we don't care about
@@ -2810,41 +2803,50 @@ var ground_loop = func( id, myNodeName ) {
 		} else {
 		lookingAheadAlt_ft = toFrontAlt_ft;
 	}
-			
+
+	
+	
 	# if it's damaged we always get the pitch angle etc as that is how we force it down.
 	# but if it's on the ground, we don't care and all these geo.Coords & elevs really kill FR.
 	if (thorough or ( damageValue > 0.8 and ! onGround ) ) {
+	
+		# rjw mod: Moved earlier block here
+		# find the slope of the ground in the direction we are heading
+		GeoCoord.apply_course_distance(heading + 180, dims.length_m + 2 * FGAltObjectPerimeterBuffer_m );
+		toRearAlt_ft = elev (GeoCoord.lat(), GeoCoord.lon()  ); #in feet
+
+
 		pitchangle1_deg = rad2degrees * math.atan2(toFrontAlt_ft - toRearAlt_ft, dims.length_ft + 2 * FGAltObjectPerimeterBuffer_ft ); #must convert this from radians to degrees, thus the 180/pi
+		# rjw: the slope of ground.  The buffer is to ensure that we don't measure altitude at the top of the object		
+		pitchangle_deg = pitchangle1_deg; 
 				
-		pitchangle_deg = pitchangle1_deg;
 				
-				
-		#figure altitude of ground to left & right of object to determine roll &
-		#to help in determining altitude
+		# figure altitude of ground to left & right of object to determine roll &
+		# to help in determining altitude
 				
 		var GeoCoord2 = geo.Coord.new();
 		GeoCoord2.set_latlon(lat, lon);
-		#go that extra amount out from the actual width to keep FG from detecting the top of the
-		#object as the altitude.  We need ground altitude here. FGAltObjectPerimeterBuffer_m
-		GeoCoord2.apply_course_distance(heading+90, dims.width_m/2 + FGAltObjectPerimeterBuffer_m);  #sidedist in meters
+		# go that extra amount out from the actual width to keep FG from detecting the top of the
+		# object as the altitude.  We need ground altitude here. FGAltObjectPerimeterBuffer_m
+		GeoCoord2.apply_course_distance(heading + 90, dims.width_m / 2 + FGAltObjectPerimeterBuffer_m);  #sidedist in meters
 		toRightAlt_ft = elev (GeoCoord2.lat(), GeoCoord2.lon()  ); #in feet
-		GeoCoord2.apply_course_distance(heading-90, dims.width_m + 2 * FGAltObjectPerimeterBuffer_m );
+		GeoCoord2.apply_course_distance(heading - 90, dims.width_m + 2 * FGAltObjectPerimeterBuffer_m );  # rjw same method as calculation of front-rear
 		toLeftAlt_ft = elev (GeoCoord2.lat(), GeoCoord2.lon()  ); #in feet
 		rollangle_deg = 90 - rad2degrees * math.atan2(dims.width_ft + 2 * FGAltObjectPerimeterBuffer_ft, toLeftAlt_ft - toRightAlt_ft ); #must convert this from radians to degrees, thus the 180/pi
 				
-		#in CVS, taking the alt of an object's position actually finds the top
-		#of that particular object.  So to find the alt of the actual landscape
+		# in CVS, taking the alt of an object's position actually finds the top
+		# of that particular object.  So to find the alt of the actual landscape
 		# we do ahead, behind, to left, to right of object & take the average.
-		#luckily this also helps us calculate the pitch of the slope,
-		#which we need to set pitch & roll,  so little is
-		#lost
+		# luckily this also helps us calculate the pitch of the slope,
+		# which we need to set pitch & roll,  so little is lost
 		alt_ft = (toFrontAlt_ft + toRearAlt_ft + toLeftAlt_ft + toRightAlt_ft) / 4; #in feet
 		} else {
 		alt_ft = toFrontAlt_ft;
 		toLeftAlt_ft = toFrontAlt_ft;
 		toRightAlt_ft = toFrontAlt_ft;
 	}
-			
+
+	
 	#The first time this is called just initializes all the altitudes and exit
 	if ( alts.initialized != 1 ) {
 		var initial_altitude_ft = getprop (""~myNodeName~"/position/altitude-ft");
@@ -2858,49 +2860,32 @@ var ground_loop = func( id, myNodeName ) {
 		target_alt_AGL_ft = initial_altitude_ft - alt_ft - alts.wheelsOnGroundAGL_ft;
 				
 		debprint ("Bombable: Initial Altitude: "~ initial_altitude_ft~ " target AGL: "~target_alt_AGL_ft~ " object = "~ myNodeName);
-		debprint ("Bombable: ", alt_ft, " ", toRightAlt_ft, " ",toLeftAlt_ft, " ",toFrontAlt_ft," ", toLeftAlt_ft, " ", alts.wheelsOnGroundAGL_ft);
-				
-		# debprint ("Bombable: setprop 1430");
+		debprint ("Bombable: ", alt_ft, " ", toRightAlt_ft, " ",toLeftAlt_ft, " ",toFrontAlt_ft," ", toLeftAlt_ft, " ", alts.wheelsOnGroundAGL_ft);				
 		setprop (""~myNodeName~"/position/altitude-ft", initial_altitude_ft );
 		setprop (""~myNodeName~"/controls/flight/target-alt",  initial_altitude_ft);
-		# debprint ("1349 ", getprop (""~myNodeName~"/controls/flight/target-alt")) ;
-		# set target AGL here. This way the aircraft file can simply set altitude
-		# limits for the craft while the scenario files sets the specific altitude
-		# target for a specific plane in a specific scenario
-		#var b = props.globals.getNode (""~myNodeName~"/bombable/attributes");
-
-		#b.getNode("altitudes/targetAGL_ft", 1).setDoubleValue(target_alt_AGL_ft);
-		#b.getNode("altitudes/targetAGL_m", 1).setDoubleValue(target_alt_AGL_ft * feet2meters);
-		#b.getNode("altitudes/initialized", 1).setBoolValue(1);
-
 		alts.targetAGL_ft = target_alt_AGL_ft;
 		alts.targetAGL_m = target_alt_AGL_ft * feet2meters;
 		alts.initialized = 1;
 				
 		return;
-				
-				
 	}
-			
+
+	
 	var objectsLowestAllowedAlt_ft = alt_ft + alts.wheelsOnGroundAGL_ft + alts.crashedAGL_ft;
 	#debprint (" objectsLowestAllowedAlt_ft = ", objectsLowestAllowedAlt_ft);
 			
 	if (onGround){
-		#go to object's resting altitude
-				
-		#debprint ("Bombable: setprop 1457");
+		#go to object's resting altitude				
 		setprop (""~myNodeName~"/position/altitude-ft", objectsLowestAllowedAlt_ft );
 		setprop (""~myNodeName~"/controls/flight/target-alt",  objectsLowestAllowedAlt_ft);
-		#debprint ("1373 ", getprop (""~myNodeName~"/controls/flight/target-alt")) ;
 				
-		#all to a complete stop
+		#bring all to a complete stop
 		setprop(""~myNodeName~"/controls/tgt-speed-kt", 0);
 		setprop(""~myNodeName~"/controls/flight/target-spd", 0);
 		setprop(""~myNodeName~"/velocities/true-airspeed-kt", 0);
 				
 		#we don't even really need the timer any more, since this object
-		#is now exploded to heck & stopped also.  But just in case . . .
-				
+		#is now exploded and stopped.  But just in case . . .				
 		#and that's it
 		return;		
 	}
@@ -2914,19 +2899,20 @@ var ground_loop = func( id, myNodeName ) {
 	#debprint ("laa ", lookingAheadAlt_ft, " tagl ", alts.targetAGL_ft, " awog ", alts.wheelsOnGroundAGL_ft);
 			
 			
-	fullDamageAltAdd_ft = (alt_ft + alts.crashedAGL_ft + alts.wheelsOnGroundAGL_ft) - currAlt_ft; #amount we should add to our current altitude when fully crashed.  This is to get the object to "full crashed position", ie, on the ground for an aircraft, fully sunk for a ship, etc.
+	fullDamageAltAdd_ft = (alt_ft + alts.crashedAGL_ft + alts.wheelsOnGroundAGL_ft) - currAlt_ft; 
+	# Amount we should add to our current altitude when fully crashed.  
+	# This is to get the object to "full crashed position", i.e. on the ground for an aircraft, fully sunk for a ship, etc.
 			
 			
 	#now calculate how far to force the thing down if it is crashing/damaged
 	if ( damageValue > 0.8  )  {
-		damageAltAddMax_ft = damageValue * fullDamageAltAdd_ft; #max altitude amount to add to altitude to this object based on its current damage.
+		damageAltAddMax_ft = damageValue * fullDamageAltAdd_ft; #max amount to add to the altitude of this object based on its current damage.
 		#
 		#Like fullDamageAltAdd & damageAltAddPrev this should always be zero
 		#or negative as everything on earth falls or sinks when it loses
 		#power. And assuming that simplifies calculations immensely.
 				
-		#The altitude the object should be at, based on damagealtAddMax & the
-		#ground level:
+		#The altitude the object should be at, based on damagealtAddMax & the ground level:
 		shouldBeAlt = currAlt_ft + damageAltAddMax_ft;
 		#debprint ("shouldBeAlt ", shouldBeAlt);
 				
@@ -2935,33 +2921,30 @@ var ground_loop = func( id, myNodeName ) {
 		#debprint ("shouldBeAlt = oldalt+ alts.wheelsOnGroundAGL_ft + damageAltAddMax; ",
 		#   shouldBeAlt, " ", oldalt, " ", alts.wheelsOnGroundAGL_ft, " ", damageAltAddMax  );
 				
-		#limit amount of sinkage to damageAltMaxRate in one hit/loop--otherwise it just goes down too fast, not realistic.  This is basically like the terminal
-		# velocity for this type of object.
-		damageAltMaxPerCycle_ft = -abs(vels.damagedAltitudeChangeMaxRate_meterspersecond * updateTime_s/feet2meters);
+		#limit amount of sinkage to damageAltMaxRate in one hit/loop--otherwise it just goes down too fast, not realistic.  
+		#Analogous to the terminal velocity
+		damageAltMaxPerCycle_ft = -abs(vels.damagedAltitudeChangeMaxRate_meterspersecond * updateTime_s / feet2meters);
+		#rjw might change this amount if crashing at the terminal velocity; probably no need for abs		
 				
 				
-				
-		#move 10% more than previous or if no previous, start at 1% the max rate
+		#rjw: descent rate increases at 10% per second; initialised at 1% the max rate
+		#rjw: 48sec to reach max descent rate
 		#making sure to move in the right direction! (using sgn of damageAltAdd)
 		if (damageAltAddPrev_ft != 0) damageAltAddCurrent_ft = -abs((1 + 0.1 * updateTime_s) * damageAltAddPrev_ft);
 		else damageAltAddCurrent_ft = - abs(0.01 * damageAltMaxPerCycle_ft);
 				
-		# make sure this is not bigger than the max rate, if so only change
+		#Ensure this is not bigger than the max rate, if so only change
 		#it by the max amount allowed per cycle
-		if ( abs( damageAltAddCurrent_ft ) > abs(damageAltMaxPerCycle_ft ) ) damageAltAddCurrent_ft = damageAltMaxPerCycle_ft;
+		if (abs( damageAltAddCurrent_ft ) > abs(damageAltMaxPerCycle_ft )) damageAltAddCurrent_ft = damageAltMaxPerCycle_ft;
 				
 		#Make sure we're not above the max allowed altitude change for this damage level; if so, cut it off
-		if ( abs(damageAltAddCurrent_ft) > abs(damageAltAddMax_ft) ) {
+		if (abs(damageAltAddCurrent_ft) > abs(damageAltAddMax_ft)) {
 			damageAltAddCurrent_ft = damageAltAddMax_ft;
 		}
 				
 				
 		#debprint ( " damageAltAddMax = ", damageAltAddMax, " damageAltMaxRate = ",
 		#debprint ("damageAltAddCurrent_ft ", damageAltAddCurrent_ft);
-				
-				
-				
-				
 		} else {
 		damageAltAddCurrent_ft = 0;
 	}
@@ -2969,7 +2952,7 @@ var ground_loop = func( id, myNodeName ) {
 
 
 			
-	#if the thing is basically as low as allowed by crashedAGL_m
+	# If the object is as low as allowed by crashedAGL_m
 	# we consider it "on the ground" (for an airplane) or
 	# completely sunk (for a ship) etc.
 	# If it is going there at any speed we consider it crashed
@@ -2982,6 +2965,7 @@ var ground_loop = func( id, myNodeName ) {
 	# finished crashing, sinking, etc.
 	# It's not that easy to determine if an object crashes--if an airplane
 	# hits the ground it crashes but tanks etc are always on the ground
+	
 	noPitch = 0;
 	if (type == "aircraft" and (
 	(damageValue > 0.8 and ( currAlt_ft <= objectsLowestAllowedAlt_ft and speed_kt > 20 )
