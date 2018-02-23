@@ -2975,7 +2975,7 @@ var ground_loop = func( id, myNodeName ) {
 			
 	# rjw mod: the descent of a destroyed aircraft is managed by aircraftCrashControl 
 	# rjw current conflict between ground_loop and aircraftCrashControl. This statement will direct crash solely by the latter 
-	if (type == "aircraft" and damageValue == 1) return;
+	# if (type == "aircraft" and damageValue == 1) return;
 			
 
 	# if we are dropping faster than the current slope (typically because
@@ -3152,13 +3152,7 @@ var ground_loop = func( id, myNodeName ) {
 				
 				
 		if ( damageAltMaxPerCycle_ft < damageAltAddCurrent_ft )  {
-			#setprop (""~myNodeName~"/position/altitude-ft", (objectsLowestAllowedAlt_ft + alts.wheelsOnGroundAGL_ft + damageAltAddCurrent) ); # feet
-			#setprop (""~myNodeName~"/position/altitude-ft", (currAlt_ft + damageAltAddCurrent  - updateTime_s) ); # feet
-			#nice
-			#debprint ("damageAltAddCurrent = ", damageAltAddCurrent);
-			#debprint ("Bombable: setprop 1720");
 			setprop (""~myNodeName~"/controls/flight/target-alt",  currAlt_ft - 500);
-			#debprint ("1610 ", getprop (""~myNodeName~"/controls/flight/target-alt")) ;
 			setprop (""~myNodeName~"/controls/flight/target-pitch", -45);
 					
 			#vert-speed prob
@@ -3170,14 +3164,7 @@ var ground_loop = func( id, myNodeName ) {
 					
 			} elsif (currAlt_ft + damageAltMaxPerCycle_ft > objectsLowestAllowedAlt_ft ) { #put it down by the max allowed rate
 					
-			#setprop (""~myNodeName~"/position/altitude-ft", (currAlt_ft + damageAltMaxPerCycle_ft ) );
-					
-			#setprop (""~myNodeName~"/position/altitude-ft", (currAlt_ft + damageAltAddCurrent_ft - updateTime_s * 2 ) );
-			#debprint ("damageAltAddCurrent = ", damageAltAddCurrent);
-			#not that nice
-			#debprint ("Bombable: setprop 1737");
 			setprop (""~myNodeName~"/controls/flight/target-alt",  currAlt_ft - 10000);
-			#debprint ("1625 ", getprop (""~myNodeName~"/controls/flight/target-alt")) ;
 			setprop (""~myNodeName~"/controls/flight/target-pitch", -70);
 					
 			var orientPitch_deg = getprop (""~myNodeName~"/orientation/pitch-deg");
@@ -3195,9 +3182,9 @@ var ground_loop = func( id, myNodeName ) {
 					
 			hitground_stop_explode(myNodeName, objectsLowestAllowedAlt_ft);
 			debprint ("Bombable: Aircraft hit ground, it's dead. 1851.");
-					
-					
 		}
+
+		
 		#somehow the aircraft are getting below ground sometimes
 		#sometimes it's just because they hit into a mountain or something
 		#else in the way.
@@ -4380,8 +4367,8 @@ var speed_adjust = func (myNodeName, time_sec ){
 					
 		# This formula approaches 0 add_velocity as airspeed approaches termVel
 					
-		vel1 = maxSpeed_kt-airspeed_kt;
-		vel2 = maxSpeed_kt-termVel_kt;
+		vel1 = maxSpeed_kt - airspeed_kt;
+		vel2 = maxSpeed_kt - termVel_kt;
 					
 		add_velocity_fps = - (1 - (vel1/vel2)) * grav_fpss * time_sec * 1.5;
 					
@@ -4392,8 +4379,8 @@ var speed_adjust = func (myNodeName, time_sec ){
 		} elsif (sin_pitch < 0 ){
 		# diving, so we increase our airspeed, tending towards the V(ne)
 					
-		#termVel_kt is the terminal velocity for this particular angle of attack
-		# if we could get a more accurate formulate for the terminal velocity for
+		# termVel_kt is the terminal velocity for this particular angle of attack
+		# if we could get a more accurate formula for the terminal velocity for
 		# each angle of attack this would be even more realistic
 		#
 		# cal generally ranges from 0 to infinity and the higher cal the slower
@@ -4401,22 +4388,22 @@ var speed_adjust = func (myNodeName, time_sec ){
 		# gain enough speed on dive, make cal smaller, down to 1 or possibly
 		# even below. cal = 1.5 seems about right for Sopwith Camel.a^2/Vt^2 and g * t * 1
 		# For Zero, cal = 1.0, a^3/Vt^3 and g * t * 2 is a better fit.
-		#var cal = 1.0;
-		#termVel_kt = math.pow (math.abs(sin_pitch), cal) * (maxSpeed_kt-targetSpeed_kt) + targetSpeed_kt;
+		# var cal = 1.0;
+		# termVel_kt = math.pow (math.abs(sin_pitch), cal) * (maxSpeed_kt-targetSpeed_kt) + targetSpeed_kt;
 					
 		termVel_kt = targetSpeed_kt + vels.diveTerminalVelocityFactor * math.abs(sin_pitch);
 					
-		#We're assuming the pilot will take action to keep it below maxSpeed_kt,
+		# We're assuming the pilot will take action to keep it below maxSpeed_kt,
 		# such as reducing engine, slats, flaps, etc etc etc.  In some cases this
 		# may not be realistic but
 		if (termVel_kt > maxSpeed_kt) termVel_kt = maxSpeed_kt;
 					
-		add_velocity_fps = (1-math.abs(airspeed_kt/termVel_kt)) * grav_fpss * time_sec/1.5;
+		add_velocity_fps = (1 - math.abs(airspeed_kt/termVel_kt)) * grav_fpss * time_sec/1.5;
 		debprint ("Bombable: Speed Adjust, diving:", add_velocity_fps * fps2knots, " airspeed: ", airspeed_kt, " termVel: ", termVel_kt, " ", myNodeName );
 					
 	}
 				
-	#if we're above maxSpeed we make a fairly large/quick correction
+	# if we're above maxSpeed we make a fairly large/quick correction
 	# but only if it is larger (in negative direction) than the regular correction
 	if (airspeed_kt > maxSpeed_kt) {
 		maxS_add_velocity_fps = (maxSpeed_kt-airspeed_kt)/10 * time_sec * knots2fps;
@@ -6708,10 +6695,8 @@ var aircraftCrashControl = func (myNodeName) {
 	#If we reset the damage levels, stop crashing:
 	if (getprop(""~myNodeName~"/bombable/attributes/damage") < 1 )return;
 				
-	var loopTime = .05;
+	var loopTime = .1;
 	# rjw changed from 0.1 to 0.05
-	#props.globals.getNode(""~myNodeName~ "/position");
-	#ac_position = props.globals.getNode(myNodeName, 1).getParent().getPath();
 
 	elapsed = getprop(""~myNodeName~ "/position/crashTimeElapsed");
 	if (elapsed == nil) elapsed = 0;
@@ -6731,16 +6716,19 @@ var aircraftCrashControl = func (myNodeName) {
 	if (pitchPerLoop == nil) {
 		pitchPerLoop = (rand() * -2 * loopTime); # 2 degrees per second
 		setprop(""~myNodeName~ "/position/pitchPerLoop", pitchPerLoop); # degrees pitched each position update
-		# rjw could set target pitch according to terminal velocity, i.e. high termnal velocity is a powered dive		
+		# rjw could set target pitch according to terminal velocity, i.e. high terminal velocity is a powered dive		
 	}
 
 	termVelocity = getprop(""~myNodeName~ "/position/termVelocity");
 	if (termVelocity == nil) {
 		termVelocity = (rand() + .5) * 176;
 		setprop(""~myNodeName~ "/position/termVelocity",termVelocity);
+		setprop(""~myNodeName~ "/bombable/attributes/velocities/damagedAltitudeChangeMaxRate_meterspersecond",termVelocity * feet2meters);
+		
 	}
 	
 	delta_ft = loopTime * termVelocity * elapsed / (elapsed + 5);
+	
 	# delta_ft is the vertical drop in time interval loopTime
 	# it is calculated assuming that the vertical velocity is some fraction of the terminal velocity
 	# i.e. delta_t * v_vert 
@@ -6759,24 +6747,31 @@ var aircraftCrashControl = func (myNodeName) {
 	# See http://www.dept.aoe.vt.edu/~lutze/AOE3104/glidingflight.pdf
 	# instead use glide path.  Measure for the aircraft model and include as bombable attribute?
 				
-	currAlt_ft = getprop(""~myNodeName~ "/position/altitude-ft");
+	target_spd = getprop(""~myNodeName~ "/controls/flight/target-spd");
+	setprop (""~myNodeName~ "/controls/flight/target-spd", target_spd * .95 + termVelocity * 0.05);
+	
+	vert_spd = getprop(""~myNodeName~ "/velocities/vertical-speed-fps");
+	setprop (""~myNodeName~ "/velocities/vertical-speed-fps", -delta_ft / loopTime);
+	
+	
 				
-	#debprint ("Bombable: setprop 3128");
+	currAlt_ft = getprop(""~myNodeName~ "/position/altitude-ft");
 	setprop (""~myNodeName~ "/position/altitude-ft", currAlt_ft - delta_ft);
+	setprop (""~myNodeName~ "/controls/flight/target-alt", currAlt_ft - delta_ft - delta_ft);
 	#debprint("Bombable: CrashControl: delta = ",delta_ft, " ",currAlt_ft," ", myNodeName);
 
 	# Make it roll
 	var rollAngle = getprop (""~myNodeName~ "/orientation/roll-deg");
 	# rjw:  maximum bank is 70 degrees
-	# if (math.abs(rollAngle) < 70) rollAngle +=  rollPerLoop;
+	if (math.abs(rollAngle) > 70) rollPerLoop =  -rollPerLoop;
 	# if (rand() < .02) setprop (""~myNodeName~ "/controls/flight/target-roll", elapsed * rollPerLoop); 
 	setprop (""~myNodeName~ "/orientation/roll-deg", rollAngle + rollPerLoop); 
 	
 	# Make it pitch
-	var pitchAngle = getprop (""~myNodeName~ "/orientation/pitch-deg");
+	# var pitchAngle = getprop (""~myNodeName~ "/orientation/pitch-deg");
 	# rjw:  maximum pitch is 70 degrees
-	if (pitchAngle > -70) pitchAngle +=  pitchPerLoop;
-	setprop (""~myNodeName~ "/orientation/pitch-deg", pitchAngle); 
+	# if (pitchAngle > -70) pitchAngle +=  pitchPerLoop;
+	# setprop (""~myNodeName~ "/orientation/pitch-deg", pitchAngle); 
 
 	
 	
@@ -6789,34 +6784,6 @@ var aircraftCrashControl = func (myNodeName) {
 				
 	var onGround = getprop (""~myNodeName~"/bombable/on-ground");
 	if (onGround == nil) onGround = 0;
-				
-	# the main aircraft.  This is experimental/non-working.
-	# rjw: since not working the next block is commented out
-	# if (myNodeName == "") {
-					
-					
-		# var objectGeoCoord = geo.Coord.new();
-					
-		# objectGeoCoord.set_latlon(getprop("position/latitude-deg"), getprop("position/longitude-deg"), getprop("position/altitude-ft") * feet2meters);
-					
-		# var velocity_kt = getprop("/velocities/groundspeed-kt");
-		# var heading_deg = getprop("/orientation/heading-deg");
-					
-					
-		# objectGeoCoord.apply_course_distance(heading_deg, velocity_kt * 0.514444444 * loopTime);
-					
-		# #debprint ("Bombable: setprop 3151");
-		# setprop("/position/latitude-deg", objectGeoCoord.lat());
-		# setprop("/position/longitude-deg", objectGeoCoord.lon());
-					
-		# if (getprop("/position/altitude-agl-ft") <= 5) onGround = 1;
-					
-		# #exit this immediately if we become un-crashed
-		# if (!getprop("/sim/crashed")) return;
-					
-	# }
-				
-				
 				
 
 	# elevation of -1371 ft is a failsafe (lowest elevation on earth); so is
@@ -6855,8 +6822,8 @@ var aircraftCrash = func (myNodeName) {
 	inc_loopid(myNodeName, "speed-adjust");
 	inc_loopid(myNodeName, "attack");
 	# attempt to turnoff autopilot
-	setprop ( ""~myNodeName~"/controls/flight/lateral-mode", "");
-	setprop ( ""~myNodeName~"/controls/flight/longitude-mode", "");	
+	# setprop ( ""~myNodeName~"/controls/flight/lateral-mode", "");
+	# setprop ( ""~myNodeName~"/controls/flight/longitude-mode", "");	
 	# end of rjw mod
 
 	
