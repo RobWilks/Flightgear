@@ -2642,7 +2642,7 @@ var addAltitude_ft = func  (myNodeName, altAdd_ft = 40 , time = 1 ) {
 }
 
 
-######################################
+################## setVerticalSpeed ####################
 # FUNCTION setVerticalSpeed
 # Changes to the new target vert speed but gradually over a few steps
 # using settimer
@@ -2657,7 +2657,7 @@ var setVerticalSpeed = func (myNodeName, targetVertSpeed_fps = 70, maxChange_fps
 	# now do the same to the airspeed
 	if (targetAirSpeed_kt > 0 ) {
 		var curr_airspeed_kt = getprop (""~myNodeName~"/velocities/true-airspeed-kt");
-		var new_airspeed_kt = checkRange (targetAirSpeed_kt, curr_airspeed_kt, curr_airspeed_kt+maxChangeAirSpeed_kt, targetAirSpeed_kt);
+		var new_airspeed_kt = checkRange (targetAirSpeed_kt, curr_airspeed_kt, curr_airspeed_kt + maxChangeAirSpeed_kt, targetAirSpeed_kt);
 		setprop (""~myNodeName~"/velocities/true-airspeed-kt",  new_airspeed_kt);
 	}
 			
@@ -2678,8 +2678,8 @@ var setVerticalSpeed = func (myNodeName, targetVertSpeed_fps = 70, maxChange_fps
 # or other specified altitude above/below ground level, and at a
 # reasonable-looking pitch. length_m & width_m are distances (in meters)
 # needed to clear the object and find open earth on either side and front/back.
-# damagealtadd is the total amount to subtract from the normal the altitude above ground level (in meters) as
-# the object becomes damaged--say a sinking ship or tires flattening on a
+# damagealtadd is the total amount to add to the altitude above ground level (in meters) as
+# the object becomes damaged, usually it is negative -- say a sinking ship or tires flattening on a
 # vehicle.
 # damageAltMaxRate is the max rate to allow the object to rise or sink
 # as it becomes disabled
@@ -2700,7 +2700,7 @@ var ground_loop = func( id, myNodeName ) {
 	# add rand() so that all objects don't do this function simultaneously
 	settimer(func { ground_loop(id, myNodeName)}, (0.5 + rand()) * updateTime_s );
 
-	#Allow this function to be disabled via menu/it can kill framerate at times
+	# Allow this function to be disabled via menu since it can kill framerate at times
 	if (! getprop ( bomb_menu_pp~"ai-ground-loop-enabled") or ! getprop(bomb_menu_pp~"bombable-enabled") ) return;
 
 	#debprint ("ground_loop starting");
@@ -2723,7 +2723,7 @@ var ground_loop = func( id, myNodeName ) {
 	# just to be safe.  Otherwise objects climb indefinitely, always trying to get on top of themselves
 	# Sometimes needed in _m, sometimes _ft, so we need both . . .
 	var FGAltObjectPerimeterBuffer_m = 2.5;
-	var FGAltObjectPerimeterBuffer_ft = FGAltObjectPerimeterBuffer_m/feet2meters;
+	var FGAltObjectPerimeterBuffer_ft = FGAltObjectPerimeterBuffer_m / feet2meters;
 			
 	var thorough = rand() < 1/5; # to save FR we only do it thoroughly sometimes
 	if (onGround) thorough = 0; #never need thorough when crashed
@@ -2762,20 +2762,21 @@ var ground_loop = func( id, myNodeName ) {
 	GeoCoord.apply_course_distance(heading, dims.length_m/2 + FGAltObjectPerimeterBuffer_m);    #frontreardist in meters
 	toFrontAlt_ft = elev (GeoCoord.lat(), GeoCoord.lon()  ); #in feet
 			
-	#This loop is one of our biggest framerate sucks and so if we're an undamaged
+	# This loop is one of our biggest framerate sucks and so if we're an undamaged
 	# aircraft way above our minimum AGL we're just going to skip it entirely.
 	if (type == "aircraft" and damageValue < 0.95 and (currAlt_ft - toFrontAlt_ft) > 3 * alts.minimumAGL_ft) return;
 			
 			
 	if (thorough) {
-		GeoCoord.apply_course_distance(heading+180, dims.length_m + 2 * FGAltObjectPerimeterBuffer_m );
+		# find the slope of the ground in the direction we are heading
+		GeoCoord.apply_course_distance(heading + 180, dims.length_m + 2 * FGAltObjectPerimeterBuffer_m );
 		toRearAlt_ft = elev (GeoCoord.lat(), GeoCoord.lon()  ); #in feet
 		} else {
 		toRearAlt_ft = toFrontAlt_ft;
 	}
 			
 			
-	#debprint ("oFront:", toFrontAlt_ft);
+	#debprint ("toFront:", toFrontAlt_ft);
 	if (type == "aircraft" and ! onGround ) {
 		#poor man's look-ahead radar
 				
@@ -6739,7 +6740,14 @@ var aircraftCrashControl = func (myNodeName) {
 		# rollPerLoop = (rand() * 2 - 1) * evas.rollRateMax_degpersec * loopTime;
 		rollPerLoop = (rand() * .5 + .5) * evas.rollRateMax_degpersec * loopTime;
 		if (rand() > .5) rollPerLoop = -rollPerLoop;
-		setprop(""~myNodeName~ "/position/rollPerLoop", rollPerLoop); # degrees rolled per foot of descent
+		setprop(""~myNodeName~ "/position/rollPerLoop", rollPerLoop); # degrees rolled each position update
+	}
+	
+	pitchPerLoop = getprop(""~myNodeName~ "/position/pitchPerLoop");
+	if (pitchPerLoop == nil) {
+		pitchPerLoop = (rand() * -2 * loopTime); # 2 degrees per second
+		setprop(""~myNodeName~ "/position/pitchPerLoop", pitchPerLoop); # degrees pitched each position update
+		# rjw could set target pitch according to terminal velocity, i.e. high termnal velocity is a powered dive		
 	}
 
 	termVelocity = getprop(""~myNodeName~ "/position/termVelocity");
@@ -6770,7 +6778,7 @@ var aircraftCrashControl = func (myNodeName) {
 	currAlt_ft = getprop(""~myNodeName~ "/position/altitude-ft");
 				
 	#debprint ("Bombable: setprop 3128");
-	#setprop (""~myNodeName~ "/position/altitude-ft", currAlt_ft - delta_ft);
+	setprop (""~myNodeName~ "/position/altitude-ft", currAlt_ft - delta_ft);
 	#debprint("Bombable: CrashControl: delta = ",delta_ft, " ",currAlt_ft," ", myNodeName);
 
 	# Make it roll
@@ -6779,6 +6787,17 @@ var aircraftCrashControl = func (myNodeName) {
 	# if (math.abs(rollAngle) < 70) rollAngle +=  rollPerLoop;
 	# if (rand() < .02) setprop (""~myNodeName~ "/controls/flight/target-roll", elapsed * rollPerLoop); 
 	setprop (""~myNodeName~ "/orientation/roll-deg", rollAngle + rollPerLoop); 
+	
+	# Make it pitch
+	var pitchAngle = getprop (""~myNodeName~ "/orientation/pitch-deg");
+	# rjw:  maximum pitch is 70 degrees
+	if (pitchAngle > -70) pitchAngle +=  pitchPerLoop;
+	setprop (""~myNodeName~ "/orientation/pitch-deg", pitchAngle); 
+
+	
+	
+	
+	
 	# debprint ("Bombable: Setting roll-deg for ", myNodeName , " to ", rollAngle, " deg 1610");
 	# increment existing roll; choose a roll speed up to the maximum for the aircraft
 
@@ -6818,7 +6837,8 @@ var aircraftCrashControl = func (myNodeName) {
 
 	# elevation of -1371 ft is a failsafe (lowest elevation on earth); so is
 	# elapsed, so that we don't get stuck in this routine forever
-	if ( onGround != 1 and currAlt_ft > -1371 and elapsed < 240 ) {
+	# rjw increased from 240 to 600.  Provides time to observe crash
+	if ( onGround != 1 and currAlt_ft > -1371 and elapsed < 600 ) {
 		settimer (func { aircraftCrashControl(myNodeName)}, loopTime + loopTime * (rand()/10-1/20) );
 	}
 	# rjw note timer is called once after the set time elapses rather than recursively
@@ -6850,6 +6870,9 @@ var aircraftCrash = func (myNodeName) {
 	inc_loopid(myNodeName, "roll");
 	inc_loopid(myNodeName, "speed-adjust");
 	inc_loopid(myNodeName, "attack");
+	# attempt to turnoff autopilot
+	setprop ( ""~myNodeName~"/controls/flight/lateral-mode", "");
+	setprop ( ""~myNodeName~"/controls/flight/longitude-mode", "");	
 	# end of rjw mod
 
 	
