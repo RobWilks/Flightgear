@@ -6727,7 +6727,7 @@ var aircraftCrashControl = func (myNodeName) {
 	
 	pitchAngle = getprop (""~myNodeName~ "/orientation/pitch-deg") / rad2degrees;
 
-	newVertSpeed = termVelocity * elapsed / (elapsed + 5)
+	newVertSpeed = -termVelocity * elapsed / (elapsed + 5);
 	
 	delta_ft = (newVertSpeed + oldVertSpeed) * .5 * loopTime;
 	
@@ -6764,19 +6764,20 @@ var aircraftCrashControl = func (myNodeName) {
 	
 	
 	currAlt_ft = getprop(""~myNodeName~ "/position/altitude-ft");
-	setprop (""~myNodeName~ "/position/altitude-ft", currAlt_ft - delta_ft);
-	setprop (""~myNodeName~ "/controls/flight/target-alt", currAlt_ft - delta_ft - delta_ft);
+	setprop (""~myNodeName~ "/position/altitude-ft", currAlt_ft + delta_ft);
+	setprop (""~myNodeName~ "/controls/flight/target-alt", currAlt_ft + delta_ft + delta_ft);
 	#debprint("Bombable: CrashControl: delta = ",delta_ft, " ",currAlt_ft," ", myNodeName);
 
-	setprop (""~myNodeName~ "/velocities/vertical-speed-fps", -delta_ft / loopTime);
+	setprop (""~myNodeName~ "/velocities/vertical-speed-fps", newVertSpeed);
 	
-	target_spd = getprop(""~myNodeName~ "/controls/flight/target-spd");
+	# Change target-speed
+	#target_spd = getprop(""~myNodeName~ "/controls/flight/target-spd");
 	#setprop (""~myNodeName~ "/controls/flight/target-spd", target_spd * .95 + termVelocity * 0.05);
-	setprop (""~myNodeName~ "/controls/flight/target-spd", target_spd + 2 * delta_trueAirspeed_fps * fps2knots);
+	setprop (""~myNodeName~ "/controls/flight/target-spd", (trueAirspeed_fps + 2 * delta_trueAirspeed_fps) * fps2knots);
 	
 	# Change pitch
 	setprop (""~myNodeName~ "/orientation/pitch-deg", (pitchAngle + deltaPitchAngle) * rad2degrees;
-	setprop (""~myNodeName~ "/controls/flight/target-pitch", (pitchAngle + deltaPitchAngle) * 2 * rad2degrees);
+	setprop (""~myNodeName~ "/controls/flight/target-pitch", (pitchAngle + deltaPitchAngle * 2) * rad2degrees);
 	# rjw:  maximum pitch is 70 degrees
 	# if (pitchAngle > -70) pitchAngle +=  pitchPerLoop;
 	# setprop (""~myNodeName~ "/orientation/pitch-deg", pitchAngle); 
