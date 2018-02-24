@@ -6720,14 +6720,16 @@ var aircraftCrashControl = func (myNodeName) {
 	}
 
 	termVelocity = getprop(""~myNodeName~ "/position/termVelocity");
-	if (termVelocity == nil) {
-		termVelocity = (rand() + .5) * 176;
-		setprop(""~myNodeName~ "/position/termVelocity",termVelocity);
-		setprop(""~myNodeName~ "/bombable/attributes/velocities/damagedAltitudeChangeMaxRate_meterspersecond",termVelocity * feet2meters);
-		
-	}
 	
-	delta_ft = loopTime * termVelocity * elapsed / (elapsed + 5);
+	oldVertSpeed = getprop(""~myNodeName~ "/velocities/vertical-speed-fps");
+	
+	trueAirspeed_fps = getprop(""~myNodeName~ "/velocities/true-airspeed-kt") * knots2fps;
+	
+	pitchAngle = getprop (""~myNodeName~ "/orientation/pitch-deg") / rad2degrees;
+
+	newVertSpeed = termVelocity * elapsed / (elapsed + 5)
+	
+	delta_ft = (newVertSpeed + oldVertSpeed) * .5 * loopTime;
 	
 	# delta_ft is the vertical drop in time interval loopTime
 	# it is calculated assuming that the vertical velocity is some fraction of the terminal velocity
@@ -6747,25 +6749,47 @@ var aircraftCrashControl = func (myNodeName) {
 	# See http://www.dept.aoe.vt.edu/~lutze/AOE3104/glidingflight.pdf
 	# instead use glide path.  Measure for the aircraft model and include as bombable attribute?
 				
-	target_spd = getprop(""~myNodeName~ "/controls/flight/target-spd");
-	setprop (""~myNodeName~ "/controls/flight/target-spd", target_spd * .95 + termVelocity * 0.05);
+
+	deltaPitchAngle = math.atan2(newVertSpeed , trueAirspeed_fps * cos(pitchAngle) - pitchAngle;
 	
-	vert_spd = getprop(""~myNodeName~ "/velocities/vertical-speed-fps");
-	setprop (""~myNodeName~ "/velocities/vertical-speed-fps", -delta_ft / loopTime);
+	# rjw calculate the change in true air speed
+	delta_trueAirspeed_fps = ((newVertSpeed - oldVertSpeed) / trueAirspeed_fps - deltaPitchAngle * math.cos(pitchAngle)) * trueAirspeed_fps * trueAirspeed_fps / oldVertSpeed;
+	if (rand() < .2) debprint(
+	"Bombable: CrashControl: deltaPitchAngle = ",deltaPitchAngle, 
+	"delta_trueAirspeed_fps = ", delta_trueAirspeed_fps, 
+	"deltaVertSpeed = ", newVertSpeed - oldVertSpeed);
 	
 	
-				
+	
+	
+	
 	currAlt_ft = getprop(""~myNodeName~ "/position/altitude-ft");
 	setprop (""~myNodeName~ "/position/altitude-ft", currAlt_ft - delta_ft);
 	setprop (""~myNodeName~ "/controls/flight/target-alt", currAlt_ft - delta_ft - delta_ft);
 	#debprint("Bombable: CrashControl: delta = ",delta_ft, " ",currAlt_ft," ", myNodeName);
 
+	setprop (""~myNodeName~ "/velocities/vertical-speed-fps", -delta_ft / loopTime);
+	
+	target_spd = getprop(""~myNodeName~ "/controls/flight/target-spd");
+	#setprop (""~myNodeName~ "/controls/flight/target-spd", target_spd * .95 + termVelocity * 0.05);
+	setprop (""~myNodeName~ "/controls/flight/target-spd", target_spd + 2 * delta_trueAirspeed_fps * fps2knots);
+	
+	# Change pitch
+	setprop (""~myNodeName~ "/orientation/pitch-deg", (pitchAngle + deltaPitchAngle) * rad2degrees;
+	setprop (""~myNodeName~ "/controls/flight/target-pitch", (pitchAngle + deltaPitchAngle) * 2 * rad2degrees);
+	# rjw:  maximum pitch is 70 degrees
+	# if (pitchAngle > -70) pitchAngle +=  pitchPerLoop;
+	# setprop (""~myNodeName~ "/orientation/pitch-deg", pitchAngle); 
+
+	
+	
+	
 	# Make it roll
 	var rollAngle = getprop (""~myNodeName~ "/orientation/roll-deg");
 	# rjw:  maximum bank is 70 degrees
-	if (math.abs(rollAngle) > 70) rollPerLoop =  -rollPerLoop;
-	# if (rand() < .02) setprop (""~myNodeName~ "/controls/flight/target-roll", elapsed * rollPerLoop); 
-	setprop (""~myNodeName~ "/orientation/roll-deg", rollAngle + rollPerLoop); 
+	# if (math.abs(rollAngle) > 70) rollPerLoop =  -rollPerLoop;
+	if (rand() < .02 or math.abs(rollAngle) > 70) setprop (""~myNodeName~ "/controls/flight/target-roll", elapsed * rollPerLoop); 
+	# setprop (""~myNodeName~ "/orientation/roll-deg", rollAngle + rollPerLoop); 
 	
 	# Make it pitch
 	# var pitchAngle = getprop (""~myNodeName~ "/orientation/pitch-deg");
@@ -6803,17 +6827,12 @@ var aircraftCrashControl = func (myNodeName) {
 
 
 ################################## aircraftCrash ################################
+# rjw initializes the aircraft crash loop
 
 var aircraftCrash = func (myNodeName) {
 	if (!getprop(bomb_menu_pp~"bombable-enabled") ) return;
-	#if (myNodeName == "/environment" or myNodeName == "environment") myNodeName = "";
-				
-	#if (myNodeName == "") debprint ("Bombable: Updating main aircraft 3154");
-				
-	#if (crashListener != 0 ) return;
-	debprint ("Bombable: Starting aircraft crash routine for " ~ myNodeName);
 
-	# rjw: turn-off timers for current maneuvers
+	# rjw: turn-off timers for current manoeuvres
 	if ( getprop ( ""~myNodeName~"/bombable/dodge-inprogress") == 1 )
 	setprop ( ""~myNodeName~"/bombable/dodge-inprogress", 0);
 	if ( getprop ( ""~myNodeName~"/bombable/attack-inprogress") == 1 )
@@ -6824,18 +6843,29 @@ var aircraftCrash = func (myNodeName) {
 	# attempt to turnoff autopilot
 	# setprop ( ""~myNodeName~"/controls/flight/lateral-mode", "");
 	# setprop ( ""~myNodeName~"/controls/flight/longitude-mode", "");	
+
 	# end of rjw mod
 
+	termVelocity = getprop(""~myNodeName~ "/position/termVelocity");
+	if (termVelocity == nil) {
+		termVelocity = (rand() + .5) * 176;
+		setprop(""~myNodeName~ "/position/termVelocity",termVelocity);
+		setprop(""~myNodeName~ "/bombable/attributes/velocities/damagedAltitudeChangeMaxRate_meterspersecond",termVelocity * feet2meters);
+	}
+	
+	vert_spd = getprop(""~myNodeName~ "/velocities/vertical-speed-fps");
+	
 	
 	elapsed = props.globals.getNode(""~myNodeName~ "/position/crashTimeElapsed", 1).getValue( );
-	if (elapsed == nil) elapsed = 0;
+	if (elapsed != nil) return;
+	
+	elapsed = 5 / (termVelocity / vert_spd - 1;
+	# rjw advance or retard time depending on the vertical speed.  Derived from t / t + 5 approximation to tanh (t)	
+	props.globals.getNode(""~myNodeName~ "/position/crashTimeElapsed", 1).setValue(elapsed) );
 	debprint ("Bombable: Starting crash routine, elapsed = ",elapsed);
-	if (elapsed != 0) return;
-	props.globals.getNode(""~myNodeName~ "/position/crashTimeElapsed", 1).setValue( .1 );
+	
+	
 	aircraftCrashControl(myNodeName);
-				
-	#turn it off after 10 seconds
-	#settimer (func {removelistener(crashListener); crashListener = 0;}, 10);
 				
 }
 
