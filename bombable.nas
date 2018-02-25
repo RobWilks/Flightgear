@@ -4256,8 +4256,9 @@ var speed_adjust = func (myNodeName, time_sec ){
 	if (airspeed_kt <= 0) airspeed_kt = .000001; #avoid the div by zero issue
 	airspeed_fps = airspeed_kt * knots2fps;
 	vertical_speed_fps = getprop (""~myNodeName~"/velocities/vertical-speed-fps");
-				
-	var vels = attributes[myNodeName].velocities;
+	
+	# rjw deleted next line
+	# var vels = attributes[myNodeName].velocities;
 	var maxSpeed_kt = vels.maxSpeed_kt;
 	if (maxSpeed_kt <= 0) maxSpeed_kt = 90;
 
@@ -4333,8 +4334,8 @@ var speed_adjust = func (myNodeName, time_sec ){
 						
 		}
 					
-		#the / 70 may require tweaking or customization. This basically goes to how
-		# much acceleration the AC has.   /70 matches closely the A6M2 Zero's
+		# the / 70 may require tweaking or customization. This basically goes to how
+		# much acceleration the AC has.   / 70 matches closely the A6M2 Zero's
 		# acceleration during level flight
 		add_velocity_fps = math.sgn (targetSpeed_kt - airspeed_kt) * math.pow(math.abs(fact),0.5) * targetSpeed_kt * time_sec * knots2fps / 70 ;
 		termVel_kt = targetSpeed_kt;
@@ -4345,22 +4346,21 @@ var speed_adjust = func (myNodeName, time_sec ){
 		# climbing, so we reduce our airspeed, tending towards V (s)
 		deltaSpeed_kt = airspeed_kt-minSpeed_kt;
 					
-		#debprint ("Bombable: deltaS",deltaSpeed_kt, " maxS:", maxSpeed_kt, " minS:", minSpeed_kt," grav:",  grav_fpss, " timeS:", time_sec," sinP",  sin_pitch   );
-		#add_velocity_fps = -(deltaSpeed_kt/(maxSpeed_kt-minSpeed_kt)) * grav_fpss * time_sec * sin_pitch * 10;
+		# debprint ("Bombable: deltaS",deltaSpeed_kt, " maxS:", maxSpeed_kt, " minS:", minSpeed_kt," grav:",  grav_fpss, " timeS:", time_sec," sinP",  sin_pitch   );
+		# add_velocity_fps = -(deltaSpeed_kt/(maxSpeed_kt-minSpeed_kt)) * grav_fpss * time_sec * sin_pitch * 10;
 		#
 					
-		#termVel_kt is the terminal velocity for this particular angle of attack
+		# termVel_kt is the terminal velocity for this particular angle of attack
 		# if we could get a more accurate formula for the terminal velocity for
 		# each angle of attack this would be even more realistic
 		# cal ranges 0-1 (though cal 1 . . . infinity is possible)
 		# and generally smaller cal makes the terminal velocity
 		# slower for lower angles of attack.  so if your aircraft is going too
-		# fast when climbing (compared with the similar 'real' aircraft in
-		#     bombable)
+		# fast when climbing (compared with the similar 'real' aircraft in bombable)
 		# make cal smaller.  cal = .13 seems about right for
-		#       Sopwith Camel, with vel1^2/vel2^2  for Zero, cal = .09 and ^3/^3
-		#var cal = .09;
-		#termVel_kt = targetSpeed_kt - math.pow(math.abs(sin_pitch),cal) * (targetSpeed_kt-minSpeed_kt);
+		# Sopwith Camel, with vel1^2/vel2^2  for Zero, cal = .09 and ^3/^3
+		# var cal = .09;
+		# termVel_kt = targetSpeed_kt - math.pow(math.abs(sin_pitch),cal) * (targetSpeed_kt-minSpeed_kt);
 					
 		termVel_kt = targetSpeed_kt - vels.climbTerminalVelocityFactor * math.abs(sin_pitch);
 					
@@ -4423,14 +4423,14 @@ var speed_adjust = func (myNodeName, time_sec ){
 	#debprint ("Bombable: Speed Adjust:", add_velocity_fps * fps2knots, " TermVel:", termVel_kt, "sinPitch:", sin_pitch );
 	var finalSpeed_kt = airspeed_kt + add_velocity_fps * fps2knots;
 	#Zero/negative airspeed causes problems . . .
-	if (finalSpeed_kt < minSpeed_kt / 3) finalSpeed_kt = minSpeed_kt/3;
+	if (finalSpeed_kt < minSpeed_kt / 3) finalSpeed_kt = minSpeed_kt / 3;
 	setprop (""~myNodeName~"/controls/flight/target-spd", finalSpeed_kt);
 	setprop (""~myNodeName~"/velocities/true-airspeed-kt", finalSpeed_kt);
 				
 	if (finalSpeed_kt < minSpeed_kt) {
 		stalling = 1;
 					
-		#When we stall & both vertical speed & airspeed go to zero, FG just flips
+		# When we stall & both vertical speed & airspeed go to zero, FG just flips
 		# out.  If we're stalling then gravity takes over, no lift, so we make
 		# that happen here.
 		vertical_speed_fps  -=  grav_fpss * time_sec;
@@ -4791,7 +4791,7 @@ var rudder_roll_climb = func (myNodeName, degrees = 15, alt_ft = -20, time = 10,
 	var type = node.getName();
 				
 
-	#rudder/roll
+	# rudder/roll
 	currRudder = getprop(""~myNodeName~"/surface-positions/rudder-pos-deg");
 	if (currRudder == nil) currRudder = 0;
 				
@@ -4799,10 +4799,10 @@ var rudder_roll_climb = func (myNodeName, degrees = 15, alt_ft = -20, time = 10,
 	if (currRoll == nil) currRoll = 0;
 				
 
-	#add our amount to any existing roll/rudder & set the new roll/rudder position
+	# add our amount to any existing roll/rudder & set the new roll/rudder position
 				
 				
-	#this massively speeds up turns vs FG's built-in AI's rather
+	# this massively speeds up turns vs FG's built-in AI's rather
 	# sedate turns; turns to the selected roll value in 5 seconds
 	# rolling degrees/2 seems to give a turn of about degrees
 	if (type == "aircraft" and math.abs(degrees) > 0.1 ) aircraftRoll (myNodeName, degrees, time, roll_limit_deg);
@@ -4811,17 +4811,17 @@ var rudder_roll_climb = func (myNodeName, degrees = 15, alt_ft = -20, time = 10,
 	setprop(""~myNodeName~"/surface-positions/rudder-pos-deg", currRudder + degrees);
 	setprop(""~myNodeName~"/controls/flight/target-roll", currRoll + degrees);
 				
-	#altitude
-	#This only works for aircraft but that's OK because it's not sensible
-	#for a ground vehicle or ship to dive or climb above or below ground/sea
-	#level anyway (submarines excepted . . . but under current the FG AI system
+	# altitude
+	# This only works for aircraft but that's OK because it's not sensible
+	# for a ground vehicle or ship to dive or climb above or below ground/sea
+	# level anyway (submarines excepted . . . but under current the FG AI system
 	# it would have to be operated as an "aircraft", not a "ship", if it
 	# wants to be able to climb & dive).
 	var currAlt_ft = getprop(""~myNodeName~"/position/altitude-ft"); #where the object is, in ft
 	if (currAlt_ft + alt_ft < alts.minimumAGL_ft ) alt_ft = alts.minimumAGL_ft;
 	if (currAlt_ft + alt_ft > alts.maximumAGL_ft ) alt_ft = alts.maximumAGL_ft;
 				
-	#debprint ("Bombable: setprop 2232");
+	# debprint ("Bombable: setprop 2232");
 	#
 	# we set the target altitude, unless we are stalling and trying to move
 	# higher, then we basically stop moving up
@@ -6060,7 +6060,7 @@ var attack_loop = func (id, myNodeName, looptime) {
 		readinessAttack = dist[0] < newMaxDist_m and ( dist[0] > atts.minDistance_m or continueAttack ) and dist[1] > -atts.altitudeLowerCutoff_m/3 and dist[1] < atts.altitudeHigherCutoff_m/3 and stores.checkWeaponsReadiness(myNodeName);
 	}
 				
-	#OK, we spend 13% of our time zoning out.  http://discovermagazine.com/2009/jul-aug/15-brain-stop-paying-attention-zoning-out-crucial-mental-state
+	# OK, we spend 13% of our time zoning out.  http://discovermagazine.com/2009/jul-aug/15-brain-stop-paying-attention-zoning-out-crucial-mental-state
 	# Or maybe we are distracted by some other task or whatever.  At any rate,
 	# this is a human factor for the possibility that they could have observed/
 	# attacked in this situation, but didn't.  We'll assume more skilled
@@ -6709,6 +6709,11 @@ var aircraftCrashControl = func (myNodeName) {
 	elapsed = getprop(""~myNodeName~ "/position/crashTimeElapsed");
 	if (elapsed == nil) elapsed = 0;
 
+	crashCounter = getprop(""~myNodeName~ "/position/crashCounter");	
+	crashCounter += 1;	
+	setprop(""~myNodeName~ "/position/crashCounter", crashCounter);	
+
+	
 	# choose a roll speed up to the maximum for the aircraft
 	rollPerLoop = getprop(""~myNodeName~ "/position/rollPerLoop");
 	# if (rand() < 0.02) setprop(""~myNodeName~ "/controls/flight/target-roll",rollPerLoop * elapsed);
@@ -6732,13 +6737,14 @@ var aircraftCrashControl = func (myNodeName) {
 	
 	oldVertSpeed = getprop(""~myNodeName~ "/velocities/vertical-speed-fps");
 	
-	trueAirspeed_fps = getprop(""~myNodeName~ "/velocities/true-airspeed-kt") * knots2fps;
+	oldTrueAirspeed_fps = getprop(""~myNodeName~ "/velocities/true-airspeed-kt") * knots2fps;
 	
-	pitchAngle = getprop (""~myNodeName~ "/orientation/pitch-deg") / rad2degrees;
+	oldPitchAngle = getprop (""~myNodeName~ "/orientation/pitch-deg") / rad2degrees;
 
 	newVertSpeed = -termVelocity * elapsed / (elapsed + 5);
 	
-	delta_ft = (newVertSpeed + oldVertSpeed) * .5 * loopTime;
+	# delta_ft = (newVertSpeed + oldVertSpeed) * .5 * loopTime;
+	delta_ft = newVertSpeed * loopTime;
 	
 	# delta_ft is the vertical drop in time interval loopTime
 	# it is calculated assuming that the vertical velocity is some fraction of the terminal velocity
@@ -6758,19 +6764,12 @@ var aircraftCrashControl = func (myNodeName) {
 	# See http://www.dept.aoe.vt.edu/~lutze/AOE3104/glidingflight.pdf
 	# instead use glide path.  Measure for the aircraft model and include as bombable attribute?
 				
-
-	deltaPitchAngle = math.atan2(newVertSpeed , trueAirspeed_fps * math.cos(pitchAngle)) - pitchAngle;
+	horizontalSpeed = oldTrueAirspeed_fps * math.cos(oldPitchAngle);
+	newPitchAngle = math.atan2(newVertSpeed , horizontalSpeed);
+	newTrueAirspeed_fps = horizontalSpeed / math.cos(newPitchAngle);
 	
 	# rjw calculate the change in true air speed
-	delta_trueAirspeed_fps = ((newVertSpeed - oldVertSpeed) / trueAirspeed_fps - deltaPitchAngle * math.cos(pitchAngle)) * trueAirspeed_fps * trueAirspeed_fps / oldVertSpeed;
-	if (rand() < .2) debprint(
-	# "Bombable: CrashControl: deltaPitchAngle = ",deltaPitchAngle, 
-	# "delta_trueAirspeed_fps = ", delta_trueAirspeed_fps, 
-	# "deltaVertSpeed = ", newVertSpeed - oldVertSpeed);
-	
-	"Bombable: CrashControl: PitchAngle = ", (pitchAngle + deltaPitchAngle) * rad2degrees, 
-	"TrueAirspeed_fps = ", trueAirspeed_fps + delta_trueAirspeed_fps, 
-	"VertSpeed = ", newVertSpeed);
+	# delta_trueAirspeed_fps = ((newVertSpeed - oldVertSpeed) / trueAirspeed_fps - deltaPitchAngle * math.cos(pitchAngle)) * trueAirspeed_fps * trueAirspeed_fps / oldVertSpeed;
 	
 	
 	
@@ -6779,7 +6778,7 @@ var aircraftCrashControl = func (myNodeName) {
 	# Change target-altitude
 	currAlt_ft = getprop(""~myNodeName~ "/position/altitude-ft");
 	# setprop (""~myNodeName~ "/position/altitude-ft", currAlt_ft + delta_ft);
-	setprop (""~myNodeName~ "/controls/flight/target-alt", currAlt_ft + 2 * delta_ft);
+	setprop (""~myNodeName~ "/controls/flight/target-alt", currAlt_ft + delta_ft);
 	# debprint("Bombable: CrashControl: delta = ",delta_ft, " ",currAlt_ft," ", myNodeName);
 
 	setprop (""~myNodeName~ "/velocities/vertical-speed-fps", newVertSpeed);
@@ -6787,11 +6786,11 @@ var aircraftCrashControl = func (myNodeName) {
 	# Change target-speed
 	# target_spd = getprop(""~myNodeName~ "/controls/flight/target-spd");
 	# setprop (""~myNodeName~ "/controls/flight/target-spd", target_spd * .95 + termVelocity * 0.05);
-	setprop (""~myNodeName~ "/controls/flight/target-spd", (trueAirspeed_fps + 2 * delta_trueAirspeed_fps) * fps2knots);
+	setprop (""~myNodeName~ "/controls/flight/target-spd", newTrueAirspeed_fps * fps2knots);
 	
 	# Change pitch
-	# setprop (""~myNodeName~ "/orientation/pitch-deg", (pitchAngle + deltaPitchAngle) * rad2degrees);
-	setprop (""~myNodeName~ "/controls/flight/target-pitch", (pitchAngle + 2 * deltaPitchAngle) * rad2degrees);
+	setprop (""~myNodeName~ "/orientation/pitch-deg", newPitchAngle * rad2degrees);
+	setprop (""~myNodeName~ "/controls/flight/target-pitch", newPitchAngle * rad2degrees);
 	# rjw:  maximum pitch is 70 degrees
 	# if (pitchAngle > -70) pitchAngle +=  pitchPerLoop;
 	# setprop (""~myNodeName~ "/orientation/pitch-deg", pitchAngle); 
@@ -6802,8 +6801,6 @@ var aircraftCrashControl = func (myNodeName) {
 	# if (pitchAngle > -70) pitchAngle +=  pitchPerLoop;
 	# setprop (""~myNodeName~ "/orientation/pitch-deg", pitchAngle); 
 
-
-	
 	
 	# Make it roll
 	var rollAngle = getprop (""~myNodeName~ "/orientation/roll-deg");
@@ -6819,7 +6816,25 @@ var aircraftCrashControl = func (myNodeName) {
 	
 	
 	setprop(""~myNodeName~ "/position/crashTimeElapsed", elapsed + loopTime);
-				
+
+	
+	if (math.fmod(crashCounter , 10) == 0) debprint(
+		# "Bombable: CrashControl: deltaPitchAngle = ",deltaPitchAngle, 
+		# "delta_trueAirspeed_fps = ", delta_trueAirspeed_fps, 
+		# "deltaVertSpeed = ", newVertSpeed - oldVertSpeed);
+		
+		"Bombable: CrashControl: oldPitchAngle = ", oldPitchAngle * rad2degrees, 
+		"oldTrueAirspeed_fps = ", oldTrueAirspeed_fps, 
+		"newTrueAirspeed_fps = ", newTrueAirspeed_fps,
+		"oldVertSpeed = ", oldVertSpeed,
+		"newVertSpeed = ", newVertSpeed,
+		"oldPitchAngle = ", oldPitchAngle * rad2degrees,	
+		"newPitchAngle = ", newPitchAngle * rad2degrees,	
+		"target-alt = ", currAlt_ft + delta_ft
+	);
+
+	
+	
 	var onGround = getprop (""~myNodeName~"/bombable/on-ground");
 	if (onGround == nil) onGround = 0;
 				
@@ -6880,6 +6895,8 @@ var aircraftCrash = func (myNodeName) {
 		elapsed = 0.0001;
 	}
 	setprop(""~myNodeName~ "/position/crashTimeElapsed", elapsed);	
+
+	setprop(""~myNodeName~ "/position/crashCounter", 0);	
 
 	debprint ("Bombable: Starting crash routine, elapsed = ", elapsed);
 	
