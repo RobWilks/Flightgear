@@ -6702,9 +6702,9 @@ var aircraftCrashControl = func (myNodeName) {
 	#If we reset the damage levels, stop crashing:
 	if (getprop(""~myNodeName~"/bombable/attributes/damage") < 1 ) return;
 	
-	var loopTime = .2;
+	var loopTime = .05;
 	loopTime *= (1 + rand() * .1 - .05); #rjw add noise
-	# rjw 0.1 in original version. The 5% noise was only added to the function timer
+	# rjw 0.1 in original version. In original, noise was only added to the function timer
 
 	elapsed = getprop(""~myNodeName~ "/position/crashTimeElapsed");
 	if (elapsed == nil) elapsed = 0;
@@ -6778,20 +6778,20 @@ var aircraftCrashControl = func (myNodeName) {
 	
 	# Change target-altitude
 	currAlt_ft = getprop(""~myNodeName~ "/position/altitude-ft");
-	setprop (""~myNodeName~ "/position/altitude-ft", currAlt_ft + delta_ft);
-	setprop (""~myNodeName~ "/controls/flight/target-alt", currAlt_ft + delta_ft + delta_ft);
-	#debprint("Bombable: CrashControl: delta = ",delta_ft, " ",currAlt_ft," ", myNodeName);
+	# setprop (""~myNodeName~ "/position/altitude-ft", currAlt_ft + delta_ft);
+	setprop (""~myNodeName~ "/controls/flight/target-alt", currAlt_ft + 2 * delta_ft);
+	# debprint("Bombable: CrashControl: delta = ",delta_ft, " ",currAlt_ft," ", myNodeName);
 
 	setprop (""~myNodeName~ "/velocities/vertical-speed-fps", newVertSpeed);
 	
 	# Change target-speed
-	#target_spd = getprop(""~myNodeName~ "/controls/flight/target-spd");
-	#setprop (""~myNodeName~ "/controls/flight/target-spd", target_spd * .95 + termVelocity * 0.05);
+	# target_spd = getprop(""~myNodeName~ "/controls/flight/target-spd");
+	# setprop (""~myNodeName~ "/controls/flight/target-spd", target_spd * .95 + termVelocity * 0.05);
 	setprop (""~myNodeName~ "/controls/flight/target-spd", (trueAirspeed_fps + 2 * delta_trueAirspeed_fps) * fps2knots);
 	
 	# Change pitch
-	setprop (""~myNodeName~ "/orientation/pitch-deg", (pitchAngle + deltaPitchAngle) * rad2degrees);
-	setprop (""~myNodeName~ "/controls/flight/target-pitch", (pitchAngle + deltaPitchAngle * 2) * rad2degrees);
+	# setprop (""~myNodeName~ "/orientation/pitch-deg", (pitchAngle + deltaPitchAngle) * rad2degrees);
+	setprop (""~myNodeName~ "/controls/flight/target-pitch", (pitchAngle + 2 * deltaPitchAngle) * rad2degrees);
 	# rjw:  maximum pitch is 70 degrees
 	# if (pitchAngle > -70) pitchAngle +=  pitchPerLoop;
 	# setprop (""~myNodeName~ "/orientation/pitch-deg", pitchAngle); 
@@ -6862,7 +6862,7 @@ var aircraftCrash = func (myNodeName) {
 
 	termVelocity = getprop(""~myNodeName~ "/position/termVelocity");
 	if (termVelocity == nil) {
-		termVelocity = (rand() + .5) * 176;
+		termVelocity = (rand() + .5) * 120;
 		setprop(""~myNodeName~ "/position/termVelocity",termVelocity);
 		setprop(""~myNodeName~ "/bombable/attributes/velocities/damagedAltitudeChangeMaxRate_meterspersecond",termVelocity * feet2meters);
 	}
