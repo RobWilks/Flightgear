@@ -6742,8 +6742,13 @@ var aircraftCrashControl = func (myNodeName) {
 
 	oldVertSpeed = getprop(""~myNodeName~ "/velocities/vertical-speed-fps");
 	
-	newVertSpeed = math.sin(newPitchAngle) * newTrueAirspeed_fps;
-	
+	if (speedChange < 0) {
+		cruiseSpeed = 182 * knots2fps;
+		newVertSpeed = oldVertSpeed - 32.174 * (1 - newTrueAirspeed * newTrueAirspeed / cruiseSpeed / cruiseSpeed) * loopTime;	
+	}
+	else{
+		newVertSpeed = math.sin(newPitchAngle) * newTrueAirspeed_fps;
+	}
 	delta_ft = newVertSpeed * loopTime;	
 	# delta_ft is the vertical drop in time interval loopTime
 
@@ -6855,8 +6860,8 @@ var aircraftCrash = func (myNodeName) {
 		pitchChange = -20 - pitchFactor * 40; 
 		speedChange = pitchFactor * 120;
 		}else{
-		pitchChange = -10 - pitchFactor * 20; 
-		speedChange = -getprop(""~myNodeName~ "/velocities/true-airspeed-kt") * (.25 * pitchFactor) * knots2fps;
+		pitchChange = -5 - pitchFactor * 5; 
+		speedChange = -getprop(""~myNodeName~ "/velocities/true-airspeed-kt") * (.25 + .25 * pitchFactor) * knots2fps;
 	}
 	# rjw check final pitch is negative
 	currentPitch = getprop(""~myNodeName~ "/orientation/pitch-deg");
@@ -6882,7 +6887,7 @@ var aircraftCrash = func (myNodeName) {
 	debprint ("Bombable: Starting crash routine, ",
 	"elapsed = ", elapsed,
 	"pitchChange = ",pitchChange,
-	"speedChange = ",speedChange,	
+	"speedChange = ",speedChange	
 	);
 	
 	
