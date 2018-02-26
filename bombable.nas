@@ -6708,71 +6708,59 @@ var aircraftCrashControl = func (myNodeName) {
 
 	elapsed = getprop(""~myNodeName~ "/position/crashTimeElapsed");
 	if (elapsed == nil) elapsed = 0;
+	setprop(""~myNodeName~ "/position/crashTimeElapsed", elapsed + loopTime);
+
 
 	crashCounter = getprop(""~myNodeName~ "/position/crashCounter");	
 	crashCounter += 1;	
 	setprop(""~myNodeName~ "/position/crashCounter", crashCounter);	
 
-	
 	# choose a roll speed up to the maximum for the aircraft
-	rollPerLoop = getprop(""~myNodeName~ "/position/rollPerLoop");
-	# if (rand() < 0.02) setprop(""~myNodeName~ "/controls/flight/target-roll",rollPerLoop * elapsed);
-	if (rollPerLoop == nil) {
-		evas = attributes[myNodeName].evasions;				
-		if (evas.rollRateMax_degpersec == nil or evas.rollRateMax_degpersec <= 0) evas.rollRateMax_degpersec = 40;
-		# rollPerLoop = (rand() * 2 - 1) * evas.rollRateMax_degpersec * loopTime;
-		rollPerLoop = (rand() * .5 + .5) * evas.rollRateMax_degpersec * loopTime;
-		if (rand() > .5) rollPerLoop = -rollPerLoop;
-		setprop(""~myNodeName~ "/position/rollPerLoop", rollPerLoop); # degrees rolled each position update
-	}
-	
-	# pitchPerLoop = getprop(""~myNodeName~ "/position/pitchPerLoop");
-	# if (pitchPerLoop == nil) {
-		# pitchPerLoop = (rand() * -2 * loopTime); # 2 degrees per second
-		# setprop(""~myNodeName~ "/position/pitchPerLoop", pitchPerLoop); # degrees pitched each position update
-		# rjw instead set target pitch according to terminal velocity, i.e. high terminal velocity is a powered dive		
+	# rollPerLoop = getprop(""~myNodeName~ "/position/rollPerLoop");
+	# if (rollPerLoop == nil) {
+		# evas = attributes[myNodeName].evasions;				
+		# if (evas.rollRateMax_degpersec == nil or evas.rollRateMax_degpersec <= 0) evas.rollRateMax_degpersec = 40;
+		# rollPerLoop = (rand() * .5 + .5) * evas.rollRateMax_degpersec * loopTime;
+		# if (rand() > .5) rollPerLoop = -rollPerLoop;
+		# setprop(""~myNodeName~ "/position/rollPerLoop", rollPerLoop); # degrees rolled each position update
 	# }
 	
-	termVelocity = getprop(""~myNodeName~ "/position/termVelocity");
 	
-	oldVertSpeed = getprop(""~myNodeName~ "/velocities/vertical-speed-fps");
-	
-	oldTrueAirspeed_fps = getprop(""~myNodeName~ "/velocities/true-airspeed-kt") * knots2fps;
+	pitchChange = getprop(""~myNodeName~ "/position/pitchChange") / rad2degrees;
+	#delta to pitch of aircraft at time of call to crash routine
+
+	speedChange = getprop(""~myNodeName~ "/position/speedChange");	
+	#delta to airspeed of aircraft at time of call to crash routine
 	
 	oldPitchAngle = getprop (""~myNodeName~ "/orientation/pitch-deg") / rad2degrees;
 
-	# newVertSpeed = -termVelocity * elapsed / (elapsed + 5);
-	newTrueAirspeed_fps = 182 * knots2fps + termVelocity * elapsed / (elapsed + 5);
-	newPitchAngle = -50 * elapsed / (elapsed + 5) / rad2degrees;
+	newPitchAngle = oldPitchAngle + speedChange * 5 / (elapsed + 5) / (elapsed + 5) / rad2degrees * loopTime;
+
+	oldTrueAirspeed_fps = getprop(""~myNodeName~ "/velocities/true-airspeed-kt") * knots2fps;
+	
+	newTrueAirspeed_fps = oldTrueAirspeed_fps + speedChange * 5 / (elapsed + 5) / (elapsed + 5) * loopTime;
+
+	oldVertSpeed = getprop(""~myNodeName~ "/velocities/vertical-speed-fps");
+	
 	newVertSpeed = math.sin(newPitchAngle) * newTrueAirspeed_fps;
 	
-	# delta_ft = (newVertSpeed + oldVertSpeed) * .5 * loopTime;
-	delta_ft = newVertSpeed * loopTime;
-	
+	delta_ft = newVertSpeed * loopTime;	
 	# delta_ft is the vertical drop in time interval loopTime
-	# it is calculated assuming that the vertical velocity is some fraction of the terminal velocity
-	# i.e. delta_t * v_vert 
+
 	
-	# prefer to use combination of glide rate and powered descent
+	
+	
 				
-	# we're using 176 ft/sec as the terminal velocity & running this loop 30X per second
+	# Using initial airspeed + x ft/sec as the terminal velocity (x <= 120 fps) & running this loop ~10X per second
 	# t/(t+5) is a crude approximation of tanh(t), which is the real equation
-	# to use for terminal velocity under gravity.  However tanh is very expensive
+	# to use for terminal velocity under gravity with drag proportional to v squared.  However tanh is very expensive
 	# and since we have to approximate the coefficient of drag and other variables
 	# related to the damaged aircraft anyway, based on very incomplete information,
 	# this approximation is about good enough and definitely much faster than tanh
-	# rjw: with this equation the vertical speed increases from 0 to
-	# terminal velocity seems a poor way to model the descent speed of an unpowered aircraft.
-	# rjw: powered aircraft flying into the ground is more exciting
+	# rjw: the aircraft descent is modelled as a powered dive with the air speed potentially increasing
 	# See http://www.dept.aoe.vt.edu/~lutze/AOE3104/glidingflight.pdf
-	# instead use glide path.  Measure for the aircraft model and include as bombable attribute?
+	# Could measure dive speeds for different engine rpm and pitch angle for the aircraft model and include as attribute?
 				
-	# horizontalSpeed = oldTrueAirspeed_fps * math.cos(oldPitchAngle);
-	# newPitchAngle = math.atan2(newVertSpeed , horizontalSpeed);
-	# newTrueAirspeed_fps = newVertSpeed / math.sin(newPitchAngle);
-	
-	# rjw calculate the change in true air speed
-	# delta_trueAirspeed_fps = ((newVertSpeed - oldVertSpeed) / trueAirspeed_fps - deltaPitchAngle * math.cos(pitchAngle)) * trueAirspeed_fps * trueAirspeed_fps / oldVertSpeed;
 	
 	
 	
@@ -6780,15 +6768,14 @@ var aircraftCrashControl = func (myNodeName) {
 	
 	# Change target-altitude
 	currAlt_ft = getprop(""~myNodeName~ "/position/altitude-ft");
-	# setprop (""~myNodeName~ "/position/altitude-ft", currAlt_ft + delta_ft);
 	setprop (""~myNodeName~ "/controls/flight/target-alt", currAlt_ft + delta_ft);
 	# debprint("Bombable: CrashControl: delta = ",delta_ft, " ",currAlt_ft," ", myNodeName);
 
+	# Change vertical speed
 	setprop (""~myNodeName~ "/velocities/vertical-speed-fps", newVertSpeed);
 	
 	# Change target-speed
 	# target_spd = getprop(""~myNodeName~ "/controls/flight/target-spd");
-	# setprop (""~myNodeName~ "/controls/flight/target-spd", target_spd * .95 + termVelocity * 0.05);
 	setprop(""~myNodeName~ "/velocities/true-airspeed-kt", newTrueAirspeed_fps * fps2knots);
 	setprop (""~myNodeName~ "/controls/flight/target-spd", newTrueAirspeed_fps * fps2knots);
 	
@@ -6799,28 +6786,12 @@ var aircraftCrashControl = func (myNodeName) {
 	# if (pitchAngle > -70) pitchAngle +=  pitchPerLoop;
 	# setprop (""~myNodeName~ "/orientation/pitch-deg", pitchAngle); 
 
-	# Make it pitch
-	# var pitchAngle = getprop (""~myNodeName~ "/orientation/pitch-deg");
-	# rjw:  maximum pitch is 70 degrees
-	# if (pitchAngle > -70) pitchAngle +=  pitchPerLoop;
-	# setprop (""~myNodeName~ "/orientation/pitch-deg", pitchAngle); 
 
-	
 	# Make it roll
 	var rollAngle = getprop (""~myNodeName~ "/orientation/roll-deg");
-	# rjw:  maximum bank is 70 degrees
-	# if (math.abs(rollAngle) > 70) rollPerLoop =  -rollPerLoop;
-	if (rand() < .02 or math.abs(rollAngle) > 70) setprop (""~myNodeName~ "/controls/flight/target-roll", elapsed * rollPerLoop); 
-	# setprop (""~myNodeName~ "/orientation/roll-deg", rollAngle + rollPerLoop); 
-	
-	# debprint ("Bombable: Setting roll-deg for ", myNodeName , " to ", rollAngle, " deg 1610");
-
+	if (rand() < .01 or math.abs(rollAngle) > 70) setprop (""~myNodeName~ "/controls/flight/target-roll", (rand() - .5) * 100); 
 	
 	
-	
-	
-	setprop(""~myNodeName~ "/position/crashTimeElapsed", elapsed + loopTime);
-
 	
 	if (math.fmod(crashCounter , 10) == 0) debprint(
 		# "Bombable: CrashControl: deltaPitchAngle = ",deltaPitchAngle, 
@@ -6879,30 +6850,40 @@ var aircraftCrash = func (myNodeName) {
 
 	# end of rjw mod
 
-	termVelocity = getprop(""~myNodeName~ "/position/termVelocity");
-	if (termVelocity == nil) {
-		termVelocity = (rand() + .5) * 120;
-		setprop(""~myNodeName~ "/position/termVelocity",termVelocity);
-		setprop(""~myNodeName~ "/bombable/attributes/velocities/damagedAltitudeChangeMaxRate_meterspersecond",termVelocity * feet2meters);
+	pitchFactor = rand();
+	if (rand() > 0.3 ) {
+		pitchChange = -20 - pitchFactor * 40; 
+		speedChange = pitchFactor * 120;
+		}else{
+		pitchChange = -10 - pitchFactor * 20; 
+		speedChange = -getprop(""~myNodeName~ "/velocities/true-airspeed-kt") * (.25 * pitchFactor) * knots2fps;
 	}
+	# rjw check final pitch is negative
+	currentPitch = getprop(""~myNodeName~ "/orientation/pitch-deg");
+	if (currentPitch + pitchChange > -10) pitchChange = -10 - currentPitch; 
+		
+	# elapsed = getprop(""~myNodeName~ "/position/crashTimeElapsed");
+	# if (elapsed != nil) return;
+
 	
 	# initialise crash time elapsed timer
-	vert_spd = getprop(""~myNodeName~ "/velocities/vertical-speed-fps");
-		
-	elapsed = getprop(""~myNodeName~ "/position/crashTimeElapsed");
-	if (elapsed != nil) return;
+	elapsed = 0;
 	
-	# rjw advance or retard time depending on the vertical speed.  Derived from t / t + 5 approximation to tanh (t)	
-	if (vert_spd != 0) {
-		elapsed = 5 / (termVelocity / vert_spd - 1);
-	} else {
-		elapsed = 0.0001;
-	}
 	setprop(""~myNodeName~ "/position/crashTimeElapsed", elapsed);	
 
 	setprop(""~myNodeName~ "/position/crashCounter", 0);	
 
-	debprint ("Bombable: Starting crash routine, elapsed = ", elapsed);
+	setprop(""~myNodeName~ "/position/pitchChange", pitchChange);
+	#delta to pitch of aircraft at time of call to crash routine
+
+	setprop(""~myNodeName~ "/position/speedChange", speedChange);	
+	#delta to airspeed of aircraft at time of call to crash routine
+
+	debprint ("Bombable: Starting crash routine, ",
+	"elapsed = ", elapsed,
+	"pitchChange = ",pitchChange,
+	"speedChange = ",speedChange,	
+	);
 	
 	
 	aircraftCrashControl(myNodeName);
