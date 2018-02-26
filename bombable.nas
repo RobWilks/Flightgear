@@ -6702,7 +6702,7 @@ var aircraftCrashControl = func (myNodeName) {
 	#If we reset the damage levels, stop crashing:
 	if (getprop(""~myNodeName~"/bombable/attributes/damage") < 1 ) return;
 	
-	var loopTime = .05;
+	var loopTime = .1;
 	loopTime *= (1 + rand() * .1 - .05); #rjw add noise
 	# rjw 0.1 in original version. In original, noise was only added to the function timer
 
@@ -6741,7 +6741,10 @@ var aircraftCrashControl = func (myNodeName) {
 	
 	oldPitchAngle = getprop (""~myNodeName~ "/orientation/pitch-deg") / rad2degrees;
 
-	newVertSpeed = -termVelocity * elapsed / (elapsed + 5);
+	# newVertSpeed = -termVelocity * elapsed / (elapsed + 5);
+	newTrueAirspeed_fps = 182 * knots2fps + termVelocity * elapsed / (elapsed + 5);
+	newPitchAngle = -50 * elapsed / (elapsed + 5) / rad2degrees;
+	newVertSpeed = math.sin(newPitchAngle) * newTrueAirspeed_fps;
 	
 	# delta_ft = (newVertSpeed + oldVertSpeed) * .5 * loopTime;
 	delta_ft = newVertSpeed * loopTime;
@@ -6764,9 +6767,9 @@ var aircraftCrashControl = func (myNodeName) {
 	# See http://www.dept.aoe.vt.edu/~lutze/AOE3104/glidingflight.pdf
 	# instead use glide path.  Measure for the aircraft model and include as bombable attribute?
 				
-	horizontalSpeed = oldTrueAirspeed_fps * math.cos(oldPitchAngle);
-	newPitchAngle = math.atan2(newVertSpeed , horizontalSpeed);
-	newTrueAirspeed_fps = horizontalSpeed / math.cos(newPitchAngle);
+	# horizontalSpeed = oldTrueAirspeed_fps * math.cos(oldPitchAngle);
+	# newPitchAngle = math.atan2(newVertSpeed , horizontalSpeed);
+	# newTrueAirspeed_fps = newVertSpeed / math.sin(newPitchAngle);
 	
 	# rjw calculate the change in true air speed
 	# delta_trueAirspeed_fps = ((newVertSpeed - oldVertSpeed) / trueAirspeed_fps - deltaPitchAngle * math.cos(pitchAngle)) * trueAirspeed_fps * trueAirspeed_fps / oldVertSpeed;
@@ -6786,6 +6789,7 @@ var aircraftCrashControl = func (myNodeName) {
 	# Change target-speed
 	# target_spd = getprop(""~myNodeName~ "/controls/flight/target-spd");
 	# setprop (""~myNodeName~ "/controls/flight/target-spd", target_spd * .95 + termVelocity * 0.05);
+	setprop(""~myNodeName~ "/velocities/true-airspeed-kt", newTrueAirspeed_fps * fps2knots);
 	setprop (""~myNodeName~ "/controls/flight/target-spd", newTrueAirspeed_fps * fps2knots);
 	
 	# Change pitch
