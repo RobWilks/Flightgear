@@ -6868,7 +6868,7 @@ var aircraftCrash = func (myNodeName) {
 	pitchFactor = rand();
 	if (rand() > 0 ) {
 		pitchChange = -20 - pitchFactor * 40; 
-		speedChange = pitchFactor * 120;
+		speedChange = (.5 + pitchFactor) * 176;
 		#how much to change pitch and speed of aircraft over course of crash
 		}else{
 		pitchChange = -5 - pitchFactor * 5; 
