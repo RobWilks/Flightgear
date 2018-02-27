@@ -6714,6 +6714,7 @@ var aircraftCrashControl = func (myNodeName) {
 	crashCounter = getprop(""~myNodeName~ "/position/crashCounter");	
 	crashCounter += 1;	
 	setprop(""~myNodeName~ "/position/crashCounter", crashCounter);	
+	# rjw only used to control debug printing
 
 	# choose a roll speed up to the maximum for the aircraft
 	# rollPerLoop = getprop(""~myNodeName~ "/position/rollPerLoop");
@@ -6725,26 +6726,31 @@ var aircraftCrashControl = func (myNodeName) {
 		# setprop(""~myNodeName~ "/position/rollPerLoop", rollPerLoop); # degrees rolled each position update
 	# }
 	
+	initialPitch = getprop(""~myNodeName~ "/position/initialPitch");	
+
+	initialSpeed = getprop(""~myNodeName~ "/position/initialSpeed");	
+	
+	initialVertSpeed = getprop(""~myNodeName~ "/position/initialVertSpeed");	
 	
 	pitchChange = getprop(""~myNodeName~ "/position/pitchChange") / rad2degrees;
-	#delta to pitch of aircraft at time of call to crash routine
 
 	speedChange = getprop(""~myNodeName~ "/position/speedChange");	
-	#delta to airspeed of aircraft at time of call to crash routine
 	
 	oldPitchAngle = getprop (""~myNodeName~ "/orientation/pitch-deg") / rad2degrees;
 
-	newPitchAngle = oldPitchAngle + speedChange * 5 / (elapsed + 5) / (elapsed + 5) / rad2degrees * loopTime;
+	newPitchAngle = (initialPitch + pitchChange * elapsed / (elapsed + 5)) / rad2degrees;
 
 	oldTrueAirspeed_fps = getprop(""~myNodeName~ "/velocities/true-airspeed-kt") * knots2fps;
 	
-	newTrueAirspeed_fps = oldTrueAirspeed_fps + speedChange * 5 / (elapsed + 5) / (elapsed + 5) * loopTime;
+	newTrueAirspeed_fps = initialSpeed + speedChange * elapsed / (elapsed + 5);
 
 	oldVertSpeed = getprop(""~myNodeName~ "/velocities/vertical-speed-fps");
 	
 	if (speedChange < 0) {
 		cruiseSpeed = 182 * knots2fps;
-		newVertSpeed = oldVertSpeed - 32.174 * (1 - newTrueAirspeed * newTrueAirspeed / cruiseSpeed / cruiseSpeed) * loopTime;	
+		# found that calculation of delta_speed smoothed out by aircraft AI
+		newVertSpeed = oldVertSpeed - 32.174 * (1 - newTrueAirspeed_fps * newTrueAirspeed_fps / cruiseSpeed / cruiseSpeed) * loopTime;
+		# if so we should store the integral as it is calculated
 	}
 	else{
 		newVertSpeed = math.sin(newPitchAngle) * newTrueAirspeed_fps;
@@ -6855,34 +6861,43 @@ var aircraftCrash = func (myNodeName) {
 
 	# end of rjw mod
 
+	initialPitch = getprop(""~myNodeName~ "/orientation/pitch-deg");
+	initialSpeed = getprop(""~myNodeName~ "/velocities/true-airspeed-kt");
+	initialVertSpeed = getprop(""~myNodeName~ "/velocities/vertical-speed-fps");
+
 	pitchFactor = rand();
-	if (rand() > 0.3 ) {
+	if (rand() > 0 ) {
 		pitchChange = -20 - pitchFactor * 40; 
 		speedChange = pitchFactor * 120;
+		#how much to change pitch and speed of aircraft over course of crash
 		}else{
 		pitchChange = -5 - pitchFactor * 5; 
-		speedChange = -getprop(""~myNodeName~ "/velocities/true-airspeed-kt") * (.25 + .25 * pitchFactor) * knots2fps;
+		speedChange = -initialSpeed * (.25 + .25 * pitchFactor) * knots2fps;
 	}
 	# rjw check final pitch is negative
-	currentPitch = getprop(""~myNodeName~ "/orientation/pitch-deg");
-	if (currentPitch + pitchChange > -10) pitchChange = -10 - currentPitch; 
+	if (initialPitch + pitchChange > -10) pitchChange = -10 - initialPitch; 
 		
 	# elapsed = getprop(""~myNodeName~ "/position/crashTimeElapsed");
 	# if (elapsed != nil) return;
 
 	
+	setprop(""~myNodeName~ "/position/initialPitch", initialPitch);	
+
+	setprop(""~myNodeName~ "/position/pitchChange", pitchChange);
+
+	setprop(""~myNodeName~ "/position/initialSpeed", initialSpeed * knots2fps);	
+
+	setprop(""~myNodeName~ "/position/initialVertSpeed", initialVertSpeed);
+
+	setprop(""~myNodeName~ "/position/speedChange", speedChange);	
+
 	# initialise crash time elapsed timer
 	elapsed = 0;
 	
+
 	setprop(""~myNodeName~ "/position/crashTimeElapsed", elapsed);	
 
 	setprop(""~myNodeName~ "/position/crashCounter", 0);	
-
-	setprop(""~myNodeName~ "/position/pitchChange", pitchChange);
-	#delta to pitch of aircraft at time of call to crash routine
-
-	setprop(""~myNodeName~ "/position/speedChange", speedChange);	
-	#delta to airspeed of aircraft at time of call to crash routine
 
 	debprint ("Bombable: Starting crash routine, ",
 	"elapsed = ", elapsed,
