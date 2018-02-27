@@ -6732,27 +6732,27 @@ var aircraftCrashControl = func (myNodeName) {
 	
 	initialVertSpeed = getprop(""~myNodeName~ "/position/initialVertSpeed");	
 	
-	pitchChange = getprop(""~myNodeName~ "/position/pitchChange") / rad2degrees;
+	oldVertSpeed = getprop(""~myNodeName~ "/velocities/vertical-speed-fps");
+	
+	pitchChange = getprop(""~myNodeName~ "/position/pitchChange");
 
 	speedChange = getprop(""~myNodeName~ "/position/speedChange");	
 	
-	oldPitchAngle = getprop (""~myNodeName~ "/orientation/pitch-deg") / rad2degrees;
-
-	newPitchAngle = (initialPitch + pitchChange * elapsed / (elapsed + 5)) / rad2degrees;
+	oldPitchAngle = getprop (""~myNodeName~ "/orientation/pitch-deg");
 
 	oldTrueAirspeed_fps = getprop(""~myNodeName~ "/velocities/true-airspeed-kt") * knots2fps;
 	
 	newTrueAirspeed_fps = initialSpeed + speedChange * elapsed / (elapsed + 5);
 
-	oldVertSpeed = getprop(""~myNodeName~ "/velocities/vertical-speed-fps");
-	
 	if (speedChange < 0) {
 		cruiseSpeed = 182 * knots2fps;
-		# found that calculation of delta_speed smoothed out by aircraft AI
-		newVertSpeed = oldVertSpeed - 32.174 * (1 - newTrueAirspeed_fps * newTrueAirspeed_fps / cruiseSpeed / cruiseSpeed) * loopTime;
-		# if so we should store the integral as it is calculated
+		newVertSpeed = initialVertSpeed;
+		if (initialVertSpeed > -120)  newVertSpeed -= 32.174 * (1 - newTrueAirspeed_fps * newTrueAirspeed_fps / cruiseSpeed / cruiseSpeed) * loopTime; # rjw limit at term velocity
+		newPitchAngle = math.asin(newVertSpeed / newTrueAirspeed_fps);
+		if (rand() < .002) reduceRPM(myNodeName);
 	}
 	else{
+		newPitchAngle = (initialPitch + pitchChange * elapsed / (elapsed + 5)) / rad2degrees;
 		newVertSpeed = math.sin(newPitchAngle) * newTrueAirspeed_fps;
 	}
 	delta_ft = newVertSpeed * loopTime;	
@@ -6784,10 +6784,11 @@ var aircraftCrashControl = func (myNodeName) {
 
 	# Change vertical speed
 	setprop (""~myNodeName~ "/velocities/vertical-speed-fps", newVertSpeed);
+	setprop (""~myNodeName~ "/position/initialVertSpeed", newVertSpeed);	
 	
 	# Change target-speed
 	# target_spd = getprop(""~myNodeName~ "/controls/flight/target-spd");
-	setprop(""~myNodeName~ "/velocities/true-airspeed-kt", newTrueAirspeed_fps * fps2knots);
+	setprop (""~myNodeName~ "/velocities/true-airspeed-kt", newTrueAirspeed_fps * fps2knots);
 	setprop (""~myNodeName~ "/controls/flight/target-spd", newTrueAirspeed_fps * fps2knots);
 	
 	# Change pitch
@@ -6866,20 +6867,16 @@ var aircraftCrash = func (myNodeName) {
 	initialVertSpeed = getprop(""~myNodeName~ "/velocities/vertical-speed-fps");
 
 	pitchFactor = rand();
-	if (rand() > 0 ) {
+	if (rand() > .7 ) {
 		pitchChange = -20 - pitchFactor * 40; 
-		speedChange = (.5 + pitchFactor) * 176;
+		speedChange = (.5 + pitchFactor) * 120;
 		#how much to change pitch and speed of aircraft over course of crash
 		}else{
-		pitchChange = -5 - pitchFactor * 5; 
+		pitchChange = 0; 
 		speedChange = -initialSpeed * (.25 + .25 * pitchFactor) * knots2fps;
+		reduceRPM(myNodeName);
 	}
-	# rjw check final pitch is negative
-	if (initialPitch + pitchChange > -10) pitchChange = -10 - initialPitch; 
 		
-	# elapsed = getprop(""~myNodeName~ "/position/crashTimeElapsed");
-	# if (elapsed != nil) return;
-
 	
 	setprop(""~myNodeName~ "/position/initialPitch", initialPitch);	
 
