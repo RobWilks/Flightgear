@@ -2730,7 +2730,7 @@ var ground_loop = func( id, myNodeName ) {
 	var thorough = rand() < 1/5; # to save FR we only do it thoroughly sometimes
 	if (onGround) thorough = 0; #never need thorough when crashed
 			
-	#Update altitude to keep moving objects at ground level the ground
+	# Update altitude to keep moving objects at ground level the ground
 	var currAlt_ft = getprop(""~myNodeName~"/position/altitude-ft"); #where the object is, in feet
 	var lat = getprop(""~myNodeName~"/position/latitude-deg");
 	var lon = getprop(""~myNodeName~"/position/longitude-deg");
@@ -2765,19 +2765,13 @@ var ground_loop = func( id, myNodeName ) {
 	GeoCoord.apply_course_distance(heading, dims.length_m / 2 + FGAltObjectPerimeterBuffer_m);    #frontreardist in meters
 	toFrontAlt_ft = elev (GeoCoord.lat(), GeoCoord.lon()  ); #in feet
 	
-	# rjw for testing aircraftCrash - manually set damageValue.  The next line will initiate the crash sequence
-	if (type == "aircraft" and damageValue == 1 and getprop(""~myNodeName~ "/position/crashTimeElapsed") == nil) {
-		aircraftCrash(myNodeName);
-		return;
-		}
-	
 			
 	# This loop is one of our biggest framerate sucks and so if we're an undamaged
 	# aircraft way above our minimum AGL we're just going to skip it entirely.
 	if (type == "aircraft" and damageValue < 0.95 and (currAlt_ft - toFrontAlt_ft) > 3 * alts.minimumAGL_ft) return;
 			
 			
-	if (type == "aircraft" and ! onGround ) {
+	if (type == "aircraft" and !onGround ) {
 		# rjw: is it possible to have types of object other than aircraft that are not on the ground? 
 		#poor man's look-ahead radar
 				
@@ -2817,7 +2811,7 @@ var ground_loop = func( id, myNodeName ) {
 	
 	# if it's damaged we always get the pitch angle etc as that is how we force it down.
 	# but if it's on the ground, we don't care and all these geo.Coords & elevs really kill FR.
-	if (thorough or ( damageValue > 0.8 and ! onGround ) ) {
+	if (thorough or ( damageValue > 0.8 and !onGround ) ) {
 	
 		# rjw mod: Moved earlier block here
 		# find the slope of the ground in the direction we are heading
@@ -2892,6 +2886,7 @@ var ground_loop = func( id, myNodeName ) {
 		setprop(""~myNodeName~"/controls/tgt-speed-kt", 0);
 		setprop(""~myNodeName~"/controls/flight/target-spd", 0);
 		setprop(""~myNodeName~"/velocities/true-airspeed-kt", 0);
+		setprop(""~myNodeName~"/velocities/vertical-speed-fps", 0);
 				
 		#we don't even really need the timer any more, since this object
 		#is now exploded and stopped.  But just in case . . .				
@@ -2984,7 +2979,7 @@ var ground_loop = func( id, myNodeName ) {
 			
 	# rjw mod: the descent of a destroyed aircraft is managed by aircraftCrashControl 
 	# rjw current conflict between ground_loop and aircraftCrashControl. This statement will direct crash solely by the latter 
-	if (type == "aircraft" and damageValue == 1 and !onGround) return;
+	if (type == "aircraft" and damageValue == 1) return;
 			
 
 	# if we are dropping faster than the current slope (typically because
@@ -6702,6 +6697,7 @@ var aircraftCrashControl = func (myNodeName) {
 	#If we reset the damage levels, stop crashing:
 	if (getprop(""~myNodeName~"/bombable/attributes/damage") < 1 ) return;
 	
+
 	var loopTime = .1;
 	loopTime *= (1 + rand() * .1 - .05); #rjw add noise
 	# rjw 0.1 in original version. In original, noise was only added to the function timer
@@ -6743,9 +6739,9 @@ var aircraftCrashControl = func (myNodeName) {
 	newTrueAirspeed_fps = initialSpeed + speedChange * elapsed / (elapsed + 5);
 
 	if (speedChange < 0) {
-		cruiseSpeed_kt = getprop("/bombable/attributes/velocities/cruiseSpeed_kt");
+		cruiseSpeed_kt = getprop(""~myNodeName~ "/bombable/attributes/velocities/cruiseSpeed_kt");
 		newVertSpeed = initialVertSpeed;
-		if (initialVertSpeed > -120)  newVertSpeed -= 32.174 * (1 - newTrueAirspeed_fps * newTrueAirspeed_fps / cruiseSpeed_kt / cruiseSpeed_kt) * loopTime; # rjw limit at term velocity
+		if (initialVertSpeed > -120)  newVertSpeed -= 32.174 * (1 - newTrueAirspeed_fps * newTrueAirspeed_fps / initialSpeed / initialSpeed) * loopTime; # rjw limit at term velocity
 		newPitchAngle = math.asin(newVertSpeed / newTrueAirspeed_fps);
 		if (rand() < .002) reduceRPM(myNodeName);
 	}
