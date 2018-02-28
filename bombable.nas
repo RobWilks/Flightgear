@@ -6732,8 +6732,6 @@ var aircraftCrashControl = func (myNodeName) {
 	
 	initialVertSpeed = getprop(""~myNodeName~ "/position/initialVertSpeed");	
 	
-	oldVertSpeed = getprop(""~myNodeName~ "/velocities/vertical-speed-fps");
-	
 	pitchChange = getprop(""~myNodeName~ "/position/pitchChange");
 
 	speedChange = getprop(""~myNodeName~ "/position/speedChange");	
@@ -6745,9 +6743,9 @@ var aircraftCrashControl = func (myNodeName) {
 	newTrueAirspeed_fps = initialSpeed + speedChange * elapsed / (elapsed + 5);
 
 	if (speedChange < 0) {
-		cruiseSpeed = 182 * knots2fps;
+		cruiseSpeed_kt = getprop("/bombable/attributes/velocities/cruiseSpeed_kt");
 		newVertSpeed = initialVertSpeed;
-		if (initialVertSpeed > -120)  newVertSpeed -= 32.174 * (1 - newTrueAirspeed_fps * newTrueAirspeed_fps / cruiseSpeed / cruiseSpeed) * loopTime; # rjw limit at term velocity
+		if (initialVertSpeed > -120)  newVertSpeed -= 32.174 * (1 - newTrueAirspeed_fps * newTrueAirspeed_fps / cruiseSpeed_kt / cruiseSpeed_kt) * loopTime; # rjw limit at term velocity
 		newPitchAngle = math.asin(newVertSpeed / newTrueAirspeed_fps);
 		if (rand() < .002) reduceRPM(myNodeName);
 	}
@@ -6806,16 +6804,9 @@ var aircraftCrashControl = func (myNodeName) {
 	
 	
 	if (math.fmod(crashCounter , 10) == 0) debprint(
-		# "Bombable: CrashControl: deltaPitchAngle = ",deltaPitchAngle, 
-		# "delta_trueAirspeed_fps = ", delta_trueAirspeed_fps, 
-		# "deltaVertSpeed = ", newVertSpeed - oldVertSpeed);
-		
-		"Bombable: CrashControl: oldPitchAngle = ", oldPitchAngle * rad2degrees, 
-		"oldTrueAirspeed_fps = ", oldTrueAirspeed_fps, 
+		"Bombable: CrashControl: ",
 		"newTrueAirspeed_fps = ", newTrueAirspeed_fps,
-		"oldVertSpeed = ", oldVertSpeed,
 		"newVertSpeed = ", newVertSpeed,
-		"oldPitchAngle = ", oldPitchAngle * rad2degrees,	
 		"newPitchAngle = ", newPitchAngle * rad2degrees,	
 		"target-alt = ", currAlt_ft + delta_ft
 	);
@@ -6866,14 +6857,14 @@ var aircraftCrash = func (myNodeName) {
 	initialSpeed = getprop(""~myNodeName~ "/velocities/true-airspeed-kt");
 	initialVertSpeed = getprop(""~myNodeName~ "/velocities/vertical-speed-fps");
 
-	pitchFactor = rand();
+	randomFactor = rand();
 	if (rand() > .7 ) {
-		pitchChange = -20 - pitchFactor * 40; 
-		speedChange = (.5 + pitchFactor) * 120;
+		pitchChange = -20 - randomFactor * 40; 
+		speedChange = (.5 + randomFactor) * 120;
 		#how much to change pitch and speed of aircraft over course of crash
 		}else{
 		pitchChange = 0; 
-		speedChange = -initialSpeed * (.25 + .25 * pitchFactor) * knots2fps;
+		speedChange = -initialSpeed * (.25 + .25 * randomFactor) * knots2fps;
 		reduceRPM(myNodeName);
 	}
 		
@@ -6897,7 +6888,6 @@ var aircraftCrash = func (myNodeName) {
 	setprop(""~myNodeName~ "/position/crashCounter", 0);	
 
 	debprint ("Bombable: Starting crash routine, ",
-	"elapsed = ", elapsed,
 	"pitchChange = ",pitchChange,
 	"speedChange = ",speedChange	
 	);
