@@ -2694,7 +2694,10 @@ var ground_loop = func( id, myNodeName ) {
 	var loopid = getprop(""~myNodeName~"/bombable/loopids/ground-loopid");
 	id == loopid or return;
 
-	# var b = props.globals.getNode (""~myNodeName~"/bombable/attributes");
+	var onGround = getprop (""~myNodeName~"/bombable/on-ground");
+	if (onGround == nil) onGround = 0;
+	if (onGround == 1) return; # rjw this feels ironic for a ground loop; we are assuming that onground is a flag only used for aircraft that have crashed
+
 	var updateTime_s = attributes[myNodeName].updateTime_s;
 			
 	# reset the timer loop first so we don't lose it entirely in case of a runtime
@@ -2716,8 +2719,6 @@ var ground_loop = func( id, myNodeName ) {
 	var alts = attributes[myNodeName].altitudes;
 	var dims = attributes[myNodeName].dimensions;
 	var vels = attributes[myNodeName].velocities;
-	var onGround = getprop (""~myNodeName~"/bombable/on-ground");
-	if (onGround == nil) onGround = 0;
 			
 	# If you get too close in to the object, FG detects the elevation of the top of the object itself
 	# rather than the underlying ground elevation. So we go an extra FGAltObjectPerimeterBuffer_m
@@ -2899,10 +2900,12 @@ var ground_loop = func( id, myNodeName ) {
 	or (damageValue == 1 and currAlt_ft <= objectsLowestAllowedAlt_ft) )
 	) hitground_stop_explode(myNodeName, alt_ft);
 			
-	if (onGround){
+	if (onGround == 1){
 		#go to object's resting altitude				
 		setprop (""~myNodeName~"/position/altitude-ft", objectsLowestAllowedAlt_ft );
 		setprop (""~myNodeName~"/controls/flight/target-alt",  objectsLowestAllowedAlt_ft);
+		setprop (""~myNodeName~"/controls/flight/target-roll",  rollangle_deg);
+		setprop (""~myNodeName~"/controls/flight/target-pitch",  pitchangle1_deg);
 				
 		#bring all to a complete stop
 		setprop(""~myNodeName~"/controls/tgt-speed-kt", 0);
