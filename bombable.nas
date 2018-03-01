@@ -2590,7 +2590,6 @@ var hitground_stop_explode = func (myNodeName, alt) {
 	# debprint ("Bombable: setprop 4256");
 	setprop (""~myNodeName~"/position/altitude-ft",  alt  );
 	setprop (""~myNodeName~"/bombable/on-ground",  1 ); #this affects the slow-down system which is handled by add-damage, and will stop any forward movement very quickly
-	killEngines(myNodeName);					
 	add_damage(1, myNodeName, "nonweapon");  #and once we have buried ourselves in the ground we are surely dead; this also will stop any & all forward movement
 			
 	# check if this object has exploded already
@@ -2610,6 +2609,7 @@ var hitground_stop_explode = func (myNodeName, alt) {
 				
 		# explode for, say, 3 seconds but then we're done for this object
 		settimer (   func {setprop(""~myNodeName~"/bombable/exploded" , 1 ); }, 3 + rand() );
+		killEngines(myNodeName);					
 	}
 
 }
@@ -2877,6 +2877,28 @@ var ground_loop = func( id, myNodeName ) {
 	var objectsLowestAllowedAlt_ft = alt_ft + alts.wheelsOnGroundAGL_ft + alts.crashedAGL_ft;
 	#debprint (" objectsLowestAllowedAlt_ft = ", objectsLowestAllowedAlt_ft);
 			
+	# If the object is as low as allowed by crashedAGL_m
+	# we consider it "on the ground" (for an airplane) or
+	# completely sunk (for a ship) etc.
+	# If it is going there at any speed we consider it crashed
+	# into the ground. When this
+	# property is set to true then the speed will slow quite dramatically.
+	# This allows for example airplanes to continue forward movement
+	# in the air but skid to a sudden halt when hitting the ground.
+	#
+	# alts.wheelsOnGroundAGL_ft + damageAltAdd = the altitude (AGL) the object should be at when
+	# finished crashing, sinking, etc.
+	# It's not that easy to determine if an object crashes--if an airplane
+	# hits the ground it crashes but tanks etc are always on the ground
+	
+	# rjw mod: moved block forward so that speed brought to halt earlier 
+	noPitch = 0;
+	if (type == "aircraft" and (
+	(damageValue > 0.8 and ( currAlt_ft <= objectsLowestAllowedAlt_ft and speed_kt > 20 )
+	or ( currAlt_ft <= objectsLowestAllowedAlt_ft - 5))
+	or (damageValue == 1 and currAlt_ft <= objectsLowestAllowedAlt_ft) )
+	) hitground_stop_explode(myNodeName, alt_ft);
+			
 	if (onGround){
 		#go to object's resting altitude				
 		setprop (""~myNodeName~"/position/altitude-ft", objectsLowestAllowedAlt_ft );
@@ -2893,7 +2915,13 @@ var ground_loop = func( id, myNodeName ) {
 		#and that's it
 		return;		
 	}
-	
+
+	# rjw mod: the descent of a destroyed aircraft is managed by aircraftCrashControl 
+	# rjw current conflict between ground_loop and aircraftCrashControl. This statement will direct crash solely by the latter 
+	if (type == "aircraft" and damageValue == 1) return;
+			
+
+
 	# our target altitude for normal/undamaged forward movement
 	# this isn't based on our current altitude but the results of our
 	# "lookahead radar" to provide the base altitude
@@ -2956,32 +2984,6 @@ var ground_loop = func( id, myNodeName ) {
 
 
 			
-	# If the object is as low as allowed by crashedAGL_m
-	# we consider it "on the ground" (for an airplane) or
-	# completely sunk (for a ship) etc.
-	# If it is going there at any speed we consider it crashed
-	# into the ground. When this
-	# property is set to true then the speed will slow quite dramatically.
-	# This allows for example airplanes to continue forward movement
-	# in the air but skid to a sudden halt when hitting the ground.
-	#
-	# alts.wheelsOnGroundAGL_ft + damageAltAdd = the altitude (AGL) the object should be at when
-	# finished crashing, sinking, etc.
-	# It's not that easy to determine if an object crashes--if an airplane
-	# hits the ground it crashes but tanks etc are always on the ground
-	
-	noPitch = 0;
-	if (type == "aircraft" and (
-	(damageValue > 0.8 and ( currAlt_ft <= objectsLowestAllowedAlt_ft and speed_kt > 20 )
-	or ( currAlt_ft <= objectsLowestAllowedAlt_ft - 5))
-	or (damageValue == 1 and currAlt_ft <= objectsLowestAllowedAlt_ft) )
-	) hitground_stop_explode(myNodeName, alt_ft);
-			
-	# rjw mod: the descent of a destroyed aircraft is managed by aircraftCrashControl 
-	# rjw current conflict between ground_loop and aircraftCrashControl. This statement will direct crash solely by the latter 
-	if (type == "aircraft" and damageValue == 1) return;
-			
-
 	# if we are dropping faster than the current slope (typically because
 	# we are an aircraft diving to the ground because of damage) we
 	# make the pitch match that angle, even if it more acute than the
@@ -6697,6 +6699,11 @@ var aircraftCrashControl = func (myNodeName) {
 	#If we reset the damage levels, stop crashing:
 	if (getprop(""~myNodeName~"/bombable/attributes/damage") < 1 ) return;
 	
+	var onGround = getprop (""~myNodeName~"/bombable/on-ground");
+	if (onGround == nil) onGround = 0;
+
+	#If we have hit the ground, stop crashing:
+	if (onGround == 1) return();
 
 	var loopTime = .1;
 	loopTime *= (1 + rand() * .1 - .05); #rjw add noise
@@ -6712,16 +6719,6 @@ var aircraftCrashControl = func (myNodeName) {
 	setprop(""~myNodeName~ "/position/crashCounter", crashCounter);	
 	# rjw only used to control debug printing
 
-	# choose a roll speed up to the maximum for the aircraft
-	# rollPerLoop = getprop(""~myNodeName~ "/position/rollPerLoop");
-	# if (rollPerLoop == nil) {
-		# evas = attributes[myNodeName].evasions;				
-		# if (evas.rollRateMax_degpersec == nil or evas.rollRateMax_degpersec <= 0) evas.rollRateMax_degpersec = 40;
-		# rollPerLoop = (rand() * .5 + .5) * evas.rollRateMax_degpersec * loopTime;
-		# if (rand() > .5) rollPerLoop = -rollPerLoop;
-		# setprop(""~myNodeName~ "/position/rollPerLoop", rollPerLoop); # degrees rolled each position update
-	# }
-	
 	initialPitch = getprop(""~myNodeName~ "/position/initialPitch");	
 
 	initialSpeed = getprop(""~myNodeName~ "/position/initialSpeed");	
@@ -6795,7 +6792,7 @@ var aircraftCrashControl = func (myNodeName) {
 
 	# Make it roll
 	var rollAngle = getprop (""~myNodeName~ "/orientation/roll-deg");
-	if (rand() < .01 or math.abs(rollAngle) > 70) setprop (""~myNodeName~ "/controls/flight/target-roll", (rand() - .5) * 100); 
+	if (rand() < (loopTime / 5) or math.abs(rollAngle) > 70) setprop (""~myNodeName~ "/controls/flight/target-roll", (rand() - .5) * 140); 
 	
 	
 	
@@ -6809,8 +6806,6 @@ var aircraftCrashControl = func (myNodeName) {
 
 	
 	
-	var onGround = getprop (""~myNodeName~"/bombable/on-ground");
-	if (onGround == nil) onGround = 0;
 				
 
 	# elevation of -1371 ft is a failsafe (lowest elevation on earth); so is
