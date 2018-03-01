@@ -2603,8 +2603,8 @@ var hitground_stop_explode = func (myNodeName, alt) {
 		lnexpl = math.ln (vuls.explosiveMass_kg / 10);
 		var smokeStartsize = rand() * lnexpl * 20 + 30;
 		setprop ("/bombable/fire-particles/smoke-startsize", smokeStartsize);
-		setprop ("/bombable/fire-particles/smoke-startsize-small", smokeStartsize * (rand()/2 + 0.5));
-		setprop ("/bombable/fire-particles/smoke-startsize-very-small", smokeStartsize * (rand()/8 + 0.2));
+		setprop ("/bombable/fire-particles/smoke-startsize-small", smokeStartsize * (rand() / 2 + 0.5));
+		setprop ("/bombable/fire-particles/smoke-startsize-very-small", smokeStartsize * (rand() / 8 + 0.2));
 		setprop ("/bombable/fire-particles/smoke-startsize-large", smokeStartsize * (rand() * 4 + 1));
 				
 		# explode for, say, 3 seconds but then we're done for this object
@@ -2694,9 +2694,7 @@ var ground_loop = func( id, myNodeName ) {
 	var loopid = getprop(""~myNodeName~"/bombable/loopids/ground-loopid");
 	id == loopid or return;
 
-	var onGround = getprop (""~myNodeName~"/bombable/on-ground");
-	if (onGround == nil) onGround = 0;
-	if (onGround == 1) return; # rjw this feels ironic for a ground loop; we are assuming that onground is a flag only used for aircraft that have crashed
+	if (getprop(""~myNodeName~"/bombable/exploded") == 1) return();
 
 	var updateTime_s = attributes[myNodeName].updateTime_s;
 			
@@ -2710,6 +2708,9 @@ var ground_loop = func( id, myNodeName ) {
 
 	#debprint ("ground_loop starting");
 
+	var onGround = getprop (""~myNodeName~"/bombable/on-ground");
+	if (onGround == nil) onGround = 0;
+	
 	node = props.globals.getNode(myNodeName);
 	type = node.getName();
 
@@ -2812,8 +2813,7 @@ var ground_loop = func( id, myNodeName ) {
 	
 	# if it's damaged we always get the pitch angle etc as that is how we force it down.
 	# but if it's on the ground, we don't care and all these geo.Coords & elevs really kill FR.
-	if (thorough or ( damageValue > 0.8 and !onGround ) ) {
-	
+	if (thorough or damageValue > 0.8 ) {	
 		# rjw mod: Moved earlier block here
 		# find the slope of the ground in the direction we are heading
 		GeoCoord.apply_course_distance(heading + 180, dims.length_m + 2 * FGAltObjectPerimeterBuffer_m );
@@ -2900,7 +2900,7 @@ var ground_loop = func( id, myNodeName ) {
 	or (damageValue == 1 and currAlt_ft <= objectsLowestAllowedAlt_ft) )
 	) hitground_stop_explode(myNodeName, alt_ft);
 			
-	if (onGround == 1){
+	if (onGround){
 		#go to object's resting altitude				
 		setprop (""~myNodeName~"/position/altitude-ft", objectsLowestAllowedAlt_ft );
 		setprop (""~myNodeName~"/controls/flight/target-alt",  objectsLowestAllowedAlt_ft);
@@ -6706,7 +6706,11 @@ var aircraftCrashControl = func (myNodeName) {
 	if (onGround == nil) onGround = 0;
 
 	#If we have hit the ground, stop crashing:
-	if (onGround == 1) return();
+	if (onGround) {
+		setprop(""~myNodeName~ "/position/crashTimeElapsed", 0);
+		debprint ("Bombable: Ending aircraft crash routine for " ~ myNodeName);
+		return();
+	}
 
 	var loopTime = .1;
 	loopTime *= (1 + rand() * .1 - .05); #rjw add noise
@@ -6819,13 +6823,10 @@ var aircraftCrashControl = func (myNodeName) {
 	}
 	# rjw note timer is called once after the set time elapses rather than recursively
 	else {
-		setprop(""~myNodeName~ "/position/crashTimeElapsed", 0);
 		# we should be crashed at this point but just in case:
 		if ( currAlt_ft <= -1371 ) add_damage(1, myNodeName,"crash");
-		debprint ("Bombable: Ending aircraft crash routine for " ~ myNodeName);
 	}
 }
-
 
 ################################## aircraftCrash ################################
 # rjw initializes the aircraft crash loop
