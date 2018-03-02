@@ -2729,7 +2729,7 @@ var ground_loop = func( id, myNodeName ) {
 	var FGAltObjectPerimeterBuffer_m = 2.5;
 	var FGAltObjectPerimeterBuffer_ft = FGAltObjectPerimeterBuffer_m / feet2meters;
 			
-	var thorough = rand() < 1/5; # to save FR we only do it thoroughly sometimes
+	var thorough = rand() < 1; # to save FR we only do it thoroughly sometimes
 	if (onGround) thorough = 0; #never need thorough when crashed
 			
 	# Update altitude to keep moving objects at ground level the ground
@@ -2805,7 +2805,9 @@ var ground_loop = func( id, myNodeName ) {
 		#if we're low to the ground we add this extra 500 ft just to be safe
 		if (currAlt_ft - radarAheadAlt_ft < 500)
 		lookingAheadAlt_ft  +=  500;
-		} else {
+	} 
+	else 
+	{
 		lookingAheadAlt_ft = toFrontAlt_ft;
 	}
 
@@ -2901,7 +2903,8 @@ var ground_loop = func( id, myNodeName ) {
 	) hitground_stop_explode(myNodeName, alt_ft);
 			
 	if (onGround){
-		#go to object's resting altitude				
+		#go to object's resting altitude
+		#rjw onGround is set by hitground_stop_explode
 		setprop (""~myNodeName~"/position/altitude-ft", objectsLowestAllowedAlt_ft );
 		setprop (""~myNodeName~"/controls/flight/target-alt",  objectsLowestAllowedAlt_ft);
 		setprop (""~myNodeName~"/controls/flight/target-roll",  rollangle_deg);
@@ -2914,12 +2917,12 @@ var ground_loop = func( id, myNodeName ) {
 		setprop(""~myNodeName~"/velocities/vertical-speed-fps", 0);
 				
 		#we don't even really need the timer any more, since this object
-		#is now exploded and stopped.  But just in case . . .				
-		#and that's it
+		#is now exploded and stopped.		
+		#the ground_loop is terminated if exploded == 1
 		return;		
 	}
 
-	# rjw mod: the descent of a destroyed aircraft is managed by aircraftCrashControl 
+	# rjw mod: the descent of a destroyed (damage == 1) aircraft is managed by aircraftCrashControl 
 	# rjw current conflict between ground_loop and aircraftCrashControl. This statement will direct crash solely by the latter 
 	if (type == "aircraft" and damageValue == 1) return;
 			
@@ -2939,27 +2942,24 @@ var ground_loop = func( id, myNodeName ) {
 	# This is to get the object to "full crashed position", i.e. on the ground for an aircraft, fully sunk for a ship, etc.
 			
 			
-	#now calculate how far to force the thing down if it is crashing/damaged
-	if ( damageValue > 0.8  )  {
-		damageAltAddMax_ft = damageValue * fullDamageAltAdd_ft; #max amount to add to the altitude of this object based on its current damage.
-		#
+	# now calculate how far to force the thing down if it is crashing/damaged
+	# rjw ships and aircrafts will sink/fall when damaged; some ground vehicles are classed as ships!
+
+	if ( damageValue > 0.8)  {
+		damageAltAddMax_ft = damageValue * fullDamageAltAdd_ft; 
+		#max amount to add to the altitude of this object based on its current damage.
 		#Like fullDamageAltAdd & damageAltAddPrev this should always be zero
 		#or negative as everything on earth falls or sinks when it loses
 		#power. And assuming that simplifies calculations immensely.
 				
 		#The altitude the object should be at, based on damagealtAddMax & the ground level:
 		shouldBeAlt = currAlt_ft + damageAltAddMax_ft;
-		#debprint ("shouldBeAlt ", shouldBeAlt);
-				
-		#debprint ( "alt = ", alt_ft, " currAlt_ft = ",currAlt_ft, " fulldamagealtadd", fullDamageAltAdd_ft," damagealtaddmax", damageAltAddMax_ft, " damagevalue", damageValue," ", myNodeName );
-				
-		#debprint ("shouldBeAlt = oldalt+ alts.wheelsOnGroundAGL_ft + damageAltAddMax; ",
-		#   shouldBeAlt, " ", oldalt, " ", alts.wheelsOnGroundAGL_ft, " ", damageAltAddMax  );
-				
+
+		
 		#limit amount of sinkage to damageAltMaxRate in one hit/loop--otherwise it just goes down too fast, not realistic.  
 		#Analogous to the terminal velocity
 		damageAltMaxPerCycle_ft = -abs(vels.damagedAltitudeChangeMaxRate_meterspersecond * updateTime_s / feet2meters);
-		#rjw might change this amount if crashing at the terminal velocity; probably no need for abs		
+		#rjw might change this amount if crashing at the terminal velocity; probably no need for abs unless error in input data		
 				
 				
 		#rjw: descent rate increases at 10% per second; initialised at 1% the max rate
@@ -2976,11 +2976,10 @@ var ground_loop = func( id, myNodeName ) {
 		if (abs(damageAltAddCurrent_ft) > abs(damageAltAddMax_ft)) {
 			damageAltAddCurrent_ft = damageAltAddMax_ft;
 		}
-				
-				
-		#debprint ( " damageAltAddMax = ", damageAltAddMax, " damageAltMaxRate = ",
-		#debprint ("damageAltAddCurrent_ft ", damageAltAddCurrent_ft);
-		} else {
+
+	} 
+	else 
+	{
 		damageAltAddCurrent_ft = 0;
 	}
 
@@ -2991,16 +2990,19 @@ var ground_loop = func( id, myNodeName ) {
 	# we are an aircraft diving to the ground because of damage) we
 	# make the pitch match that angle, even if it more acute than the
 	# regular slope of the underlying ground
+	# rjw would imply that we do not sink ships
+
+	horizontalDistance_ft = speed_kt * knots2fps * updateTime_s;
+	
 	if ( damageValue > 0.8  ) {
 				
-		#this goes off every updateTime_s seconds approximately so the horizontal motion in one second is: (1.68780986 converts knots to ft per second)
-		horizontalDistance_ft = speed_kt * knots2fps * updateTime_s;
+		#ground_loop is called every updateTime_s seconds (1.68780986 converts knots to ft per second)
 		pitchangle2_deg = rad2degrees * math.atan2(damageAltAddCurrent_ft, horizontalDistance_ft );
 		if (damageAltAddCurrent_ft == 0 and horizontalDistance_ft > 0) pitchangle2_deg = 0; #forward
 		if (horizontalDistance_ft == 0 and damageAltAddCurrent_ft < 0 ) pitchangle2_deg = -90; #straight down
 		#Straight up won't happen here because we are (on purpose) forcing
 		#the object down as we crash.  So we ignore the case.
-		#if (horizontalDistance == 0 and deltaAlt > 0 ) pitchangle2 = 90; straight up
+		#if (horizontalDistance == 0 and damageAltAddCurrent_ft > 0 ) pitchangle2 = 90; straight up
 				
 		#if no movement at all then we leave the pitch alone
 		#if movement is less than 0.4 feet for pitch purposes we consider it
@@ -3012,54 +3014,31 @@ var ground_loop = func( id, myNodeName ) {
 		#pitchangle1_deg is the slope of the land at the location of the object
 		#pitchangle1_deg is the slope of the glide path of the object
 
-		#vert-speed prob
-		#rjw mod if ( type != "aircraft" ) setprop (""~myNodeName~"/velocities/vertical-speed-fps",damageAltAddCurrent_ft * updateTime_s ); #since we do this updateTime_s per second the vertical speed in FPS (ideally) exactly equals damageAltAddCurrent * updateTime_s
-		if ( type != "aircraft" ) setprop (""~myNodeName~"/velocities/vertical-speed-fps",damageAltAddCurrent_ft / updateTime_s ); #the vertical speed in FPS (ideally) equals damageAltAddCurrent / updateTime_s
+		#set vert-speed
+		if ( type != "aircraft" ) setprop (""~myNodeName~"/velocities/vertical-speed-fps",damageAltAddCurrent_ft / updateTime_s ); 
+		#rjw mod: the vertical speed in FPS (ideally) equals damageAltAddCurrent / updateTime_s
 
-		#debprint ("speed-based pitchangle = ", pitchangle2_deg, " hor = ", horizontalDistance_ft, " dalt = ", deltaAlt_ft);
 	}
 
 
 
 	#don't set pitch/roll for aircraft
-	#debprint ("Bombable: setprop 4261");
 	if (type != "aircraft" and thorough ) {
-		#debprint ("Bombable: Setting roll-deg for ", myNodeName , " to ", rollangle_deg, " 1610");
 		setprop (""~myNodeName~"/orientation/roll-deg", rollangle_deg );
 		setprop (""~myNodeName~"/controls/flight/target-roll", rollangle_deg);
-		#if (!noPitch) { #noPitch only applies to aircraft, not sure how it ever got here . . .
-			# As of FG 2.4.0 FG doesn't let us change AI object pitch so all this code is a bit useless . . .
-			setprop (""~myNodeName~"/orientation/pitch-deg", pitchangle_deg );
-			setprop (""~myNodeName~"/controls/flight/target-pitch", pitchangle_deg);
-		#}
-				
+		# As of FG 2.4.0 FG doesn't let us change AI object pitch so all this code is a bit useless . . .
+		setprop (""~myNodeName~"/orientation/pitch-deg", pitchangle_deg );
+		setprop (""~myNodeName~"/controls/flight/target-pitch", pitchangle_deg);
 	}
 			
-	#if (crashing) debprint ("Crashing! damageAltAdd_deg and damageAltAddCurrent_deg,
-	#damageAltAddPrev & damageAltAddMax, damageAltMaxRate, damageAltMaxPerCycle ",
-	#damageAltAdd_ft, " ",damageAltAddCurrent," ", damageAltAddPrev_ft, " ",
-	#damageAltAddMax_ft, " ", myNodeName, " ", damageAltMaxRate, " ",
-	#damageAltMaxPerCycle_ft, " ", updateTime_s );
-			
-			
-			
-	#setprop (""~myNodeName~"/velocities/vertical-speed-fps", verticalspeed);
-			
-	#set the target alt.  This mainly works for aircraft.
-	#when crashing, only do this if the new target alt is less then the current
-	#target al
-	#newTgtAlt_ft = targetAlt_ft + damageAltAddCurrent_ft;
 	newTgtAlt_ft = targetAlt_ft;
 	#targetAlt_ft entirely set by terrain
 	currTgtAlt_ft = getprop (""~myNodeName~"/controls/flight/target-alt");#in ft
 	if (currTgtAlt_ft == nil) currTgtAlt_ft = 0;
 			
 	if ( (damageValue <= 0.8 ) or newTgtAlt_ft < currTgtAlt_ft ) {
-		#debprint ("Bombable: setprop 1625");
 		setprop (""~myNodeName~"/controls/flight/target-alt", (newTgtAlt_ft ));   #target altitude--this is 10 feet or so in front of us for a ship or up to 1 minute in front for an aircraft
-		#debprint ("1536 ", newTgtAlt_ft);
-		#debprint ("1536 ", getprop (""~myNodeName~"/controls/flight/target-alt")) ;
-		#debprint ("Bombable: ", alt_ft, " ", toRightAlt_ft, " ",toLeftAlt_ft, " ",toFrontAlt_ft," ", toLeftAlt_ft, " ", alts.wheelsOnGroundAGL_ft);
+		# rjw a damaged land-, air- or sea-craft loses the ability to climb
 	}
 			
 	#if going uphill base the altitude on the front of the vehicle (targetAlt).
@@ -3071,7 +3050,9 @@ var ground_loop = func( id, myNodeName ) {
 	#and find the altitude of that spot.
 	#For aircraft the targetAlt is the altitude 1 minute out IF that is higher
 	#than the ground level.
-	if (lookingAheadAlt_ft > alt_ft ) useAlt_ft = lookingAheadAlt_ft; else useAlt_ft = alt_ft;
+	#rjw_mod based on above
+	#if (lookingAheadAlt_ft > alt_ft ) useAlt_ft = lookingAheadAlt_ft; else useAlt_ft = alt_ft;
+	useAlt_ft = alt_ft + math.tan(pitchangle_deg / rad2degrees) * horizontalDistance_ft;
 	calcAlt_ft = (useAlt_ft + alts.wheelsOnGroundAGL_ft + alts.targetAGL_ft +  damageAltAddCumulative_ft + damageAltAddCurrent_ft);
 	if (calcAlt_ft < objectsLowestAllowedAlt_ft) calcAlt_ft = objectsLowestAllowedAlt_ft;
 			
