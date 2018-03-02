@@ -2706,10 +2706,15 @@ var ground_loop = func( id, myNodeName ) {
 	# Allow this function to be disabled via menu since it can kill framerate at times
 	if (! getprop ( bomb_menu_pp~"ai-ground-loop-enabled") or ! getprop(bomb_menu_pp~"bombable-enabled") ) return;
 
-	#debprint ("ground_loop starting");
-
 	var onGround = getprop (""~myNodeName~"/bombable/on-ground");
 	if (onGround == nil) onGround = 0;
+	
+	groundLoopCounter = getprop(""~myNodeName~ "/position/groundLoopCounter");	
+	if (groundLoopCounter == nil) groundLoopCounter = 0;
+	groundLoopCounter += 1;	
+	setprop(""~myNodeName~ "/position/groundLoopCounter", groundLoopCounter);	
+	# rjw only used to control debug printing
+
 	
 	node = props.globals.getNode(myNodeName);
 	type = node.getName();
@@ -3029,6 +3034,14 @@ var ground_loop = func( id, myNodeName ) {
 		# As of FG 2.4.0 FG doesn't let us change AI object pitch so all this code is a bit useless . . .
 		setprop (""~myNodeName~"/orientation/pitch-deg", pitchangle_deg );
 		setprop (""~myNodeName~"/controls/flight/target-pitch", pitchangle_deg);
+		if (math.fmod(groundLoopCounter , 10) == 0) debprint(
+				"Bombable: Ground_loop: ",
+				"rollangle_deg = ", rollangle_deg,
+				"pitchangle_deg = ", pitchangle_deg,
+				"targetAlt_ft = ", targetAlt_ft,	
+				"calcAlt_ft = ", calcAlt_ft
+			);		
+		
 	}
 			
 	newTgtAlt_ft = targetAlt_ft;
@@ -3067,7 +3080,6 @@ var ground_loop = func( id, myNodeName ) {
 	#rjw:  with pitch-target at -70 continue gliding with pitch at -4
 	#rjw:  potentially might improve the response by reducing the airspeed
 	if (type != "aircraft") {
-		#debprint ("Bombable: setprop 1652");
 		setprop (""~myNodeName~"/position/altitude-ft", calcAlt_ft ); # feet
 	}
 	# for an aircraft, if it is within feet of the ground (and not forced
