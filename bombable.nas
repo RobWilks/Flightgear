@@ -3030,11 +3030,13 @@ var ground_loop = func( id, myNodeName ) {
 		setprop (""~myNodeName~"/orientation/roll-deg", rollangle_deg );
 		setprop (""~myNodeName~"/controls/flight/target-roll", rollangle_deg);
 		# As of FG 2.4.0 FG doesn't let us change AI object pitch so all this code is a bit useless . . .
-		setprop (""~myNodeName~"/orientation/pitch-deg", pitchangle_deg );
-		#setprop (""~myNodeName~"/controls/flight/target-pitch", pitchangle_deg);
-		#set vert-speed rather than pitch
+		setprop (""~myNodeName~"/orientation/pitch-animation", pitchangle_deg );
+		# pitch is controlled by model animation
+		# setprop (""~myNodeName~"/controls/flight/target-pitch", pitchangle_deg);
+		# set vert-speed rather than pitch
 		vert_speed = math.sin(pitchangle_deg / rad2degrees) * speed_kt * knots2fps;
-		setprop (""~myNodeName~"/velocities/vertical-speed-fps", vert_speed);
+		#rjw commented out for debug
+		#setprop (""~myNodeName~"/velocities/vertical-speed-fps", vert_speed);
 		#rjw mod: the vertical speed in FPS (ideally) equals damageAltAddCurrent / updateTime_s		
 		targetAlt_ft = alt_ft + vert_speed * updateTime_s;
 	}
@@ -3094,7 +3096,6 @@ var ground_loop = func( id, myNodeName ) {
 				
 		#vert-speed prob
 		setprop (""~myNodeName~"/orientation/pitch-deg", 30 );
-		#debprint ("Bombable: setprop 1668");
 		setprop (""~myNodeName~"/controls/flight/target-pitch", 30);
 				
 		if (currAlt_ft < toFrontAlt_ft + 25 ) { #dramatic correction
