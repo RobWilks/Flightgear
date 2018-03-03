@@ -2731,7 +2731,7 @@ var ground_loop = func( id, myNodeName ) {
 	# meters out from the object
 	# just to be safe.  Otherwise objects climb indefinitely, always trying to get on top of themselves
 	# Sometimes needed in _m, sometimes _ft, so we need both . . .
-	var FGAltObjectPerimeterBuffer_m = 2.5;
+	var FGAltObjectPerimeterBuffer_m = 0.5 * dims.length_m;
 	var FGAltObjectPerimeterBuffer_ft = FGAltObjectPerimeterBuffer_m / feet2meters;
 			
 	var thorough = rand() < 1; # to save FR we only do it thoroughly sometimes
@@ -2768,11 +2768,11 @@ var ground_loop = func( id, myNodeName ) {
 	# the elev at the top of the object itself, not the ground . . .
 	var GeoCoord = geo.Coord.new();
 	GeoCoord.set_latlon(lat, lon);
+	alt_ft = elev (GeoCoord.lat(), GeoCoord.lon()  ); #in feet
 	# assume lat, lon are at the centre of the object
 	#debprint ("Bombable: GeoCoord.apply_course_distance(heading, dims.length_m/2); ",heading, " ", dims.length_m/2 );
 	GeoCoord.apply_course_distance(heading, dims.length_m / 2 + FGAltObjectPerimeterBuffer_m);    #frontreardist in meters
 	toFrontAlt_ft = elev (GeoCoord.lat(), GeoCoord.lon()  ); #in feet
-	
 			
 	# This loop is one of our biggest framerate sucks and so if we're an undamaged
 	# aircraft way above our minimum AGL we're just going to skip it entirely.
@@ -2807,7 +2807,7 @@ var ground_loop = func( id, myNodeName ) {
 		toRightAlt_ft = elev (GeoCoord2.lat(), GeoCoord2.lon()  ); #in feet
 		GeoCoord2.apply_course_distance(heading - 90, dims.width_m + 2 * FGAltObjectPerimeterBuffer_m );  # rjw same method as calculation of front-rear
 		toLeftAlt_ft = elev (GeoCoord2.lat(), GeoCoord2.lon()  ); #in feet
-		rollangle_deg = 90 - rad2degrees * math.atan2(dims.width_ft + 2 * FGAltObjectPerimeterBuffer_ft, toLeftAlt_ft - toRightAlt_ft ); #must convert this from radians to degrees, thus the 180/pi
+		rollangle_deg = rad2degrees * math.atan2(toLeftAlt_ft - toRightAlt_ft, dims.width_ft + 2 * FGAltObjectPerimeterBuffer_ft); #must convert this from radians to degrees, thus the 180/pi
 				
 		# in CVS, taking the alt of an object's position actually finds the top
 		# of that particular object.  So to find the alt of the actual landscape
@@ -2816,9 +2816,8 @@ var ground_loop = func( id, myNodeName ) {
 		# which we need to set pitch & roll,  so little is lost
 		alt_ft = (toFrontAlt_ft + toRearAlt_ft + toLeftAlt_ft + toRightAlt_ft) / 4; #in feet
 		} else {
-		alt_ft = toFrontAlt_ft;
-		toLeftAlt_ft = toFrontAlt_ft;
-		toRightAlt_ft = toFrontAlt_ft;
+		toLeftAlt_ft = alt_ft;
+		toRightAlt_ft = alt_ft;
 	}
 
 	
@@ -2960,7 +2959,7 @@ var ground_loop = func( id, myNodeName ) {
 		#power. And assuming that simplifies calculations immensely.
 				
 		#The altitude the object should be at, based on damagealtAddMax & the ground level:
-		shouldBeAlt = currAlt_ft + damageAltAddMax_ft;
+		#currAlt_ft + damageAltAddMax_ft
 
 		
 		#limit amount of sinkage to damageAltMaxRate in one hit/loop--otherwise it just goes down too fast, not realistic.  
@@ -3027,18 +3026,18 @@ var ground_loop = func( id, myNodeName ) {
 
 	#don't set pitch/roll for aircraft
 	if (type != "aircraft" and thorough ) {
+		slopeAhead_rad = atan2(toFrontAlt_ft - alt_ft , dims.length_m / 2 + FGAltObjectPerimeterBuffer_m);
+		# here can change speed according to gradient ahead
 		setprop (""~myNodeName~"/orientation/roll-deg", rollangle_deg );
 		setprop (""~myNodeName~"/controls/flight/target-roll", rollangle_deg);
-		# As of FG 2.4.0 FG doesn't let us change AI object pitch so all this code is a bit useless . . .
 		setprop (""~myNodeName~"/orientation/pitch-animation", pitchangle_deg );
 		# pitch is controlled by model animation
-		# setprop (""~myNodeName~"/controls/flight/target-pitch", pitchangle_deg);
-		# set vert-speed rather than pitch
-		vert_speed = math.sin(pitchangle_deg / rad2degrees) * speed_kt * knots2fps;
-		#rjw commented out for debug
-		#setprop (""~myNodeName~"/velocities/vertical-speed-fps", vert_speed);
+		# set vert-speed not pitch for ground craft
+		vert_speed = math.sin(slopeAhead_rad) * speed_kt * knots2fps;
+		vert_speed += (alt_ft - currAlt_ft) / updateTime_s; # correction if above or below ground
+		setprop (""~myNodeName~"/velocities/vertical-speed-fps", vert_speed);
 		#rjw mod: the vertical speed in FPS (ideally) equals damageAltAddCurrent / updateTime_s		
-		targetAlt_ft = alt_ft + vert_speed * updateTime_s;
+		targetAlt_ft = currAlt_ft + vert_speed * updateTime_s;
 	}
 			
 	currTgtAlt_ft = getprop (""~myNodeName~"/controls/flight/target-alt");#in ft
