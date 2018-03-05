@@ -2726,7 +2726,7 @@ var ground_loop = func( id, myNodeName ) {
 	var dims = attributes[myNodeName].dimensions;
 	var vels = attributes[myNodeName].velocities;
 	
-	if (vels.maxSpeed_kt) < 50) and (type == "aircraft") type = "groundvehicle");
+	if ((vels.maxSpeed_kt < 50) and (type == "aircraft")) type = "groundvehicle";
 	# rjw groundvehicles behave as aircraft, e.g. can set vertical speed
 			
 	# If you get too close in to the object, FG detects the elevation of the top of the object itself
@@ -3025,8 +3025,6 @@ var ground_loop = func( id, myNodeName ) {
 
 	}
 
-	# rjw debug
-	return;
 	#don't set pitch/roll for aircraft
 	if (type != "aircraft" and thorough ) {
 		slopeAhead_rad = math.atan2(toFrontAlt_ft - alt_ft , dims.length_m / 2 + FGAltObjectPerimeterBuffer_m);
@@ -3041,6 +3039,23 @@ var ground_loop = func( id, myNodeName ) {
 		setprop (""~myNodeName~"/velocities/vertical-speed-fps", vert_speed);
 		#rjw mod: the vertical speed in FPS (ideally) equals damageAltAddCurrent / updateTime_s		
 		targetAlt_ft = currAlt_ft + vert_speed * updateTime_s;
+		setprop (""~myNodeName~"/controls/flight/target-alt", targetAlt_ft);
+		#setprop (""~myNodeName~"/position/altitude-ft", alt_ft ); # feet
+
+		
+		
+		#rjw might use and thorough here
+		if (math.fmod(groundLoopCounter , 10) == 0) debprint(
+		"Bombable: Ground_loop: ",
+		"vertical-speed-fps = ", vertical-speed-fps,
+		"pitchangle_deg = ", pitchangle_deg,
+		"slopeAhead_deg = ", slopeAhead_deg / rad2degrees,	
+		"alt_ft - currAlt_ft = ", alt_ft - currAlt_ft
+		);		
+		
+
+		# rjw debug
+		return;
 	}
 			
 	currTgtAlt_ft = getprop (""~myNodeName~"/controls/flight/target-alt");#in ft
@@ -3074,21 +3089,15 @@ var ground_loop = func( id, myNodeName ) {
 	#rjw:  changing target altitude does not bring the aircraft down to the ground quickly. The AI system does not respond in the way intended
 	#rjw:  with pitch-target at -70 continue gliding with pitch at -4
 	#rjw:  potentially might improve the response by reducing the airspeed
-	if (type != "aircraft") {
-		#setprop (""~myNodeName~"/position/altitude-ft", alt_ft ); # feet
-		#rjw might use and thorough here
-		if (math.fmod(groundLoopCounter , 10) == 0) debprint(
-		"Bombable: Ground_loop: ",
-		"vertical-speed-fps = ", vertical-speed-fps,
-		"pitchangle_deg = ", pitchangle_deg,
-		"slopeAhead_deg = ", slopeAhead_deg / rad2degrees,	
-		"alt_ft - currAlt_ft = ", alt_ft - currAlt_ft
-		);		
-	}
+
+	
+	
 	# for an aircraft, if it is within feet of the ground (and not forced
 	# there because of damage etc.) then we "rescue" it be putting it 25 feet
 	# above ground again.
-	elsif (  currAlt_ft < toFrontAlt_ft + 75 and !(damageValue > 0.8 ) )   {
+	
+	# rjw will have exited if not an aircraft
+	if ((type == "aircraft") and ( currAlt_ft < toFrontAlt_ft + 75) and !(damageValue > 0.8 ))   {
 		#debprint ("correcting!", myNodeName, " ", toFrontAlt_ft, " ", currAlt_ft, " ", currAlt_ft-toFrontAlt_ft, " ", toFrontAlt_ft+40, " ", currAlt_ft+20 );
 		#set the pitch to try to make it look like we're climbing real
 		#fast here, not just making an emergency correction . . .
@@ -4239,8 +4248,6 @@ var speed_adjust = func (myNodeName, time_sec ){
 	airspeed_fps = airspeed_kt * knots2fps;
 	vertical_speed_fps = getprop (""~myNodeName~"/velocities/vertical-speed-fps");
 	
-	# rjw deleted next line
-	# var vels = attributes[myNodeName].velocities;
 	var maxSpeed_kt = vels.maxSpeed_kt;
 	if (maxSpeed_kt <= 0) maxSpeed_kt = 90;
 
