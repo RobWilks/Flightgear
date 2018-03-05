@@ -2701,7 +2701,7 @@ var ground_loop = func( id, myNodeName ) {
 	# reset the timer loop first so we don't lose it entirely in case of a runtime
 	# error or such
 	# add rand() so that all objects don't do this function simultaneously
-	settimer(func { ground_loop(id, myNodeName)}, (0.5 + rand()) * updateTime_s );
+	settimer(func { ground_loop(id, myNodeName)}, (0.9 + 0.2 * rand()) * updateTime_s );
 
 	# Allow this function to be disabled via menu since it can kill framerate at times
 	if (! getprop ( bomb_menu_pp~"ai-ground-loop-enabled") or ! getprop(bomb_menu_pp~"bombable-enabled") ) return;
@@ -3026,18 +3026,20 @@ var ground_loop = func( id, myNodeName ) {
 	}
 
 	#don't set pitch/roll for aircraft
+
 	if (type != "aircraft" and thorough ) {
 		slopeAhead_rad = math.atan2(toFrontAlt_ft - alt_ft , dims.length_m / 2 + FGAltObjectPerimeterBuffer_m);
 		# here can change speed according to gradient ahead
+
+		# pitch and roll controlled by model animation
 		setprop (""~myNodeName~"/orientation/roll-animation", rollangle_deg );
-		# setprop (""~myNodeName~"/controls/flight/target-roll", rollangle_deg);
 		setprop (""~myNodeName~"/orientation/pitch-animation", pitchangle_deg );
-		# pitch is controlled by model animation
+
 		# set vert-speed not pitch for ground craft
 		vert_speed = math.sin(slopeAhead_rad) * speed_kt * knots2fps;
 		vert_speed += (alt_ft - currAlt_ft) / updateTime_s; # correction if above or below ground
 		setprop (""~myNodeName~"/velocities/vertical-speed-fps", vert_speed);
-		#rjw mod: the vertical speed in FPS (ideally) equals damageAltAddCurrent / updateTime_s		
+
 		targetAlt_ft = currAlt_ft + vert_speed * updateTime_s;
 		setprop (""~myNodeName~"/controls/flight/target-alt", targetAlt_ft);
 		#setprop (""~myNodeName~"/position/altitude-ft", alt_ft ); # feet
@@ -3047,9 +3049,9 @@ var ground_loop = func( id, myNodeName ) {
 		#rjw might use and thorough here
 		if (math.fmod(groundLoopCounter , 10) == 0) debprint(
 		"Bombable: Ground_loop: ",
-		"vertical-speed-fps = ", vertical-speed-fps,
+		"vertical-speed-fps = ", vert_speed,
 		"pitchangle_deg = ", pitchangle_deg,
-		"slopeAhead_deg = ", slopeAhead_deg / rad2degrees,	
+		"slopeAhead_deg = ", slopeAhead_rad * rad2degrees,	
 		"alt_ft - currAlt_ft = ", alt_ft - currAlt_ft
 		);		
 		
@@ -3097,6 +3099,7 @@ var ground_loop = func( id, myNodeName ) {
 	# above ground again.
 	
 	# rjw will have exited if not an aircraft
+
 	if ((type == "aircraft") and ( currAlt_ft < toFrontAlt_ft + 75) and !(damageValue > 0.8 ))   {
 		#debprint ("correcting!", myNodeName, " ", toFrontAlt_ft, " ", currAlt_ft, " ", currAlt_ft-toFrontAlt_ft, " ", toFrontAlt_ft+40, " ", currAlt_ft+20 );
 		#set the pitch to try to make it look like we're climbing real
@@ -7149,7 +7152,7 @@ gui.showHelpDialog ("/bombable/dialogs/records");
 			
 
 ################################ add_damage ################################
-# function adds damage to an AI aircraft
+# function adds damage to an AI aircraft, ship or groundvehicle
 # (called by the fire loop and ballistic impact
 # listener function, typically)
 # returns the amount of damage added (which may be smaller than the damageRise requested, for various reasons)
@@ -7193,7 +7196,6 @@ damageRise = 0.0;
 				
 # update bombable/attributes/damage: 0.0 mean no damage, 1.0 mean full damage
 prevDamageValue = damageValue;
-if(damageValue < 1.0)
 damageValue  +=  damageRise;
 				
 #make sure it's in range 0-1.0
@@ -7209,13 +7211,8 @@ if (damageIncrease > 0.05 and type == "aircraft") reduceRPM(myNodeName);
 
 if (damagetype == "weapon") records.record_impact ( myNodeName, damageRise, damageIncrease, damageValue, impactNodeName, ballisticMass_lb, lat_deg, lon_deg, alt_m );
 				
-
-#debprint ("damageValue = ",damageValue);
 var callsign = getCallSign (myNodeName);
 				
-#if (int(damageValue * 20 ) != int(prevDamageValue * 20 )) {
-	#
-	#
 					
 	if ( damageValue > prevDamageValue ) {
 						
@@ -7275,14 +7272,6 @@ var callsign = getCallSign (myNodeName);
 					
 	minSpeed = trueAirspeed2indicatedAirspeed (myNodeName, spds.minSpeed_kt);
 					
-	# if the object is "on the ground" or "completely sunk" due to damage
-	# then we make it come to a stop much more dramatically
-	# rjw: if object on ground will exit before this point; all speeds are set to zero in the previous block
-	# if ( onGround){
-		#   if (spds.maxSpeedReduce_percent < 20)  spds.maxSpeedReduce_percent = 20;
-		#   minSpeed = 0;
-		#   onGround = 1;
-	# } else onGround = 0;
 					
 	# for moving objects (ships & aircraft), reduce velocity each time damage added
 	# eventually  stopping when damage = 1.
@@ -7291,7 +7280,7 @@ var callsign = getCallSign (myNodeName);
 	# objects continue to slow/stop even if their damage is already at 1
 	# this happens when file/reset is chosen in FG
 					
-	# rjw: what is the difference between tgt-speed-kts and flight_tgt_spd? Only the latter is set for aircraft
+	# rjw: tgt-speed-kts is used for ships and flight_tgt_spd for aircraft and groundvehicles
 
 					
 	var tgt_spd_kts = getprop (""~myNodeName~"/controls/tgt-speed-kts");
@@ -7307,22 +7296,16 @@ var callsign = getCallSign (myNodeName);
 	speedReduce = 1 - damageValue;
 	if (speedReduce < maxSpeedReduceProp) speedReduce = maxSpeedReduceProp;
 					
-	pitch = getprop (""~myNodeName~"/orientation/pitch-deg");
-					
 	var node = props.globals.getNode(myNodeName);
 					
 
 	#debprint ("type = ", type);
 					
 	if (type == "aircraft")  {
-						
-		#if (pitch > - 90)
-		#      setprop (""~myNodeName~"/orientation/pitch-deg", pitch-1);
-						
 
-		# rjw: if object on ground will exit before this point
+		# rjw: if AC on ground will exit before this point
 		# only reduce aircraft speeds at high damage values
-		if ( damageValue >= 0.75 and !onGround) {
+		if ( damageValue >= 0.75) {
 			#debprint ("Bombable: setprop 3333");
 			if (flight_tgt_spd > minSpeed)
 			setprop(""~myNodeName~"/controls/flight/target-spd",
@@ -7334,7 +7317,6 @@ var callsign = getCallSign (myNodeName);
 		#ships etc we control all these ways, making sure the speed decreases but
 		#not below the minimum allowed
 		}  else {
-		#debprint ("Bombable: setprop 3344");
 		if (tgt_spd_kts > minSpeed)
 		setprop(""~myNodeName~"/controls/tgt-speed-kts",
 		tgt_spd_kts * speedReduce);
