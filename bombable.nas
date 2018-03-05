@@ -3027,7 +3027,8 @@ var ground_loop = func( id, myNodeName ) {
 
 	#don't set pitch/roll for aircraft
 
-	if (type != "aircraft" and thorough ) {
+	# set speed, pitch and roll of groundvehicle according to terrain
+	if (type == "groundvehicle" and thorough ) {
 		slopeAhead_rad = math.atan2(toFrontAlt_ft - alt_ft , dims.length_m / 2 + FGAltObjectPerimeterBuffer_m);
 		# here can change speed according to gradient ahead
 
@@ -3060,6 +3061,25 @@ var ground_loop = func( id, myNodeName ) {
 		return;
 	}
 			
+	if (type == "ship" and thorough ) {
+		# pitch and roll controlled by model animation
+		rollangle_deg = getprop (""~myNodeName~"/orientation/roll-animation");
+		pitchangle_deg = getprop (""~myNodeName~"/orientation/pitch-animation");
+		if (rollangle_deg == nil) rollangle_deg = 0;
+		if (pitchangle_deg == nil) pitchangle_deg = 0;
+		target_roll = getprop (""~myNodeName~"/orientation/target-roll");
+		target_pitch = getprop (""~myNodeName~"/orientation/target-pitch");
+		if (target_roll) != nil {
+			rollangle_deg = 0.95 * rollangle_deg + 0.05 * target_roll;
+			pitchangle_deg = 0.95 * rollangle_deg + 0.05 * target_roll;
+		}
+		setprop (""~myNodeName~"/orientation/roll-animation", rollangle_deg );
+		setprop (""~myNodeName~"/orientation/pitch-animation", pitchangle_deg );
+
+		# rjw debug
+		return;
+	}
+
 	currTgtAlt_ft = getprop (""~myNodeName~"/controls/flight/target-alt");#in ft
 	if (currTgtAlt_ft == nil) currTgtAlt_ft = 0;
 			
@@ -7183,9 +7203,13 @@ var spds = attributes[myNodeName].velocities;
 var livs = attributes[myNodeName].damageLiveries;
 var liveriesCount = livs.count;
 var type = node.getName();
+if ((spds.maxSpeed_kt < 50) and (type == "aircraft")) type = "groundvehicle";
+
+
 var damageValue = getprop(""~myNodeName~"/bombable/attributes/damage");
 if ( damageValue == nil ) damageValue = 0;
-				
+
+
 var origDamageRise = damageRise;
 # make sure it's in range 0-1.0
 if(damageRise > 1.0)
@@ -7236,8 +7260,6 @@ var callsign = getCallSign (myNodeName);
 		reduceRPM(myNodeName);
 		aircraftCrash (myNodeName);
 		}
-	# rjw: check set of object types (from getNode.name)
-	# aircraftCrash is only called here; possible to introduce other ways of terminating the aircraft at this point e.g. explosion, fragmentation
 
 	var onGround = getprop (""~myNodeName~"/bombable/on-ground");
 	if (onGround == nil) onGround = 0;
@@ -7267,7 +7289,6 @@ var callsign = getCallSign (myNodeName);
 		}
 					
 					
-	# debprint (damageRise, " ", myNodeName);
 	# max speed reduction due to damage, in %
 					
 	minSpeed = trueAirspeed2indicatedAirspeed (myNodeName, spds.minSpeed_kt);
@@ -7283,14 +7304,6 @@ var callsign = getCallSign (myNodeName);
 	# rjw: tgt-speed-kts is used for ships and flight_tgt_spd for aircraft and groundvehicles
 
 					
-	var tgt_spd_kts = getprop (""~myNodeName~"/controls/tgt-speed-kts");
-	if (tgt_spd_kts == nil ) tgt_spd_kts = 0;
-
-	var flight_tgt_spd = getprop (""~myNodeName~"/controls/flight/target-spd");
-	if (flight_tgt_spd == nil ) flight_tgt_spd = 0;
-					
-	var true_spd = getprop (""~myNodeName~"/velocities/true-airspeed-kt");
-	if (true_spd == nil ) true_spd = 0;
 					
 	maxSpeedReduceProp = 1 - spds.maxSpeedReduce_percent / 100;  #spds.maxSpeedReduce_percent is a percentage
 	speedReduce = 1 - damageValue;
@@ -7301,12 +7314,18 @@ var callsign = getCallSign (myNodeName);
 
 	#debprint ("type = ", type);
 					
-	if (type == "aircraft")  {
+	if ((type == "aircraft") or (type =="groundvehicle"))  {
 
+		var flight_tgt_spd = getprop (""~myNodeName~"/controls/flight/target-spd");
+		if (flight_tgt_spd == nil ) flight_tgt_spd = 0;
+					
+		var true_spd = getprop (""~myNodeName~"/velocities/true-airspeed-kt");
+		if (true_spd == nil ) true_spd = 0;
+
+	
 		# rjw: if AC on ground will exit before this point
 		# only reduce aircraft speeds at high damage values
-		if ( damageValue >= 0.75) {
-			#debprint ("Bombable: setprop 3333");
+		if (( damageValue >= 0.75) or (type =="groundvehicle")) {
 			if (flight_tgt_spd > minSpeed)
 			setprop(""~myNodeName~"/controls/flight/target-spd",
 			flight_tgt_spd * speedReduce);
@@ -7314,20 +7333,29 @@ var callsign = getCallSign (myNodeName);
 			setprop(""~myNodeName~"/controls/flight/target-spd", minSpeed);
 			}
 						
-		#ships etc we control all these ways, making sure the speed decreases but
-		#not below the minimum allowed
+		# ships we control in a similar way to ground vehicles
 		}  else {
+		var tgt_spd_kts = getprop (""~myNodeName~"/controls/tgt-speed-kts");
+		if (tgt_spd_kts == nil ) tgt_spd_kts = 0;
+
 		if (tgt_spd_kts > minSpeed)
 		setprop(""~myNodeName~"/controls/tgt-speed-kts",
 		tgt_spd_kts * speedReduce);
-
-		if (flight_tgt_spd > minSpeed)
-		setprop(""~myNodeName~"/controls/flight/target-spd",
-		flight_tgt_spd * speedReduce);
-						
-		if (true_spd > minSpeed)
-		setprop(""~myNodeName~"/velocities/true-airspeed-kt",
-		true_spd * speedReduce);
+			
+		# believe that the ship AI will handle this
+		# if (true_spd > minSpeed)
+		# setprop(""~myNodeName~"/velocities/true-airspeed-kt",
+		# true_spd * speedReduce);
+		
+		# start listing of ship
+		# progressive motion managed by ground loop
+		if ((rand() < .05) and ( damageValue >= 0.75)) {
+			listing = getprop(""~myNodeName~"/orientation/target-roll");
+			if (listing == nil) {
+				setprop(""~myNodeName~"/orientation/target-roll", rand() * 60 - 30); #up to 30 degrees
+				setprop(""~myNodeName~"/orientation/target-pitch", rand() * 10 - 5); #up to 5 degrees
+			}
+		}
 		}
 					
 
