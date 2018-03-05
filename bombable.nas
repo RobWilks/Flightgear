@@ -3069,9 +3069,9 @@ var ground_loop = func( id, myNodeName ) {
 		if (pitchangle_deg == nil) pitchangle_deg = 0;
 		target_roll = getprop (""~myNodeName~"/orientation/target-roll");
 		target_pitch = getprop (""~myNodeName~"/orientation/target-pitch");
-		if (target_roll) != nil {
+		if (target_roll != nil) {
 			rollangle_deg = 0.95 * rollangle_deg + 0.05 * target_roll;
-			pitchangle_deg = 0.95 * rollangle_deg + 0.05 * target_roll;
+			pitchangle_deg = 0.95 * pitchangle_deg + 0.05 * target_pitch;
 		}
 		setprop (""~myNodeName~"/orientation/roll-animation", rollangle_deg );
 		setprop (""~myNodeName~"/orientation/pitch-animation", pitchangle_deg );
