@@ -2725,6 +2725,9 @@ var ground_loop = func( id, myNodeName ) {
 	var alts = attributes[myNodeName].altitudes;
 	var dims = attributes[myNodeName].dimensions;
 	var vels = attributes[myNodeName].velocities;
+	
+	if (vels.maxSpeed_kt) < 50) and (type == "aircraft") type = "groundvehicle");
+	# rjw groundvehicles behave as aircraft, e.g. can set vertical speed
 			
 	# If you get too close in to the object, FG detects the elevation of the top of the object itself
 	# rather than the underlying ground elevation. So we go an extra FGAltObjectPerimeterBuffer_m
@@ -3022,14 +3025,14 @@ var ground_loop = func( id, myNodeName ) {
 
 	}
 
-
-
+	# rjw debug
+	return;
 	#don't set pitch/roll for aircraft
 	if (type != "aircraft" and thorough ) {
-		slopeAhead_rad = atan2(toFrontAlt_ft - alt_ft , dims.length_m / 2 + FGAltObjectPerimeterBuffer_m);
+		slopeAhead_rad = math.atan2(toFrontAlt_ft - alt_ft , dims.length_m / 2 + FGAltObjectPerimeterBuffer_m);
 		# here can change speed according to gradient ahead
-		setprop (""~myNodeName~"/orientation/roll-deg", rollangle_deg );
-		setprop (""~myNodeName~"/controls/flight/target-roll", rollangle_deg);
+		setprop (""~myNodeName~"/orientation/roll-animation", rollangle_deg );
+		# setprop (""~myNodeName~"/controls/flight/target-roll", rollangle_deg);
 		setprop (""~myNodeName~"/orientation/pitch-animation", pitchangle_deg );
 		# pitch is controlled by model animation
 		# set vert-speed not pitch for ground craft
@@ -3072,14 +3075,14 @@ var ground_loop = func( id, myNodeName ) {
 	#rjw:  with pitch-target at -70 continue gliding with pitch at -4
 	#rjw:  potentially might improve the response by reducing the airspeed
 	if (type != "aircraft") {
-		setprop (""~myNodeName~"/position/altitude-ft", calcAlt_ft ); # feet
+		#setprop (""~myNodeName~"/position/altitude-ft", alt_ft ); # feet
 		#rjw might use and thorough here
 		if (math.fmod(groundLoopCounter , 10) == 0) debprint(
 		"Bombable: Ground_loop: ",
-		"rollangle_deg = ", rollangle_deg,
+		"vertical-speed-fps = ", vertical-speed-fps,
 		"pitchangle_deg = ", pitchangle_deg,
-		"targetAlt_ft = ", targetAlt_ft,	
-		"calcAlt_ft = ", calcAlt_ft
+		"slopeAhead_deg = ", slopeAhead_deg / rad2degrees,	
+		"alt_ft - currAlt_ft = ", alt_ft - currAlt_ft
 		);		
 	}
 	# for an aircraft, if it is within feet of the ground (and not forced
@@ -4448,7 +4451,36 @@ var speed_adjust_loop = func ( id, myNodeName, looptime_sec) {
 
 }
 
-######################################################################
+############################# height_adjust ############################
+# FUNCTION height_adjust
+# rjw mod
+# adjusts height (altitude) of an AI groundvehicle
+#
+var height_adjust = func (myNodeName, time_sec ){
+
+	var vert_speed = getprop (""~myNodeName~"/velocities/vertical-speed-fps");
+
+	if (vert_speed == nil) vert_speed = 0;
+	
+	var alt_ft = getprop (""~myNodeName~"/position/altitude-ft" );
+	
+	setprop (""~myNodeName~"/position/altitude-ft", alt_ft + vert_speed * time_sec); # feet
+
+}
+
+#################################### height_adjust_loop ##################################
+var height_adjust_loop = func ( id, myNodeName, looptime_sec) {
+	var loopid = getprop(""~myNodeName~"/bombable/loopids/height-adjust-loopid");
+	id == loopid or return;
+				
+	settimer (  func { height_adjust_loop (id, myNodeName, looptime_sec)}, looptime_sec);
+
+	if (! getprop(bomb_menu_pp~"bombable-enabled") ) return;
+				
+	height_adjust (myNodeName, looptime_sec);
+
+}
+################################## do_acrobatic_loop_loop ####################################
 # FUNCTION do_acrobatic_loop_loop
 # The settimer loop to do an acrobatic loop, up or down, or part of a loop
 #
@@ -8052,6 +8084,15 @@ var ground_init_func = func( myNodeName ) {
 	debprint ("Bombable: Effect * maintain altitude above ground level * loaded for "~ myNodeName);
 	# altitude adjustment = ", alts.wheelsOnGroundAGL_ft, " max drop/fall when damaged = ",
 	# damageAltAdd, " loopid = ", loopid);
+	
+	# this loop allows ships to adjust their height according to the vertical speed.  Experiment abandoned 050318
+	# if (type == "ship") {							
+		# var haloopid = inc_loopid (myNodeName, "height-adjust");
+		# settimer (func {height_adjust_loop ( haloopid, myNodeName, .1 + rand()/100); }, 12 + rand());
+		# debprint ("Bombable: Effect * adjust height * loaded for "~ myNodeName);
+
+	# }
+
 
 }
 
@@ -8062,7 +8103,7 @@ var location_init = func (myNodeName = "") {
 
 }
 
-#####################################################
+######################## location_init_func #############################
 # Call to make your object keep its location even after a re-init
 # (file/reset).  For instance a fleet of tanks, cars, or ships
 # will keep its position after the reset rather than returning
@@ -8121,7 +8162,7 @@ var attack_init = func (myNodeName = "") {
 
 }
 
-##########################################################
+############################ attack_init_func ##############################
 # Call to make your object turn & attack the main aircraft
 #
 # Put this nasal code in your object's load:
@@ -8188,7 +8229,7 @@ var attack_init_func = func(myNodeName) {
 		var saloopid = inc_loopid (myNodeName, "speed-adjust");
 		settimer (func {speed_adjust_loop ( saloopid, myNodeName, .3 + rand()/30); }, 12+rand());
 	}
-
+	
 	debprint ("Bombable: Effect * attack * loaded for "~ myNodeName~ " loopid = "~ loopid, " attackCheckTime = ", attackCheckTime);
 
 }
@@ -8497,6 +8538,7 @@ var ground_del = func(myNodeName) {
 	# we increment this each time we are inited or de-inited
 	# when the loopid is changed it kills the timer loops that have that id
 	var loopid = inc_loopid(myNodeName, "ground");
+	var haloopid = inc_loopid(myNodeName, "height-adjust");
 
 	#set this to 0/false when de-inited
 	setprop(""~myNodeName~"/bombable/initializers/ground-initialized", 0);
