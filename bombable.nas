@@ -2244,7 +2244,7 @@ var calcPilotSkill = func ( myNodeName ) {
 			
 }
 
-##########################################################
+########################### trueAirspeed2indicatedAirspeed ###############################
 # FUNCTION trueAirspeed2indicatedAirspeed
 # Give a node name & true airspeed, returns the indicated airspeed
 # (using the elevation of the AI object for the calculation)
@@ -2580,7 +2580,7 @@ var fire_loop = func(id, myNodeName = "") {
 ############################### hitground_stop_explode ###########################
 # Puts myNodeName right at ground level, explodes, sets up
 # for full damage & on-ground trigger to make it stop real fast now
-#
+# rjw in original code this function was only called for aircraft. var onground is only set for aircraft 
 var hitground_stop_explode = func (myNodeName, alt) {
 	#var b = props.globals.getNode (""~myNodeName~"/bombable/attributes");
 	var vuls = attributes[myNodeName].vulnerabilities;
@@ -7268,7 +7268,9 @@ var callsign = getCallSign (myNodeName);
 						
 		# all to a complete stop
 		# this will be executed several times since extra damage occurs on ground 
-		# debprint ("Bombable: setprop 3263");
+		# only called for aircraft but not clear that it is needed
+		# does the change in livery occur for other AC onGround checks?
+		# why not in main add_damage block?  Should call as soon as have damage value!
 		setprop(""~myNodeName~"/controls/tgt-speed-kts", 0);
 
 		setprop(""~myNodeName~"/controls/flight/target-spd", 0);
@@ -7309,12 +7311,8 @@ var callsign = getCallSign (myNodeName);
 	speedReduce = 1 - damageValue;
 	if (speedReduce < maxSpeedReduceProp) speedReduce = maxSpeedReduceProp;
 					
-	var node = props.globals.getNode(myNodeName);
 					
-
-	#debprint ("type = ", type);
-					
-	if ((type == "aircraft") or (type =="groundvehicle"))  {
+	if ((type == "aircraft") or (type == "groundvehicle"))  {
 
 		var flight_tgt_spd = getprop (""~myNodeName~"/controls/flight/target-spd");
 		if (flight_tgt_spd == nil ) flight_tgt_spd = 0;
@@ -7325,7 +7323,7 @@ var callsign = getCallSign (myNodeName);
 	
 		# rjw: if AC on ground will exit before this point
 		# only reduce aircraft speeds at high damage values
-		if (( damageValue >= 0.75) or (type =="groundvehicle")) {
+		if (( damageValue >= 0.75) or (type == "groundvehicle")) {
 			if (flight_tgt_spd > minSpeed)
 			setprop(""~myNodeName~"/controls/flight/target-spd",
 			flight_tgt_spd * speedReduce);
@@ -7338,9 +7336,7 @@ var callsign = getCallSign (myNodeName);
 		var tgt_spd_kts = getprop (""~myNodeName~"/controls/tgt-speed-kts");
 		if (tgt_spd_kts == nil ) tgt_spd_kts = 0;
 
-		if (tgt_spd_kts > minSpeed)
-		setprop(""~myNodeName~"/controls/tgt-speed-kts",
-		tgt_spd_kts * speedReduce);
+		if (tgt_spd_kts > minSpeed) setprop(""~myNodeName~"/controls/tgt-speed-kts", tgt_spd_kts * speedReduce);
 			
 		# believe that the ship AI will handle this
 		# if (true_spd > minSpeed)
