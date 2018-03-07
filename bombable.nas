@@ -2719,9 +2719,6 @@ var ground_loop = func( id, myNodeName ) {
 	node = props.globals.getNode(myNodeName);
 	type = node.getName();
 
-	#var alts = b.getNode("altitudes").getValues();
-	#var dims = b.getNode("dimensions").getValues();
-	#var vels = b.getNode("velocities").getValues();
 	var alts = attributes[myNodeName].altitudes;
 	var dims = attributes[myNodeName].dimensions;
 	var vels = attributes[myNodeName].velocities;
@@ -2835,14 +2832,14 @@ var ground_loop = func( id, myNodeName ) {
 			initial_altitude_ft = alt_ft + alts.wheelsOnGroundAGL_ft + alts.maximumAGL_ft;
 		}
 				
-		target_alt_AGL_ft = initial_altitude_ft - alt_ft - alts.wheelsOnGroundAGL_ft;
+		target_alt_AGL_ft = initial_altitude_ft - alt_ft - alts.wheelsOnGroundAGL_ft; 
 				
 		debprint ("Bombable: Initial Altitude: "~ initial_altitude_ft~ " target AGL: "~target_alt_AGL_ft~ " object = "~ myNodeName);
 		debprint ("Bombable: ", alt_ft, " ", toRightAlt_ft, " ",toLeftAlt_ft, " ",toFrontAlt_ft," ", toLeftAlt_ft, " ", alts.wheelsOnGroundAGL_ft);				
 		setprop (""~myNodeName~"/position/altitude-ft", initial_altitude_ft );
 		setprop (""~myNodeName~"/controls/flight/target-alt",  initial_altitude_ft);
-		alts.targetAGL_ft = target_alt_AGL_ft;
-		alts.targetAGL_m = target_alt_AGL_ft * feet2meters;
+		alts.targetAGL_ft = target_alt_AGL_ft;  # allows aircraft to fly at constant height AGL
+		alts.initialAlt_ft = initial_altitude_ft;  # rjw mod to check for grounded ships
 		alts.initialized = 1;
 				
 		return;
@@ -2942,7 +2939,9 @@ var ground_loop = func( id, myNodeName ) {
 	# "lookahead radar" to provide the base altitude
 	# However as the craft is more damaged it loses its ability to do this
 	# (see above: lookingAheadAlt just becomes the same as toFrontAlt)
-	targetAlt_ft = lookingAheadAlt_ft + alts.targetAGL_ft + alts.wheelsOnGroundAGL_ft;
+
+	targetAlt_ft = lookingAheadAlt_ft + alts.targetAGL_ft + alts.wheelsOnGroundAGL_ft;  # allows aircraft to fly at constant height AGL
+
 	#debprint ("laa ", lookingAheadAlt_ft, " tagl ", alts.targetAGL_ft, " awog ", alts.wheelsOnGroundAGL_ft);
 			
 			
@@ -3062,6 +3061,12 @@ var ground_loop = func( id, myNodeName ) {
 	}
 			
 	if (type == "ship" and thorough ) {
+		if (math.fmod(groundLoopCounter , 10) == 0) debprint(
+		"Bombable: Ground_loop: ",
+		"vels.maxChangeAirSpeed_kt = ", vels.maxChangeAirSpeed_kt,
+		"alts.initialAlt_ft = ", alts.initialAlt_ft
+		);		
+
 		# pitch and roll controlled by model animation
 		rollangle_deg = getprop (""~myNodeName~"/orientation/roll-animation");
 		pitchangle_deg = getprop (""~myNodeName~"/orientation/pitch-animation");
@@ -3076,8 +3081,13 @@ var ground_loop = func( id, myNodeName ) {
 		setprop (""~myNodeName~"/orientation/roll-animation", rollangle_deg );
 		setprop (""~myNodeName~"/orientation/pitch-animation", pitchangle_deg );
 
-		# rjw debug
-		return;
+		# rjw check if grounded
+		if ((targetAlt_ft - alts.initialAlt_ft) > 3) 
+		{
+			vels.maxChangeAirSpeed_kt = 0.95;
+			add_damage(1, myNodeName, "nonweapon");
+			return(); # no need to sink now			
+		}
 	}
 
 	currTgtAlt_ft = getprop (""~myNodeName~"/controls/flight/target-alt");#in ft
@@ -7229,7 +7239,13 @@ elsif(damageValue < 0.0)
 damageValue = 0.0;
 setprop(""~myNodeName~"/bombable/attributes/damage", damageValue);
 damageIncrease = damageValue - prevDamageValue;
-				
+
+if (liveriesCount > 0 and liveriesCount != nil ) {							
+	livery = livs.damageLivery [ int ( damageValue * ( liveriesCount - 1 ) ) ];
+	setprop(""~myNodeName~"/bombable/texture-corps-path",
+	livery );
+	}
+
 if (damageIncrease > 0.05 and type == "aircraft") reduceRPM(myNodeName);
 #rjw: big hit so spin down an engine				
 
@@ -7269,8 +7285,7 @@ var callsign = getCallSign (myNodeName);
 		# all to a complete stop
 		# this will be executed several times since extra damage occurs on ground 
 		# only called for aircraft but not clear that it is needed
-		# does the change in livery occur for other AC onGround checks?
-		# why not in main add_damage block?  Should call as soon as have damage value!
+
 		setprop(""~myNodeName~"/controls/tgt-speed-kts", 0);
 
 		setprop(""~myNodeName~"/controls/flight/target-spd", 0);
@@ -7280,14 +7295,9 @@ var callsign = getCallSign (myNodeName);
 		# we hit the ground, now we are 100% dead
 		setprop(""~myNodeName~"/bombable/attributes/damage", 1);
 		
-		if (liveriesCount > 0 and liveriesCount != nil ) {							
-			livery = livs.damageLivery [ int ( damageValue * ( liveriesCount - 1 ) ) ];
-			setprop(""~myNodeName~"/bombable/texture-corps-path",
-			livery );
-			}
 			
 		return  damageIncrease;
-		# rjw: what is the function of a return in an if block? Presumably it forces early exit from add-damage
+		# rjw: exit here if the object is a grounded aircraft
 		}
 					
 					
