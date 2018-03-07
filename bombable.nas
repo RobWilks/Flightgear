@@ -3084,7 +3084,7 @@ var ground_loop = func( id, myNodeName ) {
 		# rjw check if grounded
 		if ((targetAlt_ft - alts.initialAlt_ft) > 3) 
 		{
-			vels.maxSpeedReduce_percent = 0.95;
+			vels.maxSpeedReduce_percent = 20;
 			add_damage(1, myNodeName, "nonweapon");
 			return(); # no need to sink now			
 		}
@@ -3235,15 +3235,15 @@ var ground_loop = func( id, myNodeName ) {
 		elsif (type == "ship") 
 		{
 			if ( damageAltMaxPerCycle_ft < damageAltAddCurrent_ft )  {
-			currAlt_ft -= damageAltMaxPerCycle_ft);
+			currAlt_ft += damageAltMaxPerCycle_ft;
 			}
 			else
 			{
-			currAlt_ft -= damageAltAddCurrent_ft);
+			currAlt_ft += damageAltAddCurrent_ft;
 			}
 		setprop(""~myNodeName~"/position/altitude-ft", currAlt_ft);
 		}
-			
+	}		
 	#Whatever else, we don't let aircraft go below their lowest allowed altitude
 	#Maybe they are skidding along on the ground, but they are not allowed
 	#to skid along UNDER the ground . . .
