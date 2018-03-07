@@ -3063,7 +3063,7 @@ var ground_loop = func( id, myNodeName ) {
 	if (type == "ship" and thorough ) {
 		if (math.fmod(groundLoopCounter , 10) == 0) debprint(
 		"Bombable: Ground_loop: ",
-		"vels.maxChangeAirSpeed_kt = ", vels.maxChangeAirSpeed_kt,
+		"vels.maxSpeedReduce_percent = ", vels.maxSpeedReduce_percent,
 		"alts.initialAlt_ft = ", alts.initialAlt_ft
 		);		
 
@@ -3084,7 +3084,7 @@ var ground_loop = func( id, myNodeName ) {
 		# rjw check if grounded
 		if ((targetAlt_ft - alts.initialAlt_ft) > 3) 
 		{
-			vels.maxChangeAirSpeed_kt = 0.95;
+			vels.maxSpeedReduce_percent = 0.95;
 			add_damage(1, myNodeName, "nonweapon");
 			return(); # no need to sink now			
 		}
@@ -3130,7 +3130,7 @@ var ground_loop = func( id, myNodeName ) {
 	
 	# rjw will have exited if not an aircraft
 
-	if ((type == "aircraft") and ( currAlt_ft < toFrontAlt_ft + 75) and !(damageValue > 0.8 ))   {
+	if ((type == "aircraft") and ( currAlt_ft < toFrontAlt_ft + 75) and (damageValue <= 0.8 ))   {
 		#debprint ("correcting!", myNodeName, " ", toFrontAlt_ft, " ", currAlt_ft, " ", currAlt_ft-toFrontAlt_ft, " ", toFrontAlt_ft+40, " ", currAlt_ft+20 );
 		#set the pitch to try to make it look like we're climbing real
 		#fast here, not just making an emergency correction . . .
@@ -3173,8 +3173,9 @@ var ground_loop = func( id, myNodeName ) {
 
 	}
 			
-	if ( type == "aircraft" and  (damageValue > 0.8 )) {
 
+	if ( damageValue > 0.8 ) {
+		if ( type == "aircraft") {
 		#If crashing we just force it to the right altitude, even if an aircraft
 		#but we move it a maximum of damageAlMaxRate
 		#if it's an airplane & it's crashing, we take it down as far as
@@ -3213,31 +3214,42 @@ var ground_loop = func( id, myNodeName ) {
 					
 			hitground_stop_explode(myNodeName, objectsLowestAllowedAlt_ft);
 			debprint ("Bombable: Aircraft hit ground");
-		}
+			}
 
 		
-		#somehow the aircraft are getting below ground sometimes
-		#sometimes it's just because they hit into a mountain or something
-		#else in the way.
-		#kludgy fix, just check for it & put them back on the surface
-		#if necessary.  And explode & stuff.
-				
-		aircraftAlt_ft = getprop (""~myNodeName~"/position/altitude-ft" );
-		if ( aircraftAlt_ft < alt_ft - 5 )  {
-			debprint ("Bombable: Aircraft hit ground, it's dead. 1863.");
-			hitground_stop_explode(myNodeName, objectsLowestAllowedAlt_ft );
+			#somehow the aircraft are getting below ground sometimes
+			#sometimes it's just because they hit into a mountain or something
+			#else in the way.
+			#kludgy fix, just check for it & put them back on the surface
+			#if necessary.  And explode & stuff.
+					
+			aircraftAlt_ft = getprop (""~myNodeName~"/position/altitude-ft" );
+			if ( aircraftAlt_ft < alt_ft - 5 )  {
+				debprint ("Bombable: Aircraft hit ground, it's dead. 1863.");
+				hitground_stop_explode(myNodeName, objectsLowestAllowedAlt_ft );
+			}
+					
+					
+					
 		}
-				
-				
-				
-	}
+		elsif (type == "ship") 
+		{
+			if ( damageAltMaxPerCycle_ft < damageAltAddCurrent_ft )  {
+			currAlt_ft -= damageAltMaxPerCycle_ft);
+			}
+			else
+			{
+			currAlt_ft -= damageAltAddCurrent_ft);
+			}
+		setprop(""~myNodeName~"/position/altitude-ft", currAlt_ft);
+		}
 			
-	#whatever else, we don't let objects go below their lowest allowed altitude
+	#Whatever else, we don't let aircraft go below their lowest allowed altitude
 	#Maybe they are skidding along on the ground, but they are not allowed
-	# to skid along UNDER the ground . . .
+	#to skid along UNDER the ground . . .
+
 	if (currAlt_ft < objectsLowestAllowedAlt_ft)
 	{
-		#debprint ("Bombable: setprop 1775");
 		setprop(""~myNodeName~"/position/altitude-ft", objectsLowestAllowedAlt_ft); #where the object is, in feet
 	}
 	setprop(""~myNodeName~"/bombable/attributes/damageAltAddCurrent_ft", damageAltAddCurrent_ft);
