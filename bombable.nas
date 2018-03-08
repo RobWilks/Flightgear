@@ -2713,7 +2713,7 @@ var ground_loop = func( id, myNodeName ) {
 	if (groundLoopCounter == nil) groundLoopCounter = 0;
 	groundLoopCounter += 1;	
 	setprop(""~myNodeName~ "/position/groundLoopCounter", groundLoopCounter);	
-	# rjw only used to control debug printing
+	# rjw used to control debug printing and roll calculation
 
 	
 	node = props.globals.getNode(myNodeName);
@@ -2734,7 +2734,7 @@ var ground_loop = func( id, myNodeName ) {
 	var FGAltObjectPerimeterBuffer_m = 0.5 * dims.length_m;
 	var FGAltObjectPerimeterBuffer_ft = FGAltObjectPerimeterBuffer_m / feet2meters;
 			
-	var thorough = rand() < 1; # to save FR we only do it thoroughly sometimes
+	var thorough = (math.fmod(groundLoopCounter , 10) == 0); # to save FR we only do it thoroughly sometimes
 	if (onGround) thorough = 0; #never need thorough when crashed
 			
 	# Update altitude to keep moving objects at ground level the ground
@@ -2784,25 +2784,28 @@ var ground_loop = func( id, myNodeName ) {
 	
 	# if it's damaged we always get the pitch angle etc as that is how we force it down.
 	# but if it's on the ground, we don't care and all these geo.Coords & elevs really kill FR.
-	if (thorough or damageValue > 0.8 ) {	
-		# rjw mod: Moved earlier block here
-		# find the slope of the ground in the direction we are heading
+	# if (thorough or damageValue > 0.8 ) {	
+
+	if (type == "groundvehicle" or onGround) {	#only get roll for ground vehicle or AC that has just crashed
+
+	# find the slope of the ground in the direction we are heading
+
 		GeoCoord.apply_course_distance(heading + 180, dims.length_m + 2 * FGAltObjectPerimeterBuffer_m );
 		toRearAlt_ft = elev (GeoCoord.lat(), GeoCoord.lon()  ); #in feet
-
-
 		pitchangle1_deg = rad2degrees * math.atan2(toFrontAlt_ft - toRearAlt_ft, dims.length_ft + 2 * FGAltObjectPerimeterBuffer_ft ); #must convert this from radians to degrees, thus the 180/pi
-		# rjw: the slope of ground.  The buffer is to ensure that we don't measure altitude at the top of the object		
 		pitchangle_deg = pitchangle1_deg; 
+		# rjw: the slope of ground.  The buffer is to ensure that we don't measure altitude at the top of the object		
 		
 				
-		# figure altitude of ground to left & right of object to determine roll &
+		# find altitude of ground to left & right of object to determine roll &
 		# to help in determining altitude
 				
 		var GeoCoord2 = geo.Coord.new();
 		GeoCoord2.set_latlon(lat, lon);
+
 		# go that extra amount out from the actual width to keep FG from detecting the top of the
 		# object as the altitude.  We need ground altitude here. FGAltObjectPerimeterBuffer_m
+
 		GeoCoord2.apply_course_distance(heading + 90, dims.width_m / 2 + FGAltObjectPerimeterBuffer_m);  #sidedist in meters
 		toRightAlt_ft = elev (GeoCoord2.lat(), GeoCoord2.lon()  ); #in feet
 		GeoCoord2.apply_course_distance(heading - 90, dims.width_m + 2 * FGAltObjectPerimeterBuffer_m );  # rjw same method as calculation of front-rear
@@ -2814,6 +2817,7 @@ var ground_loop = func( id, myNodeName ) {
 		# we do ahead, behind, to left, to right of object & take the average.
 		# luckily this also helps us calculate the pitch of the slope,
 		# which we need to set pitch & roll,  so little is lost
+
 		alt_ft = (toFrontAlt_ft + toRearAlt_ft + toLeftAlt_ft + toRightAlt_ft) / 4; #in feet
 		} else {
 		toLeftAlt_ft = alt_ft;
@@ -2932,6 +2936,40 @@ var ground_loop = func( id, myNodeName ) {
 		lookingAheadAlt_ft = toFrontAlt_ft;
 	}
 
+	# set speed, pitch and roll of groundvehicle according to terrain
+	if (type == "groundvehicle") {
+		slopeAhead_rad = math.atan2(toFrontAlt_ft - alt_ft , dims.length_m / 2 + FGAltObjectPerimeterBuffer_m);
+		# here can change speed according to gradient ahead
+
+		# pitch and roll controlled by model animation
+		setprop (""~myNodeName~"/orientation/roll-animation", rollangle_deg );
+		setprop (""~myNodeName~"/orientation/pitch-animation", pitchangle_deg );
+
+		# set vert-speed not pitch for ground craft
+		vert_speed = math.sin(slopeAhead_rad) * speed_kt * knots2fps;
+		vert_speed += (alt_ft - currAlt_ft) / updateTime_s; # correction if above or below ground
+		setprop (""~myNodeName~"/velocities/vertical-speed-fps", vert_speed);
+
+		targetAlt_ft = currAlt_ft + vert_speed * updateTime_s;
+		setprop (""~myNodeName~"/controls/flight/target-alt", targetAlt_ft);
+		#setprop (""~myNodeName~"/position/altitude-ft", alt_ft ); # feet
+
+		
+		
+		#rjw might use and thorough here
+		if (thorough) debprint(
+		"Bombable: Ground_loop: ",
+		"vertical-speed-fps = ", vert_speed,
+		"pitchangle_deg = ", pitchangle_deg,
+		"slopeAhead_deg = ", slopeAhead_rad * rad2degrees,	
+		"alt_ft - currAlt_ft = ", alt_ft - currAlt_ft
+		);		
+		
+
+		# rjw debug
+		return;
+	}
+			
 	
 
 	# our target altitude for normal/undamaged forward movement
@@ -3006,7 +3044,7 @@ var ground_loop = func( id, myNodeName ) {
 		#ground_loop is called every updateTime_s seconds (1.68780986 converts knots to ft per second)
 		pitchangle2_deg = rad2degrees * math.asin(damageAltAddCurrent_ft, distance_til_update_ft );
 		if (damageAltAddCurrent_ft == 0 and distance_til_update_ft > 0) pitchangle2_deg = 0; #forward
-		if (distance_til_update_ft == 0 and damageAltAddCurrent_ft < 0 ) pitchangle2_deg = -90; #straight down
+		if (damageAltAddCurrent_ft < 0 and distance_til_update_ft == 0) pitchangle2_deg = -90; #straight down
 		#Straight up won't happen here because we are (on purpose) forcing
 		#the object down as we crash.  So we ignore the case.
 		#if (distance_til_update_ft == 0 and damageAltAddCurrent_ft > 0 ) pitchangle2 = 90; straight up
@@ -3024,42 +3062,6 @@ var ground_loop = func( id, myNodeName ) {
 
 	}
 
-	#don't set pitch/roll for aircraft
-
-	# set speed, pitch and roll of groundvehicle according to terrain
-	if (type == "groundvehicle" and thorough ) {
-		slopeAhead_rad = math.atan2(toFrontAlt_ft - alt_ft , dims.length_m / 2 + FGAltObjectPerimeterBuffer_m);
-		# here can change speed according to gradient ahead
-
-		# pitch and roll controlled by model animation
-		setprop (""~myNodeName~"/orientation/roll-animation", rollangle_deg );
-		setprop (""~myNodeName~"/orientation/pitch-animation", pitchangle_deg );
-
-		# set vert-speed not pitch for ground craft
-		vert_speed = math.sin(slopeAhead_rad) * speed_kt * knots2fps;
-		vert_speed += (alt_ft - currAlt_ft) / updateTime_s; # correction if above or below ground
-		setprop (""~myNodeName~"/velocities/vertical-speed-fps", vert_speed);
-
-		targetAlt_ft = currAlt_ft + vert_speed * updateTime_s;
-		setprop (""~myNodeName~"/controls/flight/target-alt", targetAlt_ft);
-		#setprop (""~myNodeName~"/position/altitude-ft", alt_ft ); # feet
-
-		
-		
-		#rjw might use and thorough here
-		if (math.fmod(groundLoopCounter , 10) == 0) debprint(
-		"Bombable: Ground_loop: ",
-		"vertical-speed-fps = ", vert_speed,
-		"pitchangle_deg = ", pitchangle_deg,
-		"slopeAhead_deg = ", slopeAhead_rad * rad2degrees,	
-		"alt_ft - currAlt_ft = ", alt_ft - currAlt_ft
-		);		
-		
-
-		# rjw debug
-		return;
-	}
-			
 	if (type == "ship" and thorough ) {
 		if (math.fmod(groundLoopCounter , 10) == 0) debprint(
 		"Bombable: Ground_loop: ",
@@ -3128,7 +3130,6 @@ var ground_loop = func( id, myNodeName ) {
 	# there because of damage etc.) then we "rescue" it be putting it 25 feet
 	# above ground again.
 	
-	# rjw will have exited if not an aircraft
 
 	if ((type == "aircraft") and ( currAlt_ft < toFrontAlt_ft + 75) and (damageValue <= 0.8 ))   {
 		#debprint ("correcting!", myNodeName, " ", toFrontAlt_ft, " ", currAlt_ft, " ", currAlt_ft-toFrontAlt_ft, " ", toFrontAlt_ft+40, " ", currAlt_ft+20 );
