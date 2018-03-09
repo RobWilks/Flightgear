@@ -7374,14 +7374,13 @@ var callsign = getCallSign (myNodeName);
 	
 		# rjw: if AC on ground will exit before this point
 		# only reduce aircraft speeds at high damage values
-		if (( damageValue >= 0.75) or (type == "groundvehicle")) {
-			if (flight_tgt_spd > minSpeed)
-			setprop(""~myNodeName~"/controls/flight/target-spd",
-			flight_tgt_spd * speedReduce);
-			else 
-			setprop(""~myNodeName~"/controls/flight/target-spd", minSpeed);
+		if (type != "ship") {
+			if ( damageValue >= 0.75) {
+				if (flight_tgt_spd > minSpeed)
+				setprop(""~myNodeName~"/controls/flight/target-spd", flight_tgt_spd * speedReduce);
+				else 
+				setprop(""~myNodeName~"/controls/flight/target-spd", minSpeed);
 			}
-						
 		# ships we control in a similar way to ground vehicles
 		}  else {
 		var tgt_spd_kts = getprop (""~myNodeName~"/controls/tgt-speed-kts");
