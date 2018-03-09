@@ -7253,7 +7253,7 @@ debprint ("Bombable: add_damage ", myNodeName);
 var vuls = attributes[myNodeName].vulnerabilities;
 var spds = attributes[myNodeName].velocities;
 var livs = attributes[myNodeName].damageLiveries;
-var 	 = livs.count;
+var liveriesCount = livs.count;
 var type = node.getName();
 if ((spds.maxSpeed_kt < 50) and (type == "aircraft")) type = "groundvehicle";
 
@@ -7535,7 +7535,8 @@ var set_livery = func (myNodeName, liveries) {
 		#To actually work, the aircraft's xml file must be set up with an
 		#animation to change the texture, keyed to the bombable/texture-corps-path
 		#property
-		node.getNode("bombable/texture-corps-path", 1).setValue(liveries[0]);
+		# node.getNode("bombable/texture-corps-path", 1).setValue(liveries[0]);
+		setprop(""~myNodeName~"/bombable/texture-corps-path", liveries[0]);
 	}
 }
 
