@@ -2723,7 +2723,7 @@ var ground_loop = func( id, myNodeName ) {
 	var dims = attributes[myNodeName].dimensions;
 	var vels = attributes[myNodeName].velocities;
 	
-	if ((vels.maxSpeed_kt < 50) and (type == "aircraft")) type = "groundvehicle";
+	if ((vels.maxSpeed_kt < 80) and (type == "aircraft")) type = "groundvehicle";
 	# rjw groundvehicles behave as aircraft, e.g. can set vertical speed
 			
 	# If you get too close in to the object, FG detects the elevation of the top of the object itself
@@ -4937,7 +4937,7 @@ var dodge = func(myNodeName) {
 	dims = attributes[myNodeName].dimensions;
 	evas = attributes[myNodeName].evasions;
 
-	if ((vels.maxSpeed_kt < 50) and (type == "aircraft")) type = "groundvehicle";
+	if ((vels.maxSpeed_kt < 80) and (type == "aircraft")) type = "groundvehicle";
 	# rjw groundvehicles behave as aircraft, e.g. can set vertical speed
 	
 		
@@ -5085,13 +5085,13 @@ var dodge = func(myNodeName) {
 		{  
 		# for groundvehicles			
 		# adjust target roll
-		setprop(""~myNodeName~"/controls/flight/roll-deg", dodgeAmount_deg);
+		setprop(""~myNodeName~"/controls/flight/target-roll", dodgeAmount_deg);
 		# turn for dodgeDelay seconds, then reset heading
 					
 		stores.reduceFuel (myNodeName, 2 * dodgeDelay ); #deduct the amount of fuel from the tank, for this dodge
 		settimer ( func {
 			setprop(""~myNodeName~"/bombable/dodge-inprogress", 0);
-			setprop(""~myNodeName~"/controls/flight/roll-deg",0);
+			setprop(""~myNodeName~"/controls/flight/target-roll",0);
 			}, dodgeDelay);
 		}
 				
@@ -7374,12 +7374,11 @@ var callsign = getCallSign (myNodeName);
 	
 		# rjw: if AC on ground will exit before this point
 		# only reduce aircraft speeds at high damage values
-		if (type != "ship") {
-			if ( damageValue >= 0.75) {
-				if (flight_tgt_spd > minSpeed)
-				setprop(""~myNodeName~"/controls/flight/target-spd", flight_tgt_spd * speedReduce);
-				else 
-				setprop(""~myNodeName~"/controls/flight/target-spd", minSpeed);
+		if ( damageValue >= 0.75) {
+			if (flight_tgt_spd > minSpeed)
+			setprop(""~myNodeName~"/controls/flight/target-spd", flight_tgt_spd * speedReduce);
+			else 
+			setprop(""~myNodeName~"/controls/flight/target-spd", minSpeed);
 			}
 		# ships we control in a similar way to ground vehicles
 		}  else {
@@ -7400,11 +7399,9 @@ var callsign = getCallSign (myNodeName);
 			if (listing == nil) {
 				setprop(""~myNodeName~"/orientation/target-roll", rand() * 60 - 30); #up to 30 degrees
 				setprop(""~myNodeName~"/orientation/target-pitch", rand() * 10 - 5); #up to 5 degrees
+				}
 			}
 		}
-		}
-					
-
 	var fireStarted = getprop(""~myNodeName~"/bombable/fire-particles/fire-burning");
 	if (fireStarted == nil ) fireStarted = 0;
 
@@ -7524,8 +7521,6 @@ var set_livery = func (myNodeName, liveries) {
 	#set new liveries, also set the count to the number
 	#of liveries installed
 	if (liveries == nil or size ( liveries) == 0 ) {
-		#livs.removeChildren();
-		#node.getNode("bombable/attributes/damageLiveries/count", 1).setValue( 0 );
 		livs.count = 0;
 							
 		} else {
