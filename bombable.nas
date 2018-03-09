@@ -7238,6 +7238,7 @@ gui.showHelpDialog ("/bombable/dialogs/records");
 # in one step.  An airplane might keep moving close to the same speed
 # even if the engine dies completely.  A tank might stop forward motion almost
 # instantly.
+
 var add_damage = func(damageRise, myNodeName, damagetype = "weapon", impactNodeName = nil, ballisticMass_lb = nil, lat_deg = nil, lon_deg = nil, alt_m = nil  ) {
 if (!getprop(bomb_menu_pp~"bombable-enabled") ) return 0;
 if (myNodeName == "") {
@@ -7252,7 +7253,7 @@ debprint ("Bombable: add_damage ", myNodeName);
 var vuls = attributes[myNodeName].vulnerabilities;
 var spds = attributes[myNodeName].velocities;
 var livs = attributes[myNodeName].damageLiveries;
-var liveriesCount = livs.count;
+var 	 = livs.count;
 var type = node.getName();
 if ((spds.maxSpeed_kt < 50) and (type == "aircraft")) type = "groundvehicle";
 
@@ -7538,6 +7539,7 @@ var set_livery = func (myNodeName, liveries) {
 	}
 }
 
+######################## checkRange #############################
 var checkRange = func (v = nil, low = nil, high = nil, default = 1) {
 
 	if ( v == nil ) v = default;
@@ -7867,6 +7869,8 @@ var initialize_func = func ( b ){
 	# In future for performance reasons we might just save it under local
 	# variable attributes[myNodeName] and not in the property tree at all, unless
 	# something needs to be made globally available to change at runtime.
+
+	
 	attributes[b.objectNodeName] = b;
 	var myNodeName = b.objectNodeName;
 	stores.fillWeapons(myNodeName,1);
