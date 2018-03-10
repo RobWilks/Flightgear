@@ -204,7 +204,7 @@ var mpreceive = func (mpMessageNode) {
 
 }
 
-################################################################################
+####################################### put_ballistic_model #########################################
 # put_ballistic_model places a new model that starts at another AI model's
 # position but moves independently, like a bullet, bomb, etc
 # this is still not working/experimental
@@ -212,7 +212,7 @@ var mpreceive = func (mpMessageNode) {
 # submodel in the main aircraft.  Then have Bombable place
 # it in the right location, speed, direction, and trigger it.
 # Somewhat similar to: http://wiki.flightgear.org/Howto:_Add_contrails#Persistent_Contrails
-# rjw: function not used
+# rjw: FUNCTION NOT USED
 
 var put_ballistic_model = func(myNodeName = "/ai/models/aircraft", path = "AI/Aircraft/Fire-Particles/fast-particles.xml") {
 
@@ -1053,7 +1053,7 @@ props.globals.getNode(""~attributes_pp~"/attributes-set", 1).setValue(1);
 }
 
 
-####################################################
+######################### startFire ###########################
 #start a fire in a given location & associated with a given object
 #
 #
@@ -1111,7 +1111,7 @@ var startFire = func (myNodeName = "", model = "")
 
 
 
-####################################################
+########################## deleteSmoke ##########################
 #Delete any of the various smoke, contrail, flare, etc. objects
 #and unlink the fire from the smoke object.
 #
@@ -1143,7 +1143,7 @@ var deleteSmoke = func (smokeType, myNodeName = "",fireNode = "") {
 }
 
 
-####################################################
+########################## startSmoke ##########################
 # Smoke is like a fire, but doesn't cause damage & can use one of
 # several different models to create different effects.
 #
@@ -1155,6 +1155,8 @@ var deleteSmoke = func (smokeType, myNodeName = "",fireNode = "") {
 #and saves the name of the fire (model) node so the object can find
 #the fire (model) it is associated with to update it etc.
 #Returns name of the node with the newly started fire object (model)
+
+
 var startSmoke = func (smokeType, myNodeName = "", model = "")
 {
 	if (myNodeName == "") myNodeName = "";
@@ -1205,8 +1207,8 @@ var reset_damage_fires = func  {
 	deleteSmoke("damagedengine", "");
 	setprop("/bombable/attributes/damage", 0);
 	setprop ("/bombable/on-ground",  0 );
-	#blow away the locks for MP communication--shouldn't really
-	# be needed--but just a little belt & suspendors things here
+	# blow away the locks for MP communication--shouldn't really
+	# be needed--but just a little belt & braces here
 	# to make sure that no old damage (prior to the reset) is sent
 	# to other aircraft again after the reset, and that none of the
 	# locks are stuck.
@@ -1465,7 +1467,7 @@ var revitalizeAllAIObjects = func (revitType = "aircraft", preservePosSpeed = 0)
 
 		}
 
-####################################################
+######################## resetBombableDamageFuelWeapons ############################
 # resetBombableDamageFuelWeapons
 # reset the damage, smoke & fires from an AI aircraft, or the main aircraft
 #  myNodeName = the AI node to reset, or set myNodeName = "" for the main
@@ -2874,6 +2876,13 @@ var ground_loop = func( id, myNodeName ) {
 	or (damageValue == 1 and currAlt_ft <= objectsLowestAllowedAlt_ft) )
 	) hitground_stop_explode(myNodeName, alt_ft);
 			
+	# end of life:  damaged ships and ground vehicles grind to a halt; aircraft explode and flag onGround
+	# speed is adjusted by add_damage
+	if ((type == "groundvehicle") or (type == "ship")) {
+		if (speed_kt <= 0.5) setprop(""~myNodeName~"/bombable/exploded", 1);
+		return;
+		}
+
 	# rjw bring crashed aircraft to a stop
 	if (onGround){
 		#go to object's resting altitude
@@ -2936,6 +2945,9 @@ var ground_loop = func( id, myNodeName ) {
 		lookingAheadAlt_ft = toFrontAlt_ft;
 	}
 
+
+	
+	
 	# set speed, pitch and roll of groundvehicle according to terrain
 	if (type == "groundvehicle") {
 		slopeAhead_rad = math.atan2(toFrontAlt_ft - alt_ft , dims.length_m / 2 + FGAltObjectPerimeterBuffer_m);
@@ -2966,9 +2978,9 @@ var ground_loop = func( id, myNodeName ) {
 		"slopeAhead_deg = ", slopeAhead_rad * rad2degrees,	
 		"alt_ft - currAlt_ft = ", alt_ft - currAlt_ft
 		);		
-		
-
 		# rjw debug
+
+		
 		return;
 	}
 			
@@ -5988,7 +6000,7 @@ stores.checkAttackReadiness = func (myNodeName) {
 	return ret;
 }
 
-###############################################
+####################### revitalizeAttackReadiness ########################
 # FUNCTION revitalizeAttackReadiness
 #
 # After the aircraft has left the attack zone it
@@ -7382,7 +7394,9 @@ var callsign = getCallSign (myNodeName);
 			setprop(""~myNodeName~"/controls/flight/target-spd", minSpeed);
 			}
 		# ships we control in a similar way to ground vehicles
-		}  else {
+		}  
+	else 
+		{
 		var tgt_spd_kts = getprop (""~myNodeName~"/controls/tgt-speed-kts");
 		if (tgt_spd_kts == nil ) tgt_spd_kts = 0;
 
@@ -7403,6 +7417,8 @@ var callsign = getCallSign (myNodeName);
 				}
 			}
 		}
+		
+
 	var fireStarted = getprop(""~myNodeName~"/bombable/fire-particles/fire-burning");
 	if (fireStarted == nil ) fireStarted = 0;
 
