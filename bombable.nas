@@ -2881,10 +2881,16 @@ var ground_loop = func( id, myNodeName ) {
 	if ((type == "groundvehicle") or (type == "ship")) {
 		if (speed_kt <= 0.5) {
 			setprop(""~myNodeName~"/bombable/exploded", 1);
+			debprint("Bombable:  Ground loop terminated for ",myNodeName);
+			setprop(""~myNodeName~"/controls/tgt-speed-kt", 0);
+			setprop(""~myNodeName~"/controls/flight/target-spd", 0);
+			setprop(""~myNodeName~"/velocities/true-airspeed-kt", 0);
+			setprop(""~myNodeName~"/velocities/vertical-speed-fps", 0);
 			return;
 		}
 	}
-
+	#could merge with the next block
+	
 	# rjw bring crashed aircraft to a stop
 	if (onGround){
 		#go to object's resting altitude
