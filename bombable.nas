@@ -2716,7 +2716,7 @@ var ground_loop = func( id, myNodeName ) {
 	groundLoopCounter += 1;	
 	setprop(""~myNodeName~ "/position/groundLoopCounter", groundLoopCounter);	
 	# rjw used to control debug printing and roll calculation
-
+	var thorough = (math.fmod(groundLoopCounter , 10) == 0); # to save FR we only do it thoroughly sometimes
 	
 	node = props.globals.getNode(myNodeName);
 	type = node.getName();
@@ -2736,7 +2736,6 @@ var ground_loop = func( id, myNodeName ) {
 	var FGAltObjectPerimeterBuffer_m = 0.5 * dims.length_m;
 	var FGAltObjectPerimeterBuffer_ft = FGAltObjectPerimeterBuffer_m / feet2meters;
 			
-	var thorough = (math.fmod(groundLoopCounter , 10) == 0); # to save FR we only do it thoroughly sometimes
 	if (onGround) thorough = 0; #never need thorough when crashed
 			
 	# Update altitude to keep moving objects at ground level the ground
@@ -2879,7 +2878,7 @@ var ground_loop = func( id, myNodeName ) {
 	# end of life:  damaged ships and ground vehicles grind to a halt; aircraft explode and flag onGround
 	# speed is adjusted by add_damage
 	if ((type == "groundvehicle") or (type == "ship")) {
-		if (speed_kt <= 0.5) {
+		if (speed_kt <= 2) {
 			setprop(""~myNodeName~"/bombable/exploded", 1);
 			debprint("Bombable:  Ground loop terminated for ",myNodeName);
 			setprop(""~myNodeName~"/controls/tgt-speed-kt", 0);
@@ -3020,7 +3019,6 @@ var ground_loop = func( id, myNodeName ) {
 		# the AI changes the object roll as the aircraft banks - not wanted for a ground vehicle
 		setprop (""~myNodeName~"/orientation/pitch-animation", pitchangle_deg );
 
-		
 		
 		if (thorough) debprint(
 		"Bombable: Ground_loop: ",
@@ -7374,34 +7372,6 @@ var callsign = getCallSign (myNodeName);
 		if (damagetype == "weapon" or damageRise > 4 or rand() < .05) targetStatusPopupTip (msg, 20);
 		}
 
-	if ( damageValue == 1 and damageValue > prevDamageValue and type == "aircraft") {
-		# rjw: aircraft will now crash
-		reduceRPM(myNodeName);
-		aircraftCrash (myNodeName);
-		}
-
-	var onGround = getprop (""~myNodeName~"/bombable/on-ground");
-	if (onGround == nil) onGround = 0;
-					
-	if (onGround) {
-						
-		# all to a complete stop
-		# this will be executed several times since extra damage occurs on ground 
-		# only called for aircraft but not clear that it is needed
-
-		setprop(""~myNodeName~"/controls/tgt-speed-kts", 0);
-
-		setprop(""~myNodeName~"/controls/flight/target-spd", 0);
-						
-		setprop(""~myNodeName~"/velocities/true-airspeed-kt", 0);
-						
-		# we hit the ground, now we are 100% dead
-		setprop(""~myNodeName~"/bombable/attributes/damage", 1);
-		
-			
-		return  damageIncrease;
-		# rjw: exit here if the object is a grounded aircraft
-		}
 					
 					
 	# max speed reduction due to damage, in %
@@ -7418,9 +7388,21 @@ var callsign = getCallSign (myNodeName);
 					
 	# rjw: tgt-speed-kts is used for ships and flight_tgt_spd for aircraft and groundvehicles
 
-					
-					
 	maxSpeedReduceProp = 1 - spds.maxSpeedReduce_percent / 100;  #spds.maxSpeedReduce_percent is a percentage
+
+	if ( damageValue == 1 and damageValue > prevDamageValue) {
+		if (type == "aircraft") {
+		# rjw: aircraft will now crash
+		reduceRPM(myNodeName);
+		aircraftCrash (myNodeName);
+		}
+		else
+		{
+		# for ships and ground vehicles decelerate at the maxSpeedReduce
+		settimer( func{reduceSpeed(myNodeName, maxSpeedReduceProp,type)},1);
+		}
+	}
+	
 	speedReduce = 1 - damageValue;
 	if (speedReduce < maxSpeedReduceProp) speedReduce = maxSpeedReduceProp;
 					
@@ -7442,9 +7424,9 @@ var callsign = getCallSign (myNodeName);
 			else 
 			setprop(""~myNodeName~"/controls/flight/target-spd", minSpeed);
 			}
-		# ships we control in a similar way to ground vehicles
 		}  
 	else 
+		# ships we control in a similar way to ground vehicles
 		{
 		var tgt_spd_kts = getprop (""~myNodeName~"/controls/tgt-speed-kts");
 		if (tgt_spd_kts == nil ) tgt_spd_kts = 0;
@@ -9096,4 +9078,33 @@ var killEngines = func(myNodeName) {
 			}			
 		}
 	}
+########################## reduceSpeed ###########################
+
+var reduceSpeed = func(myNodeName, factorSlowDown, type) {
+
+	if (type == "groundvehicle")  {
+
+		var flight_tgt_spd = getprop (""~myNodeName~"/controls/flight/target-spd");
+		if (flight_tgt_spd == nil ) flight_tgt_spd = 0;
+					
+		var true_spd = getprop (""~myNodeName~"/velocities/true-airspeed-kt");
+		if (true_spd == nil ) true_spd = 0;
+
+		setprop(""~myNodeName~"/controls/flight/target-spd", flight_tgt_spd * factorSlowDown);
+	}  
+
+	else
+	{ 
+		# ships we control in a similar way to ground vehicles
+
+		var tgt_spd_kts = getprop (""~myNodeName~"/controls/tgt-speed-kts");
+		if (tgt_spd_kts == nil ) tgt_spd_kts = 0;
+
+		setprop(""~myNodeName~"/controls/tgt-speed-kts", tgt_spd_kts * factorSlowDown);
+			
+		# believe that the ship AI will handle this
+	}
+	settimer( func{reduceSpeed(myNodeName, factorSlowDown,type)},1);
+}
+
 ########################## END ###########################
