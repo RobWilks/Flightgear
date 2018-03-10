@@ -2906,7 +2906,7 @@ var ground_loop = func( id, myNodeName ) {
 
 	# rjw mod: the descent of a destroyed (damage == 1) aircraft is managed by aircraftCrashControl 
 	if (type == "aircraft" and damageValue == 1) return;
-	# the flight of a partially damaged aircraft is managed by the following code which include ground avoidance
+	# the flight of a partially damaged aircraft is managed by the following code which includes ground avoidance
 			
 
 	#poor man's look-ahead radar
@@ -2947,20 +2947,22 @@ var ground_loop = func( id, myNodeName ) {
 
 
 	
-	
-	# set speed, pitch and roll of groundvehicle according to terrain
+	# set speed, pitch and roll of ground vehicle according to terrain
+	#rjw might use thorough if the number of calls to measure terrain altitude use too many clock cycles
 	if (type == "groundvehicle") {
-		slopeAhead_rad = math.atan2(toFrontAlt_ft - alt_ft , dims.length_m / 2 + FGAltObjectPerimeterBuffer_m);
-		# here can change speed according to gradient ahead
-
-		# pitch and roll controlled by model animation
-		AIroll = getprop (""~myNodeName~"/orientation/roll-deg");
-		setprop (""~myNodeName~"/orientation/roll-animation", rollangle_deg - AIroll ); 
-		# the AI changes the object roll as the aircraft banks - not wanted for a ground vehicle
-		setprop (""~myNodeName~"/orientation/pitch-animation", pitchangle_deg );
-
-		# set vert-speed not pitch for ground craft
-		vert_speed = math.sin(slopeAhead_rad) * speed_kt * knots2fps;
+		slopeAheadRatio = ( toFrontAlt_ft - alt_ft ) / ( dims.length_m / 2 + FGAltObjectPerimeterBuffer_m );
+		# use simple ratios rather than sin and tan;
+		
+		# here can change vehicle speed according to gradient ahead
+		if (slopeAheadRatio > 0.1) {
+			speed_kt *= (1 - 2 * slopeAheadRatio);		
+			setprop(""~myNodeName~"/velocities/true-airspeed-kt", speed_kt);
+			# a temporary change in response to slope the AI will adjusts speed_kt back to target
+			# not sure whether true-airspeed-kt is actual vehcile speed or horizontal speed would hope the former!
+		}
+	
+		# set vert-speed not pitch for ground vehicles
+		vert_speed = slopeAheadRatio * speed_kt * knots2fps;
 		vert_speed += (alt_ft - currAlt_ft) / updateTime_s; # correction if above or below ground
 		setprop (""~myNodeName~"/velocities/vertical-speed-fps", vert_speed);
 
@@ -2968,9 +2970,13 @@ var ground_loop = func( id, myNodeName ) {
 		setprop (""~myNodeName~"/controls/flight/target-alt", targetAlt_ft);
 		#setprop (""~myNodeName~"/position/altitude-ft", alt_ft ); # feet
 
-		
-		
-		#rjw might use and thorough here
+
+		# pitch and roll controlled by model animation
+		AIroll = getprop (""~myNodeName~"/orientation/roll-deg");
+		setprop (""~myNodeName~"/orientation/roll-animation", rollangle_deg - AIroll ); 
+		# the AI changes the object roll as the aircraft banks - not wanted for a ground vehicle
+		setprop (""~myNodeName~"/orientation/pitch-animation", pitchangle_deg );
+
 		if (thorough) debprint(
 		"Bombable: Ground_loop: ",
 		"vertical-speed-fps = ", vert_speed,
@@ -2978,13 +2984,48 @@ var ground_loop = func( id, myNodeName ) {
 		"slopeAhead_deg = ", slopeAhead_rad * rad2degrees,	
 		"alt_ft - currAlt_ft = ", alt_ft - currAlt_ft
 		);		
-		# rjw debug
+		# rjw for debug
 
 		
 		return;
 	}
 			
-	
+	# # set speed, pitch and roll of groundvehicle according to terrain
+	# if (type == "groundvehicle") {
+		# slopeAhead_rad = math.atan2(toFrontAlt_ft - alt_ft , dims.length_m / 2 + FGAltObjectPerimeterBuffer_m);
+		# # here can change speed according to gradient ahead
+
+
+		# # pitch and roll controlled by model animation
+		# AIroll = getprop (""~myNodeName~"/orientation/roll-deg");
+		# setprop (""~myNodeName~"/orientation/roll-animation", rollangle_deg - AIroll ); 
+		# # the AI changes the object roll as the aircraft banks - not wanted for a ground vehicle
+		# setprop (""~myNodeName~"/orientation/pitch-animation", pitchangle_deg );
+
+		# # set vert-speed not pitch for ground craft
+		# vert_speed = math.sin(slopeAhead_rad) * speed_kt * knots2fps;
+		# vert_speed += (alt_ft - currAlt_ft) / updateTime_s; # correction if above or below ground
+		# setprop (""~myNodeName~"/velocities/vertical-speed-fps", vert_speed);
+
+		# targetAlt_ft = currAlt_ft + vert_speed * updateTime_s;
+		# setprop (""~myNodeName~"/controls/flight/target-alt", targetAlt_ft);
+		# #setprop (""~myNodeName~"/position/altitude-ft", alt_ft ); # feet
+
+		
+		
+		# #rjw might use and thorough here
+		# if (thorough) debprint(
+		# "Bombable: Ground_loop: ",
+		# "vertical-speed-fps = ", vert_speed,
+		# "pitchangle_deg = ", pitchangle_deg,
+		# "slopeAhead_deg = ", slopeAhead_rad * rad2degrees,	
+		# "alt_ft - currAlt_ft = ", alt_ft - currAlt_ft
+		# );		
+		# # rjw debug
+
+		
+		# return;
+	# }	
 
 	# our target altitude for normal/undamaged forward movement
 	# this isn't based on our current altitude but the results of our
@@ -7386,7 +7427,7 @@ var callsign = getCallSign (myNodeName);
 
 	
 		# rjw: if AC on ground will exit before this point
-		# only reduce aircraft speeds at high damage values
+		# only reduce speeds at high damage values
 		if ( damageValue >= 0.75) {
 			if (flight_tgt_spd > minSpeed)
 			setprop(""~myNodeName~"/controls/flight/target-spd", flight_tgt_spd * speedReduce);
