@@ -292,7 +292,7 @@ var put_remove_model = func(lat_deg = nil, lon_deg = nil, elev_m = nil, time_sec
 
 }
 
-##############################################################
+############################# start_terrain_fire #################################
 #Start a fire on terrain, size depending on ballisticMass_lb
 #location at lat/lon
 #
@@ -7341,10 +7341,13 @@ damageValue = 0.0;
 setprop(""~myNodeName~"/bombable/attributes/damage", damageValue);
 damageIncrease = damageValue - prevDamageValue;
 
+livs_again = bombable.attributes[myNodeName].damageLiveries;
+print("Bombable: Add Dam livs again = ",livs_again.damageLivery[0]);
+print("Bombable: Add Dam livs = ",livs.damageLivery[0]);
+
 if (liveriesCount > 0 and liveriesCount != nil ) {							
 	livery = livs.damageLivery [ int ( damageValue * ( liveriesCount - 1 ) ) ];
-	setprop(""~myNodeName~"/bombable/texture-corps-path",
-	livery );
+	setprop(""~myNodeName~"/bombable/texture-corps-path", livery );
 	}
 
 if (damageIncrease > 0.05 and type == "aircraft") reduceRPM(myNodeName);
@@ -7562,20 +7565,28 @@ var set_livery = func (myNodeName, liveries) {
 	# var livs = node.getNode ("/bombable/attributes/damageLiveries",1).getValues();
 						
 						
-	if (! contains (bombable.attributes, myNodeName)) bombable.attributes[myNodeName] = {};
-	bombable.attributes[myNodeName].damageLiveries = {};
+	if (! contains (bombable.attributes, myNodeName)) {
+		bombable.attributes[myNodeName] = {};
+		bombable.attributes[myNodeName].damageLiveries = {};
+	}
 	var livs = bombable.attributes[myNodeName].damageLiveries;
-						
+	print("old livs = ",livs);
+
 	#set new liveries, also set the count to the number
 	#of liveries installed
 	if (liveries == nil or size ( liveries) == 0 ) {
-		livs.count = 0;
-							
-		} else {
+		livs.count = 0;				
+	} 
+	else 
+	{
 		livs.damageLivery = liveries;
-		livs.count = size (liveries) ;
-							
-							
+		livs.count = size (liveries);
+		# debprint("Bombable: Set_livery: livs = ",livs);					
+		bombable.attributes[myNodeName].damageLiveries = livs;
+		# debprint("Bombable: Set_livery: bombable.attributes[",myNodeName,"].damageLiveries) = ",bombable.attributes[myNodeName].damageLiveries);					
+		livs_again = bombable.attributes[myNodeName].damageLiveries;
+		print("Bombable: set_livery: livs again = ",livs_again.damageLivery[0]);
+		print("Bombable: set_livery: new liveries = ",liveries[0]);
 		#current color (we'll set it to the undamaged color;
 		#if the object is on fire/damage damaged this will soon be updated)
 		#by the timer function
@@ -7618,7 +7629,7 @@ var initialize = func (b) {
 }
 
 
-#####################################################
+######################### b ############################
 # initialize: Do sanity checking, then
 # slurp the pertinent properties into
 # the object's node tree under sub-node "bombable"
