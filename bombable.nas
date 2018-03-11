@@ -1,4 +1,3 @@
-
 #####################################################
 # Bombable
 # Brent Hugh, brent@brenthugh.com
@@ -377,7 +376,7 @@ var put_tied_model = func(myNodeName = "", path = "AI/Aircraft/Fire-Particles/Fi
 
 }
 
-################################################################################
+####################################### put_tied_weapon #########################################
 #put_tied_weapon places a new model that is tied to another AI model
 # (given by myNodeName) and will move with it in lon, lat, & alt
 # and have the delta heading, pitch, lat, long, alt, as specified in weapons_init
@@ -1179,6 +1178,8 @@ var startSmoke = func (smokeType, myNodeName = "", model = "")
 	if (burnTime == 0 or burnTime == nil) burnTime = 1800;
 	#burnTime = -1 means leave it on indefinitely
 	if (burnTime >= 0) settimer (func {deleteSmoke(smokeType, myNodeName,fireNode)}, burnTime);
+	#rjw debug
+	debprint("smokeType = ",smokeType,"myNodeName = ",myNodeName,"fireNode = ",fireNode,"burnTime = ",burnTime);
 
 	#name of this prop is "/models" + getname() + [ getindex() ]
 	fireNodeName = "/models/" ~ fireNode.getName() ~ "[" ~ fireNode.getIndex() ~ "]";
@@ -2008,13 +2009,16 @@ var dialog = {
 
 
 };   #oh yeah, that final ; is REALLy needed
-###############################################################################
+##################################### bombable_dialog_save ##########################################
 
 var bombable_dialog_save = func {
 	#return; #gui prob
 	debprint ("Bombable: iowriting, writing . . . ");
 	io.write_properties(bombable_settings_file, ""~bomb_menu_pp);
 }
+
+
+##################################### init_bombable_dialog_listeners ##########################################
 
 var init_bombable_dialog_listeners = func {
 	#return; #gui prob
@@ -2128,6 +2132,10 @@ var init_bombable_dialog_listeners = func {
 
 }
 
+
+##################################### setupBombableMenu ##########################################
+
+
 var setupBombableMenu = func {
 			
 			
@@ -2215,7 +2223,7 @@ var setupBombableMenu = func {
 			
 }
 
-#####################################################
+######################## calcPilotSkill #############################
 # FUNCTION calcPilotSkill
 # returns the skill level of the AI pilot
 # adjusted for the pilot individual skill level AND
@@ -3021,13 +3029,17 @@ var ground_loop = func( id, myNodeName ) {
 		setprop (""~myNodeName~"/orientation/pitch-animation", pitchangle_deg );
 
 		
-		if (thorough) debprint(
-		"Bombable: Ground_loop: ",
-		"vertical-speed-fps = ", vert_speed,
-		"pitchangle_deg = ", pitchangle_deg,
-		"slopeAhead_deg = ", slopeAhead_rad * rad2degrees,	
-		"alt_ft - currAlt_ft = ", alt_ft - currAlt_ft
-		);		
+		# if (thorough) debprint(
+		# "Bombable: Ground_loop: ",
+		# "vertical-speed-fps = ", vert_speed,
+		# "pitchangle_deg = ", pitchangle_deg,
+		# "slopeAhead_deg = ", slopeAhead_rad * rad2degrees,	
+		# "alt_ft - currAlt_ft = ", alt_ft - currAlt_ft
+		# );		
+		# if (thorough and alts.initialized == 1) debprint(
+		# "Bombable: Ground_loop: ",
+		# "initial_altitude_ft = ", alts.initialAlt_ft
+		# );		
 		# rjw debug
 
 		
