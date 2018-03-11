@@ -7561,41 +7561,40 @@ var inc_loopid = func (nodeName = "", loopName = "") {
 
 var set_livery = func (myNodeName, liveries) {
 	if (!getprop(bomb_menu_pp~"bombable-enabled") ) return;
-	var node = props.globals.getNode(myNodeName);
-	# var livs = node.getNode ("/bombable/attributes/damageLiveries",1).getValues();
 						
 						
 	if (! contains (bombable.attributes, myNodeName)) {
 		bombable.attributes[myNodeName] = {};
+		debprint("Bombable: set_livery:" ~ myNodeName ~ " node not initialised yet");
 		bombable.attributes[myNodeName].damageLiveries = {};
 	}
+
 	var livs = bombable.attributes[myNodeName].damageLiveries;
-	print("old livs = ",livs);
+	print("Bombable: set_livery:  old livs = ",livs);
 
 	#set new liveries, also set the count to the number
 	#of liveries installed
-	if (liveries == nil or size ( liveries) == 0 ) {
-		livs.count = 0;				
-	} 
-	else 
-	{
-		livs.damageLivery = liveries;
-		livs.count = size (liveries);
-		# debprint("Bombable: Set_livery: livs = ",livs);					
-		bombable.attributes[myNodeName].damageLiveries = livs;
-		# debprint("Bombable: Set_livery: bombable.attributes[",myNodeName,"].damageLiveries) = ",bombable.attributes[myNodeName].damageLiveries);					
-		livs_again = bombable.attributes[myNodeName].damageLiveries;
-		print("Bombable: set_livery: livs again = ",livs_again.damageLivery[0]);
-		print("Bombable: set_livery: new liveries = ",liveries[0]);
-		#current color (we'll set it to the undamaged color;
-		#if the object is on fire/damage damaged this will soon be updated)
-		#by the timer function
-		#To actually work, the aircraft's xml file must be set up with an
-		#animation to change the texture, keyed to the bombable/texture-corps-path
-		#property
-		# node.getNode("bombable/texture-corps-path", 1).setValue(liveries[0]);
-		setprop(""~myNodeName~"/bombable/texture-corps-path", liveries[0]);
-	}
+	if (liveries == nil or size ( liveries) == 0 ) return();
+	livs.damageLivery = liveries;
+	livs.count = size (liveries);
+	bombable.attributes[myNodeName].damageLiveries = livs;
+	# debprint("Bombable: Set_livery: livs = ",livs);					
+
+	
+	# debprint("Bombable: Set_livery: bombable.attributes[",myNodeName,"].damageLiveries) = ",bombable.attributes[myNodeName].damageLiveries);					
+	# livs_again = bombable.attributes[myNodeName].damageLiveries;
+	# print("Bombable: set_livery: livs again = ",livs_again.damageLivery[0]);
+	# print("Bombable: set_livery: new liveries = ",liveries[0]);
+
+	
+	#current color (we'll set it to the undamaged color;
+	#if the object is on fire/damage damaged this will soon be updated)
+	#by the timer function
+	#To actually work, the aircraft's xml file must be set up with an
+	#animation to change the texture, keyed to the bombable/texture-corps-path
+	#property
+
+	setprop(""~myNodeName~"/bombable/texture-corps-path", liveries[0]);
 }
 
 ######################## checkRange #############################
