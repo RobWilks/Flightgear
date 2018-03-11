@@ -351,7 +351,7 @@ var start_terrain_fire = func ( lat_deg, lon_deg, alt_m = 0, ballisticMass_lb = 
 
 
 
-################################################################################
+####################################### put_tied_model #########################################
 #put_tied_model places a new model that is tied to another AI model
 # (given by myNodeName) and will move with it in lon, lat, & alt
 # rjw called by startFire
@@ -7341,10 +7341,6 @@ damageValue = 0.0;
 setprop(""~myNodeName~"/bombable/attributes/damage", damageValue);
 damageIncrease = damageValue - prevDamageValue;
 
-livs_again = bombable.attributes[myNodeName].damageLiveries;
-print("Bombable: Add Dam livs again = ",livs_again.damageLivery[0]);
-print("Bombable: Add Dam livs = ",livs.damageLivery[0]);
-
 if (liveriesCount > 0 and liveriesCount != nil ) {							
 	livery = livs.damageLivery [ int ( damageValue * ( liveriesCount - 1 ) ) ];
 	setprop(""~myNodeName~"/bombable/texture-corps-path", livery );
@@ -7566,11 +7562,10 @@ var set_livery = func (myNodeName, liveries) {
 	if (! contains (bombable.attributes, myNodeName)) {
 		bombable.attributes[myNodeName] = {};
 		debprint("Bombable: set_livery:" ~ myNodeName ~ " node not initialised yet");
-		bombable.attributes[myNodeName].damageLiveries = {};
 	}
 
+	bombable.attributes[myNodeName].damageLiveries = {};
 	var livs = bombable.attributes[myNodeName].damageLiveries;
-	print("Bombable: set_livery:  old livs = ",livs);
 
 	#set new liveries, also set the count to the number
 	#of liveries installed
@@ -7578,13 +7573,7 @@ var set_livery = func (myNodeName, liveries) {
 	livs.damageLivery = liveries;
 	livs.count = size (liveries);
 	bombable.attributes[myNodeName].damageLiveries = livs;
-	# debprint("Bombable: Set_livery: livs = ",livs);					
-
-	
-	# debprint("Bombable: Set_livery: bombable.attributes[",myNodeName,"].damageLiveries) = ",bombable.attributes[myNodeName].damageLiveries);					
-	# livs_again = bombable.attributes[myNodeName].damageLiveries;
-	# print("Bombable: set_livery: livs again = ",livs_again.damageLivery[0]);
-	# print("Bombable: set_livery: new liveries = ",liveries[0]);
+	debprint("Bombable: Set_livery: livs = ",livs);					
 
 	
 	#current color (we'll set it to the undamaged color;
