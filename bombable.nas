@@ -2848,13 +2848,23 @@ var ground_loop = func( id, myNodeName ) {
 				
 		target_alt_AGL_ft = initial_altitude_ft - alt_ft - alts.wheelsOnGroundAGL_ft; 
 				
-		debprint (sprintf("Bombable: Initial Altitude:%10.0f Target AGL:%10.0f Object = %s", initial_altitude_ft, target_alt_AGL_f, myNodeName);
-		debprint ("Bombable: ", alt_ft, " ", toRightAlt_ft, " ",toLeftAlt_ft, " ",toFrontAlt_ft," ", toLeftAlt_ft, " ", alts.wheelsOnGroundAGL_ft);				
-		setprop (""~myNodeName~"/position/altitude-ft", initial_altitude_ft );
-		setprop (""~myNodeName~"/controls/flight/target-alt",  initial_altitude_ft);
-		alts.targetAGL_ft = target_alt_AGL_ft;  # allows aircraft to fly at constant height AGL
-		alts.initialAlt_ft = initial_altitude_ft;  # rjw mod to check for grounded ships
+		debprint (sprintf("Bombable: Initial Altitude:%6.0f Target AGL:%6.0f Object = %s", initial_altitude_ft, target_alt_AGL_f, myNodeName);
+		debprint ("Bombable: ", alt_ft, " ", toRightAlt_ft, " ",toLeftAlt_ft, " ",toFrontAlt_ft," ", toLeftAlt_ft, " ", alts.wheelsOnGroundAGL_ft);
+		if (type != "aircraft") {
+			setprop (""~myNodeName~"/position/altitude-ft", alt_ft ); # ships and groundvehicles are set to altitude of ground in their initial location
+			setprop (""~myNodeName~"/controls/flight/target-alt",  alt_ft);
+			alts.targetAGL_ft = 0;  # allows aircraft to fly at constant height AGL
+			alts.initialAlt_ft = alt_ft;  # rjw mod to check for grounded ships
+		{
+		else
+		{
+			setprop (""~myNodeName~"/position/altitude-ft", initial_altitude_ft );
+			setprop (""~myNodeName~"/controls/flight/target-alt",  initial_altitude_ft);
+			alts.targetAGL_ft = target_alt_AGL_ft;  # allows aircraft to fly at constant height AGL
+			alts.initialAlt_ft = initial_altitude_ft;  # rjw mod to check for grounded ships
+		}
 		alts.initialized = 1;
+		vels.speedOnFlat = speed_kt; # rjw used for groundVehicles which slow down and speed up according to gradient
 				
 		return;
 	}
@@ -3029,18 +3039,18 @@ var ground_loop = func( id, myNodeName ) {
 		setprop (""~myNodeName~"/orientation/pitch-animation", pitchangle_deg );
 
 		
-		# if (thorough) debprint(
-		# "Bombable: Ground_loop: ",
-		# "vertical-speed-fps = ", vert_speed,
-		# "pitchangle_deg = ", pitchangle_deg,
-		# "slopeAhead_deg = ", slopeAhead_rad * rad2degrees,	
-		# "alt_ft - currAlt_ft = ", alt_ft - currAlt_ft
-		# );		
-		# if (thorough and alts.initialized == 1) debprint(
-		# "Bombable: Ground_loop: ",
-		# "initial_altitude_ft = ", alts.initialAlt_ft
-		# );		
-		# rjw debug
+		if (thorough) debprint(
+		"Bombable: Ground_loop: ",
+		sprintf("vertical-speed-fps = %6.1f", vert_speed),
+		sprintf("pitchangle_deg = %6.1f", pitchangle_deg),
+		sprintf("slopeAhead_deg = %6.1f", slopeAhead_rad * rad2degrees),	
+		sprintf("alt_ft - currAlt_ft = %6.1f", alt_ft - currAlt_ft)
+		);		
+		if (thorough and alts.initialized == 1) debprint(
+		"Bombable: Ground_loop: ",
+		"vels.speedOnFlat = ", vels.speedOnFlat
+		);		
+		rjw debug
 
 		
 		return;
