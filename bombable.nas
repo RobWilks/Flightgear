@@ -2848,14 +2848,16 @@ var ground_loop = func( id, myNodeName ) {
 				
 		target_alt_AGL_ft = initial_altitude_ft - alt_ft - alts.wheelsOnGroundAGL_ft; 
 				
-		debprint (sprintf("Bombable: Initial Altitude:%6.0f Target AGL:%6.0f Object = %s", initial_altitude_ft, target_alt_AGL_f, myNodeName);
+		debprint (sprintf("Bombable: Initial Altitude:%6.0f Target AGL:%6.0f Object = %s", initial_altitude_ft, target_alt_AGL_ft, myNodeName));
 		debprint ("Bombable: ", alt_ft, " ", toRightAlt_ft, " ",toLeftAlt_ft, " ",toFrontAlt_ft," ", toLeftAlt_ft, " ", alts.wheelsOnGroundAGL_ft);
-		if (type != "aircraft") {
+		
+		if (type != "aircraft") 
+		{
 			setprop (""~myNodeName~"/position/altitude-ft", alt_ft ); # ships and groundvehicles are set to altitude of ground in their initial location
 			setprop (""~myNodeName~"/controls/flight/target-alt",  alt_ft);
 			alts.targetAGL_ft = 0;  # allows aircraft to fly at constant height AGL
 			alts.initialAlt_ft = alt_ft;  # rjw mod to check for grounded ships
-		{
+		}
 		else
 		{
 			setprop (""~myNodeName~"/position/altitude-ft", initial_altitude_ft );
@@ -2863,8 +2865,8 @@ var ground_loop = func( id, myNodeName ) {
 			alts.targetAGL_ft = target_alt_AGL_ft;  # allows aircraft to fly at constant height AGL
 			alts.initialAlt_ft = initial_altitude_ft;  # rjw mod to check for grounded ships
 		}
-		alts.initialized = 1;
 		vels.speedOnFlat = speed_kt; # rjw used for groundVehicles which slow down and speed up according to gradient
+		alts.initialized = 1;
 				
 		return;
 	}
@@ -3050,7 +3052,7 @@ var ground_loop = func( id, myNodeName ) {
 		"Bombable: Ground_loop: ",
 		"vels.speedOnFlat = ", vels.speedOnFlat
 		);		
-		rjw debug
+		# rjw debug
 
 		
 		return;
@@ -7428,7 +7430,7 @@ var callsign = getCallSign (myNodeName);
 	speedReduce = 1 - damageValue;
 	if (speedReduce < maxSpeedReduceProp) speedReduce = maxSpeedReduceProp;
 					
-					
+	debprint("spds.speedOnFlat = ",spds.speedOnFlat);				
 	if ((type == "aircraft") or (type == "groundvehicle"))  {
 
 		var flight_tgt_spd = getprop (""~myNodeName~"/controls/flight/target-spd");
