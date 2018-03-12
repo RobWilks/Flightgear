@@ -1179,7 +1179,7 @@ var startSmoke = func (smokeType, myNodeName = "", model = "")
 	#burnTime = -1 means leave it on indefinitely
 	if (burnTime >= 0) settimer (func {deleteSmoke(smokeType, myNodeName,fireNode)}, burnTime);
 	#rjw debug
-	debprint("smokeType = ",smokeType,"myNodeName = ",myNodeName,"fireNode = ",fireNode,"burnTime = ",burnTime);
+	# debprint("smokeType = ",smokeType,"myNodeName = ",myNodeName,"fireNode = ",fireNode,"burnTime = ",burnTime);
 
 	#name of this prop is "/models" + getname() + [ getindex() ]
 	fireNodeName = "/models/" ~ fireNode.getName() ~ "[" ~ fireNode.getIndex() ~ "]";
@@ -2848,7 +2848,7 @@ var ground_loop = func( id, myNodeName ) {
 				
 		target_alt_AGL_ft = initial_altitude_ft - alt_ft - alts.wheelsOnGroundAGL_ft; 
 				
-		debprint ("Bombable: Initial Altitude: "~ initial_altitude_ft~ " target AGL: "~target_alt_AGL_ft~ " object = "~ myNodeName);
+		debprint (sprintf("Bombable: Initial Altitude:%10.0f Target AGL:%10.0f Object = %s", initial_altitude_ft, target_alt_AGL_f, myNodeName);
 		debprint ("Bombable: ", alt_ft, " ", toRightAlt_ft, " ",toLeftAlt_ft, " ",toFrontAlt_ft," ", toLeftAlt_ft, " ", alts.wheelsOnGroundAGL_ft);				
 		setprop (""~myNodeName~"/position/altitude-ft", initial_altitude_ft );
 		setprop (""~myNodeName~"/controls/flight/target-alt",  initial_altitude_ft);
