@@ -2865,7 +2865,7 @@ var ground_loop = func( id, myNodeName ) {
 			alts.targetAGL_ft = target_alt_AGL_ft;  # allows aircraft to fly at constant height AGL
 			alts.initialAlt_ft = initial_altitude_ft;  # rjw mod to check for grounded ships
 		}
-		vels.speedOnFlat = speed_kt; # rjw used for groundVehicles which slow down and speed up according to gradient
+		vels.speedOnFlat = speed_kt; # rjw used for groundVehicles which slow down and speed up according to gradient; not used
 		alts.initialized = 1;
 				
 		return;
@@ -2991,7 +2991,7 @@ var ground_loop = func( id, myNodeName ) {
 		speedFactor = vert_speed / vels.maxClimbRate_fps;  # this parm is only set for a groundvehicle
 		if (speedFactor > 1) {
 			vert_speed = vels.maxClimbRate_fps;
-			setprop (""~myNodeName~"/velocities/true-airspeed-kt", speed_kt / speedFactor);
+			setprop (""~myNodeName~"/velocities/true-airspeed-kt", speed_kt / speedFactor); # rather than set target-speed try direct change which the AI will then adjust out
 		}
 		setprop (""~myNodeName~"/velocities/vertical-speed-fps", vert_speed);
 
@@ -5491,7 +5491,7 @@ var mp_send_damage = func (myNodeName = "", damageRise = 0 ) {
 				
 }
 
-######################
+###################### fireAIWeapon_stop ######################
 # fireAIWeapon_stop: turns off one of the triggers in AI/Aircraft/Fire-Particles/projectile-tracer.xml
 #
 var fireAIWeapon_stop = func (id, myNodeName = "") {
@@ -5503,7 +5503,7 @@ var fireAIWeapon_stop = func (id, myNodeName = "") {
 
 }
 
-######################
+###################### fireAIWeapon ######################
 # fireAIWeapon: turns on/off one of the triggers in AI/Aircraft/Fire-Particles/projectile-tracer.xml
 # Using the loopids ensures that it stays on for one full second are the last time it was
 # turned on.
@@ -5517,7 +5517,7 @@ var fireAIWeapon = func (time_sec = 1, myNodeName = "") {
 
 }
 
-###############################################
+###################### vertAngle_deg #########################
 #calculates angle (vertical, degrees above or below directly
 # horizontal) between two geocoords, in degrees
 #
@@ -5529,7 +5529,7 @@ var vertAngle_deg = func (geocoord1, geocoord2) {
 }
 
 
-###############################################
+####################### checkAim ########################
 # Checks that the two objects are within the given distance
 # and if so, checks whether myNodeName1 is aimed directly at myNodeName2
 # within the heading & vertical angle given, OR that the two objects
@@ -5554,24 +5554,24 @@ var vertAngle_deg = func (geocoord1, geocoord2) {
 #
 # formula is tan (angle) = damage radius / distance
 # or angle = atan (damage radius/ distance)
-#  however, for 0 < x < 1, atan(x)  ~=  x (x expressed in radians).
-#  Definitely this is close enough for our purposes.
+# however, for 0 < x < 1, atan(x)  ~=  x (x expressed in radians).
+# Definitely this is close enough for our purposes.
 #
-# Since our angles are expressed in degress the only difficulty is to convert radians
+# Since our angles are expressed in degrees the only difficulty is to convert radians
 # to degrees. So the formula is:
 # angle (degrees) = damage radius / distance * (180/pi)
 #
 # Below we'll put in the general height & width of the object, so the equations become:
 #
-# # angle (degrees) = height/2 / distance * (180/pi)
-# # angle (degrees) = width/2 / distance * (180/pi)
+# angle (degrees) = height/2 / distance * (180/pi)
+# angle (degrees) = width/2 / distance * (180/pi)
 # (approximate because our damage area is a rectangle projected
 # onto the surface of a sphere here, not just a radius )
 # Good estimate: dimension in feet divided by 4 equals angle to use here
 #
 # We make the 'hit' area tall & skinny rather than wide & flat
 # because our fighters are vertically challenged as far as movement,
-#     but quite easily able to aim horizontally
+# but quite easily able to aim horizontally
 #
 #Current notes:
 #vertDeg & horzDeg define the angular size of the target (ie, our main aircraft) at
@@ -5758,7 +5758,7 @@ targetSize_m = nil,  aiAimFudgeFactor = 1, maxDistance_m = 100, weaponAngle_deg 
 				
 }
 
-#########################################################
+############################ weapons_loop #############################
 # weapons_loop - main timer loop for check AI weapon aim & damage
 # to main aircraft
 #
@@ -5775,7 +5775,7 @@ targetSize_m = nil,  aiAimFudgeFactor = 1, maxDistance_m = 100, weaponAngle_deg 
 var weapons_loop = func (id, myNodeName1 = "", myNodeName2 = "", targetSize_m = nil) {
 
 	#we increment loopid if we want to kill this timer loop.  So check if we need to kill/exit:
-	# myNodeName1 is the AI aircraft and nyNodeName2 is the main aircraft
+	#myNodeName1 is the AI aircraft and nyNodeName2 is the main aircraft
 	var loopid = getprop(""~myNodeName1~"/bombable/loopids/weapons-loopid");
 	id == loopid or return;
 	#debprint ("aim-timer");
@@ -6111,7 +6111,7 @@ var distAItoMainAircraft = func (myNodeName){
 	aiAircraftPosition.alt() - mainAircraftPosition.alt() ];
 }
 
-####################################################
+######################### courseToMainAircraft ###########################
 #returns course from myNodeName to main aircraft
 #
 var courseToMainAircraft = func (myNodeName){
