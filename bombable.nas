@@ -2975,46 +2975,7 @@ var ground_loop = func( id, myNodeName ) {
 
 
 	
-	# # set speed, pitch and roll of ground vehicle according to terrain
-	# #rjw might use thorough if the number of calls to measure terrain altitude use too many clock cycles
-	# if (type == "groundvehicle") {
-		# slopeAheadRatio = ( toFrontAlt_ft - alt_ft ) / ( dims.length_m / 2 + FGAltObjectPerimeterBuffer_m );
-		# # use simple ratios rather than sin and tan;
-		
-		# # here can change vehicle speed according to gradient ahead
-		# speed_kt *= (1 - 2 * slopeAheadRatio);		
-		# setprop(""~myNodeName~"/velocities/true-airspeed-kt", speed_kt);
-		# # a temporary change in response to slope the AI will adjusts speed_kt back to target
-		# # not sure whether true-airspeed-kt is actual vehicle speed or horizontal speed would hope the former!
-	
-		# # set vert-speed not pitch for ground vehicles
-		# vert_speed = slopeAheadRatio * speed_kt * knots2fps;
-		# vert_speed += (alt_ft - currAlt_ft) / updateTime_s; # correction if above or below ground
-		# setprop (""~myNodeName~"/velocities/vertical-speed-fps", vert_speed);
 
-		# targetAlt_ft = currAlt_ft + vert_speed * updateTime_s;
-		# setprop (""~myNodeName~"/controls/flight/target-alt", targetAlt_ft);
-		# #setprop (""~myNodeName~"/position/altitude-ft", alt_ft ); # feet
-
-
-		# # pitch and roll controlled by model animation
-		# AIroll = getprop (""~myNodeName~"/orientation/roll-deg");
-		# setprop (""~myNodeName~"/orientation/roll-animation", rollangle_deg - AIroll ); 
-		# # the AI changes the object roll as the aircraft banks - not wanted for a ground vehicle
-		# setprop (""~myNodeName~"/orientation/pitch-animation", pitchangle_deg );
-
-		# if (thorough) debprint(
-		# "Bombable: Ground_loop: ",
-		# "vertical-speed-fps = ", vert_speed,
-		# "pitchangle_deg = ", pitchangle_deg,
-		# "slopeAhead_deg = ", slopeAhead_rad * rad2degrees,	
-		# "alt_ft - currAlt_ft = ", alt_ft - currAlt_ft
-		# );		
-		# # rjw for debug
-
-		
-		# return;
-	# }
 			
 	# set speed, pitch and roll of ground vehicle according to terrain
 	# rjw might use thorough if the number of calls to measure terrain altitude use too many clock cycles
@@ -3027,6 +2988,11 @@ var ground_loop = func( id, myNodeName ) {
 		# set vert-speed not pitch for ground craft
 		vert_speed = math.sin(slopeAhead_rad) * speed_kt * knots2fps;
 		vert_speed += (alt_ft - currAlt_ft) / updateTime_s; # correction if above or below ground
+		speedFactor = vert_speed / vels.maxClimbRate_fps;  # this parm is only set for a groundvehicle
+		if (speedFactor > 1) {
+			vert_speed = vels.maxClimbRate_fps;
+			setprop (""~myNodeName~"/velocities/true-airspeed-kt", speed_kt / speedFactor);
+		}
 		setprop (""~myNodeName~"/velocities/vertical-speed-fps", vert_speed);
 
 		targetAlt_ft = currAlt_ft + vert_speed * updateTime_s;
@@ -3043,10 +3009,10 @@ var ground_loop = func( id, myNodeName ) {
 		
 		if (thorough) debprint(
 		"Bombable: Ground_loop: ",
-		sprintf("vertical-speed-fps = %6.1f", vert_speed),
-		sprintf("pitchangle_deg = %6.1f", pitchangle_deg),
-		sprintf("slopeAhead_deg = %6.1f", slopeAhead_rad * rad2degrees),	
-		sprintf("alt_ft - currAlt_ft = %6.1f", alt_ft - currAlt_ft)
+		sprintf("vertical-speed-fps = %4.1f", vert_speed),
+		sprintf("pitchangle_deg = %4.1f", pitchangle_deg),
+		sprintf("slopeAhead_deg = %4.1f", slopeAhead_rad * rad2degrees),	
+		sprintf("alt_ft - currAlt_ft = %4.1f", alt_ft - currAlt_ft)
 		);		
 		if (thorough and alts.initialized == 1) debprint(
 		"Bombable: Ground_loop: ",
@@ -7430,7 +7396,7 @@ var callsign = getCallSign (myNodeName);
 	speedReduce = 1 - damageValue;
 	if (speedReduce < maxSpeedReduceProp) speedReduce = maxSpeedReduceProp;
 					
-	debprint("spds.speedOnFlat = ",spds.speedOnFlat);				
+	# debprint("spds.speedOnFlat = ",spds.speedOnFlat);				
 	if ((type == "aircraft") or (type == "groundvehicle"))  {
 
 		var flight_tgt_spd = getprop (""~myNodeName~"/controls/flight/target-spd");
@@ -7443,19 +7409,32 @@ var callsign = getCallSign (myNodeName);
 		# rjw: if AC on ground will exit before this point
 		# only reduce speeds at high damage values
 		if ( damageValue >= 0.75) {
-			if (flight_tgt_spd > minSpeed)
-			setprop(""~myNodeName~"/controls/flight/target-spd", flight_tgt_spd * speedReduce);
-			else 
-			setprop(""~myNodeName~"/controls/flight/target-spd", minSpeed);
-			}
-		}  
+				if (flight_tgt_spd > minSpeed) {
+					setprop(""~myNodeName~"/controls/flight/target-spd", flight_tgt_spd * speedReduce);
+					spds.speedOnFlat *= speedReduce;
+				}
+				else 
+				{
+					setprop(""~myNodeName~"/controls/flight/target-spd", minSpeed);
+					spds.speedOnFlat = minSpeed;
+				}
+		}
+	}  
 	else 
-		# ships we control in a similar way to ground vehicles
-		{
+	# ships we control in a similar way to ground vehicles
+	{
 		var tgt_spd_kts = getprop (""~myNodeName~"/controls/tgt-speed-kts");
 		if (tgt_spd_kts == nil ) tgt_spd_kts = 0;
 
-		if (tgt_spd_kts > minSpeed) setprop(""~myNodeName~"/controls/tgt-speed-kts", tgt_spd_kts * speedReduce);
+		if (tgt_spd_kts > minSpeed) {
+			setprop(""~myNodeName~"/controls/tgt-speed-kts", tgt_spd_kts * speedReduce);
+			spds.speedOnFlat *= speedReduce;
+		}
+		else
+		{
+			setprop(""~myNodeName~"/controls/flight/tgt_speed_kts", minSpeed);
+			spds.speedOnFlat = minSpeed;
+		}
 			
 		# believe that the ship AI will handle this
 		# if (true_spd > minSpeed)
@@ -7469,9 +7448,9 @@ var callsign = getCallSign (myNodeName);
 			if (listing == nil) {
 				setprop(""~myNodeName~"/orientation/target-roll", rand() * 60 - 30); #up to 30 degrees
 				setprop(""~myNodeName~"/orientation/target-pitch", rand() * 10 - 5); #up to 5 degrees
-				}
 			}
 		}
+	}
 		
 
 	var fireStarted = getprop(""~myNodeName~"/bombable/fire-particles/fire-burning");
