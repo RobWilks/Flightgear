@@ -3014,10 +3014,10 @@ var ground_loop = func( id, myNodeName ) {
 		sprintf("slopeAhead_deg = %4.1f", slopeAhead_rad * rad2degrees),	
 		sprintf("alt_ft - currAlt_ft = %4.1f", alt_ft - currAlt_ft)
 		);		
-		if (thorough and alts.initialized == 1) debprint(
-		"Bombable: Ground_loop: ",
-		"vels.speedOnFlat = ", vels.speedOnFlat
-		);		
+		# if (thorough and alts.initialized == 1) debprint(
+		# "Bombable: Ground_loop: ",
+		# "vels.speedOnFlat = ", vels.speedOnFlat
+		# );		
 		# rjw debug
 
 		
@@ -5721,7 +5721,7 @@ targetSize_m = nil,  aiAimFudgeFactor = 1, maxDistance_m = 100, weaponAngle_deg 
 				
 	if ( headingDelta_deg > horzTargetSize_deg ) 
 	{
-	debprint ("Bombable: checkAim for ", myNodeName,
+	debprint ("Bombable: checkAim for ", myNodeName1,
 	" elev = ", weaponAngle_deg.elevation,
 	" heading = ", weaponAngle_deg.heading);
 	turnGun(myNodeName1, [deltaX_m, deltaY_m, deltaAlt_m], distance_m, myHeading_deg); # not working yet
@@ -9136,7 +9136,7 @@ var rotate_round_x_axis = func (vector, alpha) {
     var y2 = vector[0] * matrix[0][1] + vector[1] * matrix[1][1] + vector[2] * matrix[2][1];
     var z2 = vector[0] * matrix[0][2] + vector[1] * matrix[1][2] + vector[2] * matrix[2][2];
 
-    debug.dump(vector, alpha, x2, y2, z2);
+    # debug.dump(vector, alpha, x2, y2, z2);
     return [x2, y2, z2];
 }
 var rotate_round_y_axis = func (vector, beta) {
@@ -9168,7 +9168,7 @@ var rotate_round_y_axis = func (vector, beta) {
     var y2 = vector[0] * matrix[0][1] + vector[1] * matrix[1][1] + vector[2] * matrix[2][1];
     var z2 = vector[0] * matrix[0][2] + vector[1] * matrix[1][2] + vector[2] * matrix[2][2];
 
-    debug.dump(vector, beta, x2, y2, z2);
+    # debug.dump(vector, beta, x2, y2, z2);
     return [x2, y2, z2];
 }
 var rotate_round_z_axis = func (vector, gamma) {
@@ -9200,7 +9200,7 @@ var rotate_round_z_axis = func (vector, gamma) {
     var y2 = vector[0] * matrix[0][1] + vector[1] * matrix[1][1] + vector[2] * matrix[2][1];
     var z2 = vector[0] * matrix[0][2] + vector[1] * matrix[1][2] + vector[2] * matrix[2][2];
 
-    debug.dump(vector, gamma, x2, y2, z2);
+    # debug.dump(vector, gamma, x2, y2, z2);
     return [x2, y2, z2];
 }
 # # tank starts heading due N
@@ -9221,21 +9221,22 @@ var turnGun = func(myNodeName, targetDir, targetDist, myHeading_deg) {
 
 	if (getprop("" ~ myNodeName ~ "/surface-positions/cannon-elev-deg") == nil) return();
 	if (getprop("" ~ myNodeName ~ "/surface-positions/turret-pos-deg") == nil) return();
-	for (i = 0; i < 3; i += 1) {	
-		targetDir[i] := targetDir[i] / targetDist;
+	for (var i = 0; i < 3; i += 1) {	
+		targetDir[i] = targetDir[i] / targetDist;
 	}
-	pitch-deg = getprop("" ~ myNodeName ~ "/orientation/pitch-animation");
-	roll-deg = getprop("" ~ myNodeName ~ "/orientation/roll-animation");
-	newDir = rotate_round_z_axis(targetDir, -myHeading_deg);
+	var pitch_deg = getprop("" ~ myNodeName ~ "/orientation/pitch-animation");
+	var roll_deg = getprop("" ~ myNodeName ~ "/orientation/roll-animation");
+	var newDir = rotate_round_z_axis(targetDir, -myHeading_deg);
 	newDir = rotate_round_x_axis(newDir, pitch_deg);
-	newDir = rotate_round_y_axis(newDir, roll_deg);
-	elev = newDir[2] * R2D;
-	heading = atan2(newDir[1], newDir[2]) * R2D;
+	# assume roll increases clockwise in the direction of travel
+	newDir = rotate_round_y_axis(newDir, -roll_deg);
+	var newElev = newDir[2] * R2D;
+	var newHeading = math.atan2(newDir[0], newDir[1]) * R2D;
 	debprint ("Bombable: Turn gun for ", myNodeName,
-	" elev = ", elev,
-	" heading = ", heading);
-	# setprop("" ~ myNodeName ~ "/surface-positions/cannon-elev-deg" , elev);
-	# setprop("" ~ myNodeName ~ "/surface-positions/turret-pos-deg" , heading);
+	" elev = ", newElev,
+	" heading = ", newHeading);
+	setprop("" ~ myNodeName ~ "/surface-positions/cannon-elev-deg" , newElev);
+	setprop("" ~ myNodeName ~ "/surface-positions/turret-pos-deg" , -newHeading);
 }
 
 
