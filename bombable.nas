@@ -5543,7 +5543,6 @@ var vertAngle_deg = func (geocoord1, geocoord2) {
 # orientation properties are updated only 1X per second.
 # But who knows--it might be 'good enough' . . .
 #
-#     #
 # Notes on calculating the angular size of the target and being
 # able to tell if the weapon is aimed at the target with sufficient accuracy.
 # 3 degrees @ 200 meters, 2% damage add maximum.
@@ -5579,16 +5578,18 @@ var vertAngle_deg = func (geocoord1, geocoord2) {
 #for (say) a sopwith camel.  Really this needs to be calculated more exactly based on the
 #actual dimensions of the main aircraft. But for now this is at least close.  There doesn't
 #seem to be a simple way to get the dimensions of the main aircraft from FG.
-#Bombable calculates the hits as on a probabalistic basis if they hit within the given
+#Bombable calculates the hits as on a probabilistic basis if they hit within the given
 #angular area.  The closer to the center of the target, the higher the probability of a hit
-#and the more the damage.  Since the bombable/ai weapons system is simulated (ie, based on the probably
-# of hits based on being aimed in the general area of the main aircraft, rather than
-# actually launching projectiles and seeing if they hit) this is generally a 'good enough'
-# approach.
+#and the more the damage.  Since the bombable/ai weapons system is simulated (ie, based on the probability
+# of a hit determined by how close the aim is to the general area of the main aircraft, rather than
+# actually launching projectiles and seeing if they hit) this is generally a 'good enough' approach.
+# myNodeName1 is the AI aircraft and myNodeName2 is the main aircraft
 			
 
 var checkAim = func (myNodeName1 = "", myNodeName2 = "",
 targetSize_m = nil,  aiAimFudgeFactor = 1, maxDistance_m = 100, weaponAngle_deg = nil, weaponOffset_m = nil, damageValue = 0 ) {
+	#Note weaponAngle is a hash with components heading and elevation
+	#Function called only by main weapons_loop
 				
 	#Weapons malfunction in proportion to the damageValue, to 100% of the time when damage = 100%
 	#debprint ("Bombable: AI weapons, ", myNodeName1, ", ", myNodeName2);
@@ -5597,20 +5598,16 @@ targetSize_m = nil,  aiAimFudgeFactor = 1, maxDistance_m = 100, weaponAngle_deg 
 	#if (myNodeName1 == "/environment" or myNodeName1 == "environment") myNodeName1 = "";
 	#if (myNodeName2 == "/environment" or myNodeName2 == "environment") myNodeName2 = "";
 
-	#m_per_deg_lat = getprop ("/bombable/sharedconstants/m_per_deg_lat");
-	#m_per_deg_lon = getprop ("/bombable/sharedconstants/m_per_deg_lon");
 
-	#quick-n-dirty way to tell if an impact is close to our object at all
-	#without processor-intensive calculations
-	#we do this first and then exit if not close, to reduce impact
-	#of impacts on processing time
-	#
+	#quick way to tell if an impact is close to our object 
+	#we do this first and then exit if not close, to reduce overall processing time
 
-	var alat_deg = getprop(""~myNodeName1~"/position/latitude-deg");
+	var alat_deg = getprop(""~myNodeName1~"/position/latitude-deg"); # AI
 	var alon_deg = getprop(""~myNodeName1~"/position/longitude-deg");
-	var mlat_deg = getprop(""~myNodeName2~"/position/latitude-deg");
+	var mlat_deg = getprop(""~myNodeName2~"/position/latitude-deg"); # main AC
 	var mlon_deg = getprop(""~myNodeName2~"/position/longitude-deg");
-				
+	# m_per_deg_lat/lon are bombable general variables
+	
 	deltaLat_deg = mlat_deg - alat_deg;
 	if (abs(deltaLat_deg) > maxDistance_m/m_per_deg_lat ) {
 		#debprint ("Aim: Not close in lat.");
@@ -5620,6 +5617,7 @@ targetSize_m = nil,  aiAimFudgeFactor = 1, maxDistance_m = 100, weaponAngle_deg 
 	#var maxLon_deg = getprop (""~myNodeName1~"/bombable/attributes/dimensions/maxLon");
 	#
 	var maxLon_deg = attributes[myNodeName1].dimensions['maxLon'];
+	# rjw maxLon_deg is not used in this function
 				
 	deltaLon_deg = mlon_deg - alon_deg ;
 	if (abs(deltaLon_deg) > maxDistance_m/m_per_deg_lon )  {
@@ -5628,21 +5626,15 @@ targetSize_m = nil,  aiAimFudgeFactor = 1, maxDistance_m = 100, weaponAngle_deg 
 	}
 
 				
-	if ( targetSize_m == nil or targetSize_m.horz <= 0 or targetSize_m.vert <= 0 or maxDistance_m <= 0) return 0;
-				
-	if (weaponAngle_deg == nil ){ weaponAngle_deg = {heading:0, elevation:0};}
+	if ( targetSize_m == nil or targetSize_m.horz <= 0 or targetSize_m.vert <= 0 or maxDistance_m <= 0) return 0;				
+	if (weaponAngle_deg == nil ){ weaponAngle_deg = {heading:0, elevation:0};} #note definition of value for each key of hash
 	if (weaponOffset_m == nil ){ weaponOffset_m = {x:0,y:0,z:0}; }
 				
-	#we could speed things up a fair bit by calculating this periodically, storing, and
-	# looking up, rather than re-calculating each & every time.
-	#var aLat_rad = alat_deg/rad2degrees;
-	#m_per_deg_lat = 111699.7 - 1132.978 * math.cos (aLat_rad);
-	#m_per_deg_lon = 111321.5 * math.cos (aLat_rad);
-				
+	
 
 				
 	#the following plus deltaAlt_m make a < vector > where impactor is at < 0,0,0 > 
-	# and target object is at < deltaX,deltaY,deltaAlt > in relation to it.
+	#and target object is at < deltaX,deltaY,deltaAlt > in relation to it.
 	var deltaY_m = deltaLat_deg * m_per_deg_lat;
 	var deltaX_m = deltaLon_deg * m_per_deg_lon;
 
@@ -5650,7 +5642,7 @@ targetSize_m = nil,  aiAimFudgeFactor = 1, maxDistance_m = 100, weaponAngle_deg 
 	var mAlt_m = getprop(""~myNodeName2~"/position/altitude-ft") * feet2meters;
 	var deltaAlt_m = mAlt_m-aAlt_m;
 
-	distance_m = cartesianDistance (deltaY_m, deltaX_m,deltaAlt_m);
+	distance_m = cartesianDistance (deltaY_m, deltaX_m, deltaAlt_m);
 				
 	#var geocoord1 = any_aircraft_position (myNodeName1);
 	#var geocoord2 = any_aircraft_position (myNodeName2);
@@ -5661,12 +5653,14 @@ targetSize_m = nil,  aiAimFudgeFactor = 1, maxDistance_m = 100, weaponAngle_deg 
 				
 	#var distance_m = geocoord1.direct_distance_to(geocoord2);
 				
-	#debprint ("Bombable: AI weapons, distance: ", distance_m);
+	# debprint ("Bombable: AI weapons, distance: ", distance_m, " for ", myNodeName1);
 				
 	if (distance_m > maxDistance_m ) return 0;
 	# # angle (degrees) = height/2 / distance * (180/pi)
 	# # angle (degrees) = width/2 / distance * (180/pi)
-				
+	
+	
+	
 
 	#collision, ie aircraft 2 within damageRadius of aircraft 1
 	if (distance_m < attributes[myNodeName1].dimensions.crashRadius_m){
@@ -5675,13 +5669,12 @@ targetSize_m = nil,  aiAimFudgeFactor = 1, maxDistance_m = 100, weaponAngle_deg 
 		msg = sprintf("You crashed! Damage added %1.0f%%", 100 );
 		selfStatusPopupTip (msg, 10);
 		return 1;
-					
-		#more complicated way--maybe we'll try it later:
+		
+		#rjw following code currently not used
+		#more complicated way - maybe we'll try it later:
 		#case of within vital damage, it's case closed, both aircraft totalled
 		var retDam = 0;
-		#var vDamRad_m = getprop (""~myNodeName1~"/bombable/attributes/dimensions/vitalDamageRadius_m");
 		var vDamRad_m = attributes[myNodeName1].dimensions.vitalDamageRadius_m;
-		#var damRad_m = getprop (""~myNodeName1~"/bombable/attributes/dimensions/damageRadius_m");
 		var damRad_m = attributes[myNodeName1].dimensions.damageRadius_m;
 		if (damRad_m <= 0) damRad_m = .5;
 		if (vDamRad_m >= damRad_m) vDamRad_m = damRad_m * .95;
@@ -5726,10 +5719,17 @@ targetSize_m = nil,  aiAimFudgeFactor = 1, maxDistance_m = 100, weaponAngle_deg 
 	var horzTargetSize_deg = targetSize_m.horz/distance_m * (rad2degrees/2) * aiAimFudgeFactor;
 	#debprint( "Bombable: checkAim horzTargetSize_deg", horzTargetSize_deg);
 				
-	if ( headingDelta_deg > horzTargetSize_deg ) return 0;
+	if ( headingDelta_deg > horzTargetSize_deg ) 
+	{
+	debprint ("Bombable: checkAim for ", myNodeName,
+	" elev = ", weaponAngle_deg.elevation,
+	" heading = ", weaponAngle_deg.heading);
+	turnGun(myNodeName1, [deltaX_m, deltaY_m, deltaAlt_m], distance_m, myHeading_deg); # not working yet
+	return 0;
+	}
 				
 	#fire the weapons for 5 seconds/visual effect
-	#we start do this whenever we're within maxDistance & aimed generally at the right heading
+	#we start do this whenever we're within maxDistance & aimed generally at the right heading; might still have pHit zero
 	fireAIWeapon(5);
 				
 	var myPitch_deg = getprop (""~myNodeName1~"/orientation/pitch-deg");
@@ -5737,14 +5737,9 @@ targetSize_m = nil,  aiAimFudgeFactor = 1, maxDistance_m = 100, weaponAngle_deg 
 	var pitchNode1toNode2_deg = math.asin(deltaAlt_m/distance_m) * R2D;
 				
 	#debprint ("pitch1to2: ", pitchNode1toNode2_deg);
-				
-	#var vertDelta_deg = math.abs ( normdeg180 (vertAngle_deg(geocoord1,geocoord2) - ( myPitch_deg + weaponAngle_deg.elevation ) ) );
-				
+						
 	var vertDelta_deg = math.abs ( normdeg180 (pitchNode1toNode2_deg - ( myPitch_deg + weaponAngle_deg.elevation ) ) );
-				
-				
-				
-				
+							
 	#extra fudgefactor on vert because our fighters are a bit vertically-aiming challenged
 	var vertTargetSize_deg = targetSize_m.vert/distance_m * (rad2degrees/2) * aiAimFudgeFactor * 1.5;
 
@@ -5775,7 +5770,7 @@ targetSize_m = nil,  aiAimFudgeFactor = 1, maxDistance_m = 100, weaponAngle_deg 
 var weapons_loop = func (id, myNodeName1 = "", myNodeName2 = "", targetSize_m = nil) {
 
 	#we increment loopid if we want to kill this timer loop.  So check if we need to kill/exit:
-	#myNodeName1 is the AI aircraft and nyNodeName2 is the main aircraft
+	#myNodeName1 is the AI aircraft and myNodeName2 is the main aircraft
 	var loopid = getprop(""~myNodeName1~"/bombable/loopids/weapons-loopid");
 	id == loopid or return;
 	#debprint ("aim-timer");
@@ -5792,7 +5787,6 @@ var weapons_loop = func (id, myNodeName1 = "", myNodeName2 = "", targetSize_m = 
 	#if no weapons set up for this Object then just return
 	if (! getprop(""~myNodeName1~"/bombable/initializers/weapons-initialized")) return;
 				
-	#var b = props.globals.getNode (""~myNodeName1~"/bombable/attributes");
 	var weaps = attributes[myNodeName1].weapons;
 	#debprint ("aim-check damage");
 	#If damage = 100% we're going to assume the weapons won't work.
@@ -5828,9 +5822,12 @@ var weapons_loop = func (id, myNodeName1 = "", myNodeName2 = "", targetSize_m = 
 		if ( ! stores.checkWeaponsReadiness ( myNodeName1, elem ) ) continue;
 
 					
-		result = checkAim (myNodeName1, myNodeName2, targetSize_m, aiAimFudgeFactor,
-		weaps[elem].maxDamageDistance_m, weaps[elem].weaponAngle_deg,
-		weaps[elem].weaponOffset_m, damageValue );
+		result = checkAim (myNodeName1, myNodeName2, 
+		targetSize_m, aiAimFudgeFactor,
+		weaps[elem].maxDamageDistance_m, 
+		weaps[elem].weaponAngle_deg,
+		weaps[elem].weaponOffset_m, 
+		damageValue );
 					
 		#debprint ("aim-check weapon");
 		if (result == 0) continue;
@@ -7938,11 +7935,7 @@ var update_m_per_deg_latlon = func  {
 	var aLat_rad = alat_deg/rad2degrees;
 	m_per_deg_lat = 111699.7 - 1132.978 * math.cos (aLat_rad);
 	m_per_deg_lon = 111321.5 * math.cos (aLat_rad);
-						
-	#TODO: there is really no reason to save these to the property tree, they could
-	#just be bombable general variables
-	#setprop ("/bombable/sharedconstants/m_per_deg_lat", m_per_deg_lat);
-	#setprop ("/bombable/sharedconstants/m_per_deg_lon", m_per_deg_lon);
+	#Note these are bombable general variables
 }
 
 ####################### update_m_per_deg_latlon_loop ##########################
@@ -9109,5 +9102,141 @@ var reduceSpeed = func(myNodeName, factorSlowDown, type) {
 	}
 	settimer( func{reduceSpeed(myNodeName, factorSlowDown,type)},1);
 }
+
+########################## rotate_round ###########################
+
+var sin = func(a) { math.sin(a * globals.D2R) }
+var cos = func(a) { math.cos(a * globals.D2R) }
+var rotate_round_x_axis = func (vector, alpha) {
+ 
+    var c_alpha = cos(alpha);
+    var s_alpha = sin(alpha);
+
+    var matrix = [
+        [
+           1,
+            0,
+            0
+        ],
+
+        [
+           0,
+            c_alpha,
+            -s_alpha
+        ],
+
+        [
+            0,
+            s_alpha,
+            c_alpha
+        ]
+    ];
+
+    var x2 = vector[0] * matrix[0][0] + vector[1] * matrix[1][0] + vector[2] * matrix[2][0];
+    var y2 = vector[0] * matrix[0][1] + vector[1] * matrix[1][1] + vector[2] * matrix[2][1];
+    var z2 = vector[0] * matrix[0][2] + vector[1] * matrix[1][2] + vector[2] * matrix[2][2];
+
+    debug.dump(vector, alpha, x2, y2, z2);
+    return [x2, y2, z2];
+}
+var rotate_round_y_axis = func (vector, beta) {
+ 
+    var c_beta = cos(beta);
+    var s_beta = sin(beta);
+
+    var matrix = [
+        [
+           c_beta,
+            0,
+            s_beta
+        ],
+
+        [
+           0,
+            1,
+            0
+        ],
+
+        [
+            -s_beta,
+            0,
+            c_beta
+        ]
+    ];
+
+    var x2 = vector[0] * matrix[0][0] + vector[1] * matrix[1][0] + vector[2] * matrix[2][0];
+    var y2 = vector[0] * matrix[0][1] + vector[1] * matrix[1][1] + vector[2] * matrix[2][1];
+    var z2 = vector[0] * matrix[0][2] + vector[1] * matrix[1][2] + vector[2] * matrix[2][2];
+
+    debug.dump(vector, beta, x2, y2, z2);
+    return [x2, y2, z2];
+}
+var rotate_round_z_axis = func (vector, gamma) {
+ 
+    var c_gamma = cos(gamma);
+    var s_gamma = sin(gamma);
+
+    var matrix = [
+        [
+           c_gamma,
+            -s_gamma,
+            0
+        ],
+
+        [
+           s_gamma,
+            c_gamma,
+            0
+        ],
+
+        [
+            0,
+            0,
+            1
+        ]
+    ];
+
+    var x2 = vector[0] * matrix[0][0] + vector[1] * matrix[1][0] + vector[2] * matrix[2][0];
+    var y2 = vector[0] * matrix[0][1] + vector[1] * matrix[1][1] + vector[2] * matrix[2][1];
+    var z2 = vector[0] * matrix[0][2] + vector[1] * matrix[1][2] + vector[2] * matrix[2][2];
+
+    debug.dump(vector, gamma, x2, y2, z2);
+    return [x2, y2, z2];
+}
+# # tank starts heading due N
+# gunDir = [0,1,0];
+# # raise gun
+# raiseGun = (rotate_round_x_axis(gunDir,20));
+# turnTurret = (rotate_round_z_axis(raiseGun,45));
+# rollTank =(rotate_round_y_axis(turnTurret,10));
+# pitchTank =(rotate_round_x_axis(rollTank,-15));
+# # tank turns to heading of 30 deg
+# setDir = (rotate_round_z_axis(pitchTank,30));
+
+# debug.dump(gunDir, raiseGun, turnTurret, rollTank, pitchTank, setDir);
+
+########################## turnGun ###########################
+
+var turnGun = func(myNodeName, targetDir, targetDist, myHeading_deg) {
+
+	if (getprop("" ~ myNodeName ~ "/surface-positions/cannon-elev-deg") == nil) return();
+	if (getprop("" ~ myNodeName ~ "/surface-positions/turret-pos-deg") == nil) return();
+	for (i = 0; i < 3; i += 1) {	
+		targetDir[i] := targetDir[i] / targetDist;
+	}
+	pitch-deg = getprop("" ~ myNodeName ~ "/orientation/pitch-animation");
+	roll-deg = getprop("" ~ myNodeName ~ "/orientation/roll-animation");
+	newDir = rotate_round_z_axis(targetDir, -myHeading_deg);
+	newDir = rotate_round_x_axis(newDir, pitch_deg);
+	newDir = rotate_round_y_axis(newDir, roll_deg);
+	elev = newDir[2] * R2D;
+	heading = atan2(newDir[1], newDir[2]) * R2D;
+	debprint ("Bombable: Turn gun for ", myNodeName,
+	" elev = ", elev,
+	" heading = ", heading);
+	# setprop("" ~ myNodeName ~ "/surface-positions/cannon-elev-deg" , elev);
+	# setprop("" ~ myNodeName ~ "/surface-positions/turret-pos-deg" , heading);
+}
+
 
 ########################## END ###########################
