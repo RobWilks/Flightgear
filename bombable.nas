@@ -5644,8 +5644,8 @@ targetSize_m = nil,  aiAimFudgeFactor = 1, maxDistance_m = 100, weaponAngle_deg 
 	var mAlt_m = getprop(""~myNodeName2~"/position/altitude-ft") * feet2meters;
 	var deltaAlt_m = mAlt_m - aAlt_m;
 
-	var distance_m = cartesianDistance (deltaX_m, deltaY_m, deltaAlt_m);
 	var targetDir = [deltaX_m, deltaY_m, deltaAlt_m];
+	var distance_m = vectorModulus (targetDir);
 				
 				
 	#offset the location of the weapon by the weaponOffset_m amount:
@@ -5709,12 +5709,11 @@ targetSize_m = nil,  aiAimFudgeFactor = 1, maxDistance_m = 100, weaponAngle_deg 
 	
 	if (myNodeName1 == "") myHeading_deg = getprop (""~myNodeName1~"/orientation/heading-deg");
 	else myHeading_deg = getprop (""~myNodeName1~"/orientation/true-heading-deg");
-	var newDir = [0, 0, 0];
-	var pitch_deg = getprop("" ~ myNodeName ~ "/orientation/pitch-animation");
-	var roll_deg = getprop("" ~ myNodeName ~ "/orientation/roll-animation");
+	var pitch_deg = getprop("" ~ myNodeName1 ~ "/orientation/pitch-animation");
+	var roll_deg = getprop("" ~ myNodeName1 ~ "/orientation/roll-animation");
 	if (pitch_deg == nil) {
-		pitch_deg = getprop("" ~ myNodeName ~ "/orientation/pitch-deg");
-		roll_deg = getprop("" ~ myNodeName ~ "/orientation/roll-deg");
+		pitch_deg = getprop("" ~ myNodeName1 ~ "/orientation/pitch-deg");
+		roll_deg = getprop("" ~ myNodeName1 ~ "/orientation/roll-deg");
 	}
 	var newDir = rotate_round_z_axis(targetDir, -myHeading_deg);
 	newDir = rotate_round_x_axis(newDir, pitch_deg);
@@ -5727,7 +5726,7 @@ targetSize_m = nil,  aiAimFudgeFactor = 1, maxDistance_m = 100, weaponAngle_deg 
 	newDir[2] -= weaponOffset_m.z;
 	
 	#recalculate distance
-	distance_m = cartesianDistance(newDir);
+	distance_m = vectorModulus(newDir);
 	
 	#normalise to create unit direction vector
 	for (var i = 0; i < 3; i += 1) {	
@@ -5753,6 +5752,7 @@ targetSize_m = nil,  aiAimFudgeFactor = 1, maxDistance_m = 100, weaponAngle_deg 
 	debprint ("Bombable: checkAim for ", myNodeName1,
 		" targetOffset_rad = ", targetOffset_rad,
 		" targetSize_rad = ", targetSize_rad);
+	debprint (sprintf("Bombable: newDir[%4.1f%4.1f%4.1f] dist=%4.0f", newDir[0], newDir[1], newDir[2], distance_m));
 
 	if ( targetSize_rad > targetOffset_rad ) 
 	{		
@@ -5769,10 +5769,10 @@ targetSize_m = nil,  aiAimFudgeFactor = 1, maxDistance_m = 100, weaponAngle_deg 
 	else
 	{
 		# change aim of weapon
-		if (rand() < 1/20) {
+		if (rand() < 1/2) {
 			result.targetDir = newDir;
-			debprint ("Bombable: checkAim for ", myNodeName1,
-		" result.targetDir = ", result.targetDir);
+			# debprint ("Bombable: checkAim for ", myNodeName1,
+			# " result.targetDir = ", result.targetDir);
 		}
 	}
 	
@@ -5796,6 +5796,7 @@ targetSize_m = nil,  aiAimFudgeFactor = 1, maxDistance_m = 100, weaponAngle_deg 
 # geoCoord and directdistanceto, which both seem quite expensive of CPU.
 			
 var weapons_loop = func (id, myNodeName1 = "", myNodeName2 = "", targetSize_m = nil) {
+
 
 	#we increment loopid if we want to kill this timer loop.  So check if we need to kill/exit:
 	#myNodeName1 is the AI aircraft and myNodeName2 is the main aircraft
@@ -5850,7 +5851,7 @@ var weapons_loop = func (id, myNodeName1 = "", myNodeName2 = "", targetSize_m = 
 		if ( ! stores.checkWeaponsReadiness ( myNodeName1, elem ) ) continue;
 
 					
-		result = checkAim (myNodeName1, myNodeName2, 
+		var weaponAim = checkAim (myNodeName1, myNodeName2, 
 		targetSize_m, aiAimFudgeFactor,
 		weaps[elem].maxDamageDistance_m, 
 		weaps[elem].weaponAngle_deg,
@@ -5858,11 +5859,17 @@ var weapons_loop = func (id, myNodeName1 = "", myNodeName2 = "", targetSize_m = 
 		damageValue );
 					
 		#debprint ("aim-check weapon");
-		if (result.pHit == 0) continue;
-					
+		if (weaponAim.pHit == 0) {
+			if (rand() < 1/5) {
+				var newElev = weaponAim.targetDir[2] * R2D;
+				var newHeading = math.atan2(targetDir[0], targetDir[1]) * R2D;
+				weal[elem].weaponAngleDeg = {heading:newHeading, elevation:newElev};
+			}
+			continue;
+		}			
 		debprint ("Bombable: AI aircraft aimed at main aircraft, ",
 		myNodeName1, " ", weaps[elem].name, " ", elem,
-		" accuracy ", round(result.pHit * 100 ),"%");
+		" accuracy ", round(weaponAim.pHit * 100 ),"%");
 
 					
 
@@ -5870,19 +5877,19 @@ var weapons_loop = func (id, myNodeName1 = "", myNodeName2 = "", targetSize_m = 
 		stores.reduceWeaponsCount (myNodeName1,elem,loopLength * (3-pilotSkill));
 
 					
-		# As with our regular damage, it has a result% change of registering
-		# a hit and then the damage amount is higher as result increases, too.
+		# As with our regular damage, it has a pHit% change of registering a hit
+		# The amount of damage also increases with pHit.
 		# There is a smaller chance of doing a fairly high level of damage (up to 3X the regular max),
 		# and the better/closer the hit, the greater chance of doing that significant damage.
 		var r = rand();
-		if (r < result.pHit) {
+		if (r < weaponAim.pHit) {
 
 			var ai_callsign = getCallSign (myNodeName1);
 						
-			var damageAdd = result.pHit * weaps[elem].maxDamage_percent / 100;
+			var damageAdd = weaponAim.pHit * weaps[elem].maxDamage_percent / 100;
 						
 			#Some chance of doing more damage (and a higher chance the closer the hit)
-			if (r < result.pHit / 5 ) damageAdd  *=  3 * rand();
+			if (r < weaponAim.pHit / 5 ) damageAdd  *=  3 * rand();
 						
 			weaponName = weaps[elem].name;
 			if (weaponName == nil) weaponName = "Main Weapon";
@@ -9131,10 +9138,24 @@ var reduceSpeed = func(myNodeName, factorSlowDown, type) {
 	settimer( func{reduceSpeed(myNodeName, factorSlowDown,type)},1);
 }
 
-########################## rotate_round ###########################
+########################## vectorModulus ###########################
+
+var vectorModulus = func(vector) {
+	if (size(vector) == 0) return 0;
+	var mod = 0;
+	for (var i = 0; i < size(vector); i += 1)
+	{
+		mod += vector[i] * vector [i];
+	}
+	return math.sqrt(mod);
+}
+
+########################## trigonometry ###########################
 
 var sin = func(a) { math.sin(a * globals.D2R) }
 var cos = func(a) { math.cos(a * globals.D2R) }
+
+########################## rotate_round ###########################
 var rotate_round_x_axis = func (vector, alpha) {
  
     var c_alpha = cos(alpha);
