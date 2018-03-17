@@ -3652,7 +3652,7 @@ var getImpactVelocity_mps = func (impactNodeName = nil,ballisticMass_lb = .25) {
 	return impactVelocity_mps;
 }
 
-########################################
+################### cartesianDistance #####################
 # cartesianDistance (x,y,z, . . . )
 # returns the cartesian distance of any number of elements
 var cartesianDistance = func  (elem...){
@@ -5591,7 +5591,7 @@ targetSize_m = nil,  aiAimFudgeFactor = 1, maxDistance_m = 100, weaponAngle_deg 
 	#Note weaponAngle is a hash with components heading and elevation
 	#Function called only by main weapons_loop
 	#rjw modified to return a hash
-	var result = {pHit:0, targetDir:[0,0,1], targetDist:0};
+	var result = {pHit:0, targetDir:[0,0,1]};
 				
 	#Weapons malfunction in proportion to the damageValue, to 100% of the time when damage = 100%
 	#debprint ("Bombable: AI weapons, ", myNodeName1, ", ", myNodeName2);
@@ -5642,12 +5642,11 @@ targetSize_m = nil,  aiAimFudgeFactor = 1, maxDistance_m = 100, weaponAngle_deg 
 
 	var aAlt_m = getprop(""~myNodeName1~"/position/altitude-ft") * feet2meters;
 	var mAlt_m = getprop(""~myNodeName2~"/position/altitude-ft") * feet2meters;
-	var deltaAlt_m = mAlt_m-aAlt_m;
+	var deltaAlt_m = mAlt_m - aAlt_m;
 
-	distance_m = cartesianDistance (deltaY_m, deltaX_m, deltaAlt_m);
+	var distance_m = cartesianDistance (deltaX_m, deltaY_m, deltaAlt_m);
+	var targetDir = [deltaX_m, deltaY_m, deltaAlt_m];
 				
-	#var geocoord1 = any_aircraft_position (myNodeName1);
-	#var geocoord2 = any_aircraft_position (myNodeName2);
 				
 	#offset the location of the weapon by the weaponOffset_m amount:
 	# Ok, this is slow, we're disabling it for now
@@ -5658,8 +5657,6 @@ targetSize_m = nil,  aiAimFudgeFactor = 1, maxDistance_m = 100, weaponAngle_deg 
 	# debprint ("Bombable: AI weapons, distance: ", distance_m, " for ", myNodeName1);
 				
 	if (distance_m > maxDistance_m ) return (result);
-	# # angle (degrees) = height/2 / distance * (180/pi)
-	# # angle (degrees) = width/2 / distance * (180/pi)
 	
 	
 	
@@ -5667,7 +5664,7 @@ targetSize_m = nil,  aiAimFudgeFactor = 1, maxDistance_m = 100, weaponAngle_deg 
 	#collision, ie aircraft 2 within damageRadius of aircraft 1
 	if (distance_m < attributes[myNodeName1].dimensions.crashRadius_m){
 		#simple way to do this:
-		add_damage(1, myNodeName1, "weapon");
+		add_damage(1, myNodeName1, "weapon"); # causes nil error in records class, ballisticMass not defined
 		msg = sprintf("You crashed! Damage added %1.0f%%", 100 );
 		selfStatusPopupTip (msg, 10);
 		result.pHit = 1;
@@ -5703,67 +5700,84 @@ targetSize_m = nil,  aiAimFudgeFactor = 1, maxDistance_m = 100, weaponAngle_deg 
 		result.pHit = retDam;
 		return (result);
 	}
-				
-	#var factor = maxDistance_m/distance_m;#as the object gets closer we can expand the degrees of a hit to be bigger; at maxDistance it is X degrees but if 1/2 maxDistance, 2X degrees, etc
-				
+
+	
+	# calculate targetDir, the displacement vector from node1 (AI) to node2 (mainAC) in a lon-lat-alt (x-y-z) frame of reference
+	# rotate this vector to the frame of reference of AI object to give newDir
+	# calculate the angle between the direction in which the weapon is aimed and the displacement of the mainAC
+	# use this angle and the solid angle subtended by the mainAC to determine pHit
+	
 	if (myNodeName1 == "") myHeading_deg = getprop (""~myNodeName1~"/orientation/heading-deg");
 	else myHeading_deg = getprop (""~myNodeName1~"/orientation/true-heading-deg");
-				
-	var headingNode1ToNode2_deg = math.atan2(deltaX_m,deltaY_m) * R2D;
-				
-	#debprint ("heading1to2: ", headingNode1ToNode2_deg );
-				
-	var headingDelta_deg = math.abs(normdeg180 ( headingNode1ToNode2_deg -  ( myHeading_deg + weaponAngle_deg.heading) ) );
-				
-	#debprint( "Bombable: checkAim distance "~ distance_m ~ " heading_delta ", headingDelta_deg);
+	var newDir = [0, 0, 0];
+	var pitch_deg = getprop("" ~ myNodeName ~ "/orientation/pitch-animation");
+	var roll_deg = getprop("" ~ myNodeName ~ "/orientation/roll-animation");
+	if (pitch_deg == nil) {
+		pitch_deg = getprop("" ~ myNodeName ~ "/orientation/pitch-deg");
+		roll_deg = getprop("" ~ myNodeName ~ "/orientation/roll-deg");
+	}
+	var newDir = rotate_round_z_axis(targetDir, -myHeading_deg);
+	newDir = rotate_round_x_axis(newDir, pitch_deg);
+	# assume roll increases clockwise in the direction of travel
+	newDir = rotate_round_y_axis(newDir, -roll_deg);
+	
+	#translate to the frame of reference of the weapon
+	newDir[0] -= weaponOffset_m.y;
+	newDir[1] -= weaponOffset_m.x;
+	newDir[2] -= weaponOffset_m.z;
+	
+	#recalculate distance
+	distance_m = cartesianDistance(newDir);
+	
+	#normalise to create unit direction vector
+	for (var i = 0; i < 3; i += 1) {	
+		newDir[i] = newDir[i] / distance_m; # vector to target from AI object
+	}
+	
+	#form vector for weapon direction, weapDir
+	weapDir = [
+		cos(weaponAngle_deg.elevation) * sin(weaponAngle_deg.heading),
+		cos(weaponAngle_deg.elevation) * cos(weaponAngle_deg.heading),
+		sin(weaponAngle_deg.elevation)
+	];
+	
+	#calculate dot product
+	var dotProduct = 0;
+	for (i = 0; i < 3; i += 1) 
+	{	
+		dotProduct = newDir[i] * weapDir[i]; # vector to target from AI object
+	}
+	var targetOffset_rad = math.acos(dotProduct); # angular offset from weapon direction - cosine is even function therefore expect > 0	
+	var targetSize_rad = math.atan2(math.sqrt(targetSize_m.horz * targetSize_m.vert) / 2 , distance_m);	
 
-	# Formula: angle (degrees) = height/2 / distance * (180/pi)
-	# # angle (degrees) = width/2 / distance * (180/pi)
+	debprint ("Bombable: checkAim for ", myNodeName1,
+		" targetOffset_rad = ", targetOffset_rad,
+		" targetSize_rad = ", targetSize_rad);
 
-	var horzTargetSize_deg = targetSize_m.horz/distance_m * (rad2degrees/2) * aiAimFudgeFactor;
-	#debprint( "Bombable: checkAim horzTargetSize_deg", horzTargetSize_deg);
-				
-	if ( headingDelta_deg > horzTargetSize_deg ) 
+	if ( targetSize_rad > targetOffset_rad ) 
+	{		
+
+		result.pHit = (targetSize_rad - targetOffset_rad) * 2 / math.pi; # if the target subtends pi/2 rad then p(hit) = 1
+		result.pHit *= result.pHit; # use a solid angle
+		#fire the weapons for 5 seconds/visual effect
+		#we start do this whenever we're within maxDistance & aimed generally at the right heading; might still have pHit zero
+		fireAIWeapon(5);
+		debprint ("Bombable: hit ", myNodeName1,
+		" result.pHit = ", result.pHit);
+
+	}
+	else
 	{
-		debprint ("Bombable: checkAim for ", myNodeName1,
-		" elev = ", weaponAngle_deg.elevation,
-		" heading = ", weaponAngle_deg.heading);
-		if (rand() < 0.1) {
-			result.targetDir = turnGun(myNodeName1, [deltaX_m, deltaY_m, deltaAlt_m], distance_m, myHeading_deg);
-			result.targetDist = distance_m;
+		# change aim of weapon
+		if (rand() < 1/20) {
+			result.targetDir = newDir;
+			debprint ("Bombable: checkAim for ", myNodeName1,
+		" result.targetDir = ", result.targetDir);
 		}
-		return (result);
 	}
-				
-	#fire the weapons for 5 seconds/visual effect
-	#we start do this whenever we're within maxDistance & aimed generally at the right heading; might still have pHit zero
-	fireAIWeapon(5);
-				
-	var myPitch_deg = getprop (""~myNodeName1~"/orientation/pitch-deg");
-				
-	var pitchNode1toNode2_deg = math.asin(deltaAlt_m/distance_m) * R2D;
-				
-	#debprint ("pitch1to2: ", pitchNode1toNode2_deg);
-						
-	var vertDelta_deg = math.abs ( normdeg180 (pitchNode1toNode2_deg - ( myPitch_deg + weaponAngle_deg.elevation ) ) );
-							
-	#extra fudgefactor on vert because our fighters are a bit vertically-aiming challenged
-	var vertTargetSize_deg = targetSize_m.vert/distance_m * (rad2degrees/2) * aiAimFudgeFactor * 1.5;
-
-	#debprint( "Bombable: checkAim vertDelta ", vertDelta_deg, " vertTargetSize_deg ", vertTargetSize_deg );
-				
-	if ( vertDelta_deg > vertTargetSize_deg ) 
-	{
-			if (rand() < 0.1) {
-				result.targetDir = turnGun(myNodeName1, [deltaX_m, deltaY_m, deltaAlt_m], distance_m, myHeading_deg);
-				result.targetDist = distance_m;
-			}
-		return (result);
-	}
-				
-	result.pHit = (1 - vertDelta_deg/vertTargetSize_deg) * (  1 - headingDelta_deg/horzTargetSize_deg);
-				
+	
 	return (result);  #pHit ranges 0 to 1, 1 being direct hit
+
 				
 }
 
