@@ -5861,11 +5861,11 @@ var weapons_loop = func (id, myNodeName1 = "", myNodeName2 = "", targetSize_m = 
 		# There is a smaller chance of doing a fairly high level of damage (up to 3X the regular max),
 		# and the better/closer the hit, the greater chance of doing that significant damage.
 		var r = rand();
-		if (r < result) {
+		if (r < result.pHit) {
 
 			var ai_callsign = getCallSign (myNodeName1);
 						
-			var damageAdd = result.pHit * weaps[elem].maxDamage_percent/100;
+			var damageAdd = result.pHit * weaps[elem].maxDamage_percent / 100;
 						
 			#Some chance of doing more damage (and a higher chance the closer the hit)
 			if (r < result.pHit / 5 ) damageAdd  *=  3 * rand();
