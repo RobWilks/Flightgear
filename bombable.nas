@@ -5744,7 +5744,7 @@ targetSize_m = nil,  aiAimFudgeFactor = 1, maxDistance_m = 100, weaponAngle_deg 
 	var dotProduct = 0;
 	for (i = 0; i < 3; i += 1) 
 	{	
-		dotProduct = newDir[i] * weapDir[i]; # vector to target from AI object
+		dotProduct += newDir[i] * weapDir[i]; # vector to target from AI object
 	}
 	var targetOffset_rad = math.acos(dotProduct); # angular offset from weapon direction - cosine is even function therefore expect > 0	
 	var targetSize_rad = math.atan2(math.sqrt(targetSize_m.horz * targetSize_m.vert) / 2 , distance_m);	
@@ -5752,7 +5752,8 @@ targetSize_m = nil,  aiAimFudgeFactor = 1, maxDistance_m = 100, weaponAngle_deg 
 	debprint ("Bombable: checkAim for ", myNodeName1,
 		" targetOffset_rad = ", targetOffset_rad,
 		" targetSize_rad = ", targetSize_rad);
-	debprint (sprintf("Bombable: newDir[%4.1f%4.1f%4.1f] dist=%4.0f", newDir[0], newDir[1], newDir[2], distance_m));
+	debprint (sprintf("Bombable: newDir[%6.1f,%6.1f,%6.1f] dist=%6.0f", newDir[0], newDir[1], newDir[2], distance_m));
+	debprint (sprintf("Bombable: weapDir[%6.1f,%6.1f,%6.1f]", weapDir[0], weapDir[1], weapDir[2]));
 
 	if ( targetSize_rad > targetOffset_rad ) 
 	{		
@@ -5769,11 +5770,9 @@ targetSize_m = nil,  aiAimFudgeFactor = 1, maxDistance_m = 100, weaponAngle_deg 
 	else
 	{
 		# change aim of weapon
-		if (rand() < 1/2) {
-			result.targetDir = newDir;
-			# debprint ("Bombable: checkAim for ", myNodeName1,
-			# " result.targetDir = ", result.targetDir);
-		}
+		result.targetDir = newDir;
+		# debprint ("Bombable: checkAim for ", myNodeName1,
+		# " result.targetDir = ", result.targetDir);
 	}
 	
 	return (result);  #pHit ranges 0 to 1, 1 being direct hit
@@ -5862,8 +5861,8 @@ var weapons_loop = func (id, myNodeName1 = "", myNodeName2 = "", targetSize_m = 
 		if (weaponAim.pHit == 0) {
 			if (rand() < 1/5) {
 				var newElev = weaponAim.targetDir[2] * R2D;
-				var newHeading = math.atan2(targetDir[0], targetDir[1]) * R2D;
-				weal[elem].weaponAngleDeg = {heading:newHeading, elevation:newElev};
+				var newHeading = math.atan2(weaponAim.targetDir[0], weaponAim.targetDir[1]) * R2D;
+				weaps[elem].weaponAngle_deg = {heading:newHeading, elevation:newElev};
 			}
 			continue;
 		}			
