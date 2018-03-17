@@ -5863,6 +5863,8 @@ var weapons_loop = func (id, myNodeName1 = "", myNodeName2 = "", targetSize_m = 
 				var newElev = weaponAim.targetDir[2] * R2D;
 				var newHeading = math.atan2(weaponAim.targetDir[0], weaponAim.targetDir[1]) * R2D;
 				weaps[elem].weaponAngle_deg = {heading:newHeading, elevation:newElev};
+				setprop("" ~ myNodeName1 ~ "/surface-positions/cannon-elev-deg[" ~ elem ~ "]" , newElev);
+				setprop("" ~ myNodeName1 ~ "/surface-positions/turret-pos-deg[" ~ elem ~ "]" , -newHeading);
 			}
 			continue;
 		}			
@@ -9244,7 +9246,7 @@ var rotate_round_z_axis = func (vector, gamma) {
         ]
     ];
 
-    var x2 = vector[0] * matrix[0][0] + vector[1] * matrix[1][0] + vector[2] * matrix[2][0];
+    var x2 = vector[0] * matrix[0][0] + vector[1] * matrix[1][0] + vector[2] * matrix[2][0]; # [row_no] [col_no]
     var y2 = vector[0] * matrix[0][1] + vector[1] * matrix[1][1] + vector[2] * matrix[2][1];
     var z2 = vector[0] * matrix[0][2] + vector[1] * matrix[1][2] + vector[2] * matrix[2][2];
 
@@ -9262,6 +9264,47 @@ var rotate_round_z_axis = func (vector, gamma) {
 # setDir = (rotate_round_z_axis(pitchTank,30));
 
 # debug.dump(gunDir, raiseGun, turnTurret, rollTank, pitchTank, setDir);
+
+########################## rotate_zxy ###########################
+
+var rotate_zxy = func (vector, alpha, beta, gamma) {
+ 
+    var c_alpha = cos(alpha);
+    var s_alpha = sin(alpha);
+    var c_beta = cos(beta);
+    var s_beta = sin(beta);
+    var c_gamma = cos(gamma);
+    var s_gamma = sin(gamma);
+
+    var matrix = [
+        [
+           c_gamma * c_beta,
+           s_gamma * c_beta,
+            -s_beta
+        ],
+
+        [
+           -s_gamma * c_alpha + c_gamma * s_beta * s_alpha,
+            c_gamma * c_alpha + s_gamma * s_beta * s_alpha,
+            c_beta * s_alpha
+        ],
+
+        [
+            s_gamma * s_alpha + c_gamma * s_beta * c_alpha,
+            -c_gamma * s_alpha + s_gamma * s_beta * c_alpha,
+            c_beta * c_alpha
+        ]
+    ];
+
+    var x2 = vector[0] * matrix[0][0] + vector[1] * matrix[1][0] + vector[2] * matrix[2][0]; # [row_no] [col_no]
+    var y2 = vector[0] * matrix[0][1] + vector[1] * matrix[1][1] + vector[2] * matrix[2][1];
+    var z2 = vector[0] * matrix[0][2] + vector[1] * matrix[1][2] + vector[2] * matrix[2][2];
+
+    # debug.dump(vector, gamma, x2, y2, z2);
+    return [x2, y2, z2];
+}
+
+
 
 ########################## turnGun ###########################
 
