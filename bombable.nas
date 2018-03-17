@@ -377,7 +377,7 @@ var put_tied_model = func(myNodeName = "", path = "AI/Aircraft/Fire-Particles/Fi
 }
 
 ####################################### put_tied_weapon #########################################
-#put_tied_weapon places a new model that is tied to another AI model
+# put_tied_weapon places a new model that is tied to another AI model
 # (given by myNodeName) and will move with it in lon, lat, & alt
 # and have the delta heading, pitch, lat, long, alt, as specified in weapons_init
 #
@@ -2506,7 +2506,7 @@ var parse_msg = func (source, msg) {
 }
 
 ####################################################
-#timer function, every 1.5 to 2.5 seconds, adds damage if on fire
+# timer function, every 1.5 to 2.5 seconds, adds damage if on fire
 # TODO: This seems to be causing stutters.  We can separate out a separate
 # loop to update the fire sizes and probably do some simplification of the
 # add_damage routines.
@@ -2531,24 +2531,24 @@ var fire_loop = func(id, myNodeName = "") {
 		var myFireNodeName = getprop(""~myNodeName~"/bombable/fire-particles/fire-particles-model");
 				
 
-		#we have one single property to control the startsize & endsize
-		#of ALL fire-particles active at one time. This is a bit fakey but saves on processor time.
-		#  The idea here is to change
+		# One single property controls the startsize & endsize
+		# of ALL fire-particles active at one time. This is a bit fakey but saves on processor time.
+		# The idea here is to change
 		# the values of the start/endsize randomly and fairly quickly so the
 		# various smoke columns don't all look like clones of each other
 		# each smoke column only puts out particles 2X per second so
 		# if the sizes are changed more often than that they can affect only
 		# some of the smoke columns independently.
-		var smokeEndsize = rand() * 100+50;
+		var smokeEndsize = rand() * 100 + 50;
 		setprop ("/bombable/fire-particles/smoke-endsize", smokeEndsize);
 				
-		var smokeEndsize = rand() * 125+60;
+		var smokeEndsize = rand() * 125 + 60;
 		setprop ("/bombable/fire-particles/smoke-endsize-large", smokeEndsize);
 				
-		var smokeEndsize = rand() * 75+33;
+		var smokeEndsize = rand() * 75 + 33;
 		setprop ("/bombable/fire-particles/smoke-endsize-small", smokeEndsize);
 				
-		var smokeEndsize = rand() * 25+9;
+		var smokeEndsize = rand() * 25 + 9;
 		setprop ("/bombable/fire-particles/smoke-endsize-very-small", smokeEndsize);
 				
 				
@@ -2987,7 +2987,7 @@ var ground_loop = func( id, myNodeName ) {
 
 		# set vert-speed not pitch for ground craft
 		vert_speed = math.sin(slopeAhead_rad) * speed_kt * knots2fps;
-		vert_speed += (alt_ft - currAlt_ft) / updateTime_s; # correction if above or below ground
+		vert_speed += (alt_ft + alts.wheelsOnGroundAGL_ft - currAlt_ft) / updateTime_s; # correction if above or below ground
 		speedFactor = vert_speed / vels.maxClimbRate_fps;  # this parm is only set for a groundvehicle
 		if (speedFactor > 1) {
 			vert_speed = vels.maxClimbRate_fps;
@@ -5664,8 +5664,8 @@ targetSize_m = nil,  aiAimFudgeFactor = 1, maxDistance_m = 100, weaponAngle_deg 
 	#collision, ie aircraft 2 within damageRadius of aircraft 1
 	if (distance_m < attributes[myNodeName1].dimensions.crashRadius_m){
 		#simple way to do this:
-		add_damage(1, myNodeName1, "weapon"); # causes nil error in records class, ballisticMass not defined
-		msg = sprintf("You crashed! Damage added %1.0f%%", 100 );
+		add_damage(1, myNodeName1, "collision"); # causes nil error in records class, ballisticMass not defined
+		msg = sprintf("You collided! Damage added %1.0f%%", 100 );
 		selfStatusPopupTip (msg, 10);
 		result.pHit = 1;
 		return (result);
@@ -5680,22 +5680,22 @@ targetSize_m = nil,  aiAimFudgeFactor = 1, maxDistance_m = 100, weaponAngle_deg 
 		if (vDamRad_m >= damRad_m) vDamRad_m = damRad_m * .95;
 					
 		if (distance_m < vDamRad_m){
-			add_damage(1, myNodeName1, "weapon");
+			add_damage(1, myNodeName1, "collision");
 			retDam = 1;
 			} else {
 			# case of only within damageRadius but not vitalDamageRadius, we'll do as with impact damage
 			# and possibly just assess partial damage depending on the distance involved.
 			var damPot = (damRad_m-distance_m) / (damRad_m-vDamRad_m); #ranges 0 (fringe) to 1 (at vitalDamageRadius)
 			if (rand() < damPot) {
-				add_damage(1, myNodeName1, "weapon");
+				add_damage(1, myNodeName1, "collision");
 				retDam = 1;
 				} else{
-				add_damage(rand() * damPot, myNodeName1, "weapon");
+				add_damage(rand() * damPot, myNodeName1, "collision");
 				retDam = rand() * damPot;
 			}
 		}
 					
-		msg = sprintf("You crashed! Damage added %1.0f%%", retDam * 100 );
+		msg = sprintf("You collided! Damage added %1.0f%%", retDam * 100 );
 		selfStatusPopupTip (msg, 10);
 		result.pHit = retDam;
 		return (result);
@@ -5832,7 +5832,7 @@ var weapons_loop = func (id, myNodeName1 = "", myNodeName2 = "", targetSize_m = 
 	if (aiAimFudgeFactor < 0) aiAimFudgeFactor = 0;
 				
 				
-				
+	var weapCount = 0;			
 	#debprint ("aim-each weapon");
 	foreach (elem;keys (weaps) ) {
 
@@ -5863,42 +5863,45 @@ var weapons_loop = func (id, myNodeName1 = "", myNodeName2 = "", targetSize_m = 
 				var newElev = weaponAim.targetDir[2] * R2D;
 				var newHeading = math.atan2(weaponAim.targetDir[0], weaponAim.targetDir[1]) * R2D;
 				weaps[elem].weaponAngle_deg = {heading:newHeading, elevation:newElev};
-				setprop("" ~ myNodeName1 ~ "/surface-positions/cannon-elev-deg[" ~ elem ~ "]" , newElev);
-				setprop("" ~ myNodeName1 ~ "/surface-positions/turret-pos-deg[" ~ elem ~ "]" , -newHeading);
+				setprop("" ~ myNodeName1 ~ "/surface-positions[" ~ weapCount ~ "]/cannon-elev-deg" , newElev);
+				setprop("" ~ myNodeName1 ~ "/surface-positions[" ~ weapCount ~ "]/turret-pos-deg" , -newHeading);
 			}
-			continue;
-		}			
-		debprint ("Bombable: AI aircraft aimed at main aircraft, ",
-		myNodeName1, " ", weaps[elem].name, " ", elem,
-		" accuracy ", round(weaponAim.pHit * 100 ),"%");
-
-					
-
-		#reduce ammo count; bad pilots waste more ammo; pilotskill ranges -1 to 1
-		stores.reduceWeaponsCount (myNodeName1,elem,loopLength * (3-pilotSkill));
-
-					
-		# As with our regular damage, it has a pHit% change of registering a hit
-		# The amount of damage also increases with pHit.
-		# There is a smaller chance of doing a fairly high level of damage (up to 3X the regular max),
-		# and the better/closer the hit, the greater chance of doing that significant damage.
-		var r = rand();
-		if (r < weaponAim.pHit) {
-
-			var ai_callsign = getCallSign (myNodeName1);
-						
-			var damageAdd = weaponAim.pHit * weaps[elem].maxDamage_percent / 100;
-						
-			#Some chance of doing more damage (and a higher chance the closer the hit)
-			if (r < weaponAim.pHit / 5 ) damageAdd  *=  3 * rand();
-						
-			weaponName = weaps[elem].name;
-			if (weaponName == nil) weaponName = "Main Weapon";
-						
-			mainAC_add_damage ( damageAdd, 0, "weapons",
-			"Hit from " ~ ai_callsign ~ " - " ~ weaponName ~"!");
-						
 		}
+		else
+		{
+			debprint ("Bombable: AI aircraft aimed at main aircraft, ",
+			myNodeName1, " ", weaps[elem].name, " ", elem,
+			" accuracy ", round(weaponAim.pHit * 100 ),"%");
+
+						
+
+			#reduce ammo count; bad pilots waste more ammo; pilotskill ranges -1 to 1
+			stores.reduceWeaponsCount (myNodeName1,elem,loopLength * (3-pilotSkill));
+
+						
+			# As with our regular damage, it has a pHit% change of registering a hit
+			# The amount of damage also increases with pHit.
+			# There is a smaller chance of doing a fairly high level of damage (up to 3X the regular max),
+			# and the better/closer the hit, the greater chance of doing that significant damage.
+			var r = rand();
+			if (r < weaponAim.pHit) {
+
+				var ai_callsign = getCallSign (myNodeName1);
+							
+				var damageAdd = weaponAim.pHit * weaps[elem].maxDamage_percent / 100;
+							
+				#Some chance of doing more damage (and a higher chance the closer the hit)
+				if (r < weaponAim.pHit / 5 ) damageAdd  *=  3 * rand();
+							
+				weaponName = weaps[elem].name;
+				if (weaponName == nil) weaponName = "Main Weapon";
+							
+				mainAC_add_damage ( damageAdd, 0, "weapons",
+				"Hit from " ~ ai_callsign ~ " - " ~ weaponName ~"!");
+							
+			}
+		}
+		weapCount += 1;
 	}
 }
 
