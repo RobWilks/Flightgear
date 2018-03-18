@@ -5715,13 +5715,13 @@ targetSize_m = nil,  aiAimFudgeFactor = 1, maxDistance_m = 100, weaponAngle_deg 
 		pitch_deg = getprop("" ~ myNodeName1 ~ "/orientation/pitch-deg");
 		roll_deg = getprop("" ~ myNodeName1 ~ "/orientation/roll-deg");
 	}
-	var newDir = rotate_round_z_axis(targetDir, -myHeading_deg);
-	newDir = rotate_round_x_axis(newDir, pitch_deg);
-	# assume roll increases clockwise in the direction of travel
-	newDir = rotate_round_y_axis(newDir, -roll_deg);
+	# var newDir = rotate_round_z_axis(targetDir, -myHeading_deg);
+	# newDir = rotate_round_x_axis(newDir, pitch_deg);
+	# # assume roll increases clockwise in the direction of travel
+	# newDir = rotate_round_y_axis(newDir, -roll_deg);
 	
-	var testDir = rotate_yxz(targetDir, pitch_deg, -roll_deg, -myHeading_deg);
-	debprint(newDir, testDir);
+	# assume roll increases clockwise in the direction of travel
+	var newDir = rotate_yxz(targetDir, pitch_deg, -roll_deg, -myHeading_deg);
 	
 	#translate to the frame of reference of the weapon
 	newDir[0] -= weaponOffset_m.y;
