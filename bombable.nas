@@ -408,7 +408,7 @@ var put_tied_weapon = func(myNodeName = "", elem = "", startSize_m = .07, endSiz
 
 
 
-####################################################
+######################### deleteFire ###########################
 #Delete a fire object (model) created earlier, turn off the fire triggers
 #and unlink the fire from the parent object.
 #This sets the object up so it can actually start on fire again if
@@ -5720,6 +5720,9 @@ targetSize_m = nil,  aiAimFudgeFactor = 1, maxDistance_m = 100, weaponAngle_deg 
 	# assume roll increases clockwise in the direction of travel
 	newDir = rotate_round_y_axis(newDir, -roll_deg);
 	
+	var testDir = rotate_yxz(targetDir, pitch_deg, -roll_deg, -myHeading_deg);
+	debprint(newDir, testDir);
+	
 	#translate to the frame of reference of the weapon
 	newDir[0] -= weaponOffset_m.y;
 	newDir[1] -= weaponOffset_m.x;
@@ -8379,7 +8382,7 @@ var attack_init_func = func(myNodeName) {
 
 }
 
-#################################################
+######################## weaponsOrientationPositionUpdate_loop #########################
 # weaponsOrientationPositionUpdate_loop
 # to update the position/angle of weapons attached
 # to AI aircraft.  Use for visual weapons effects
@@ -8482,7 +8485,7 @@ var weapons_init_func = func(myNodeName) {
 	myNode = props.globals.getNode(myNodeName);
 	type = myNode.getName();
 						
-	#only allow initialization for ai & multiplayer objects
+	# only allow initialization for ai & multiplayer objects
 	# in FG 2.4.0 we're having trouble with strange(!?) init requests from
 	# joysticks & the like
 	var init_allowed = 0;
@@ -8496,8 +8499,8 @@ var weapons_init_func = func(myNodeName) {
 						
 						
 						
-	#don't do this for multiplayer . . .
-	#if (type == "multiplayer") return;
+	# don't do this for multiplayer . . .
+	# if (type == "multiplayer") return;
 	# oops . . . now we ARE doing part of this for MP, so they can have the weapons visual effect
 
 	# set to 1 if initialized and 0 when de-inited. Nil if never before inited.
@@ -8529,13 +8532,14 @@ var weapons_init_func = func(myNodeName) {
 	#listenNode = props.globals.getNode(listenNodeName);
 	#listenerid = setlistener (listenNode, weapsOrientationPositionUpdate );
 
-	#OK, FG doesn't seem to give any way to position or rotate a
+	# OK, FG doesn't seem to give any way to position or rotate a
 	# particlesystem xml model in relation to a submodel.  So we're going to do it by hand . . .
 	#
-	#a listener would seem better/more appropriate here, but in FG 2.4.0, listeners
+	# a listener would seem better/more appropriate here, but in FG 2.4.0, listeners
 	# don't seem to work on AI aircraft position or orientation nodes???
 	# Anyway the timer loop seems to work well enough and probably has far less
 	# effect on framerate
+
 	var loopid = inc_loopid (myNodeName, "weaponsOrientation");
 	settimer (func { weaponsOrientationPositionUpdate_loop(loopid, myNodeName)} , 3 +rand());
 						
@@ -8579,10 +8583,14 @@ var weapons_init_func = func(myNodeName) {
 		props.globals.getNode(""~myNodeName~"/bombable/weapons/listenerids",1).setValues({listenerids: listenerids});
 	}
 	#don't do this bit (AI logic for automatic firing of weapons) for multiplayer, only for AI aircraft . . .
+
+	
+	
 	if (type != "multiplayer") {
 		#overall height & width of main aircraft in meters
 		# TODO: Obviously, this needs to be set per aircraft in an XML file, along with aircraft
 		# specific damage vulnerability etc.
+
 		var mainAircraftSize_m = { vert : 4, horz : 8 };
 							
 		# Set an individual pilot weapons ability, -1 to 1, with 0 being average
@@ -9268,33 +9276,36 @@ var rotate_round_z_axis = func (vector, gamma) {
 
 # debug.dump(gunDir, raiseGun, turnTurret, rollTank, pitchTank, setDir);
 
-########################## rotate_zxy ###########################
+########################## rotate_yxz ###########################
 
-var rotate_zxy = func (vector, alpha, beta, gamma) {
+var rotate_yxz = func (vector, alpha, beta, gamma) {
+	var alpha_rad = alpha * D2R;
+	var beta_rad = beta * D2R;
+	var gamma_rad = gamma * D2R;
  
-    var c_alpha = cos(alpha);
-    var s_alpha = sin(alpha);
-    var c_beta = cos(beta);
-    var s_beta = sin(beta);
-    var c_gamma = cos(gamma);
-    var s_gamma = sin(gamma);
+    var c_alpha = math.cos(alpha_rad);
+    var s_alpha = math.sin(alpha_rad);
+    var c_beta = math.cos(beta_rad);
+    var s_beta = math.sin(beta_rad);
+    var c_gamma = math.cos(gamma_rad);
+    var s_gamma = math.sin(gamma_rad);
 
     var matrix = [
         [
-           c_gamma * c_beta,
-           s_gamma * c_beta,
-            -s_beta
+           c_beta * c_gamma - s_beta * s_alpha * s_gamma,
+           -c_alpha * s_gamma,
+           s_beta * c_gamma + c_beta * s_alpha * s_gamma
         ],
 
         [
-           -s_gamma * c_alpha + c_gamma * s_beta * s_alpha,
-            c_gamma * c_alpha + s_gamma * s_beta * s_alpha,
-            c_beta * s_alpha
+           c_beta * s_gamma + s_beta * s_alpha * c_gamma,
+           c_alpha * c_gamma,
+           s_beta * s_gamma - c_beta * s_alpha * c_gamma
         ],
 
         [
-            s_gamma * s_alpha + c_gamma * s_beta * c_alpha,
-            -c_gamma * s_alpha + s_gamma * s_beta * c_alpha,
+            -s_beta * c_alpha,
+            s_alpha,
             c_beta * c_alpha
         ]
     ];
@@ -9306,8 +9317,6 @@ var rotate_zxy = func (vector, alpha, beta, gamma) {
     # debug.dump(vector, gamma, x2, y2, z2);
     return [x2, y2, z2];
 }
-
-
 
 ########################## turnGun ###########################
 
