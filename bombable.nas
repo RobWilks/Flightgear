@@ -8407,7 +8407,7 @@ var attack_init_func = func(myNodeName) {
 # to update the position/angle of weapons attached
 # to AI aircraft.  Use for visual weapons effects
 # now but could be used for weapons aim etc in the future.
-# rjw not used weapon aim is integrated in checkAim
+# rjw function not used since weapon aim is integrated in checkAim
 
 var weaponsOrientationPositionUpdate_loop = func (id, myNodeName) {
 
@@ -8419,7 +8419,7 @@ var weaponsOrientationPositionUpdate_loop = func (id, myNodeName) {
 	id == loopid or return;
 						
 	settimer (func {weaponsOrientationPositionUpdate_loop (id, myNodeName)}, 20 + rand()/50);
-	return; #rjw removed timing changed from 1/6 to 20sec
+	return; #rjw removed rest of function.  Timing changed from 1/6 to 20sec
 	
 						
 	# no need to do this if any of these are turned off
@@ -8439,20 +8439,20 @@ var weaponsOrientationPositionUpdate_loop = func (id, myNodeName) {
 						
 	foreach (elem;keys (weaps) ) {
 							
-		# setprop(myNodeName ~ "/" ~elem~"/orientation/pitch-deg",
-		# getprop(myNodeName~"/orientation/pitch-deg")+weaps[elem].weaponAngle_deg.elevation);
+		setprop(myNodeName ~ "/" ~elem~"/orientation/pitch-deg",
+		getprop(myNodeName~"/orientation/pitch-deg")+weaps[elem].weaponAngle_deg.elevation);
 							
-		# setprop(myNodeName ~ "/" ~elem~"/orientation/true-heading-deg",
-		# getprop(myNodeName~"/orientation/true-heading-deg")+ weaps[elem].weaponAngle_deg.heading);
+		setprop(myNodeName ~ "/" ~elem~"/orientation/true-heading-deg",
+		getprop(myNodeName~"/orientation/true-heading-deg")+ weaps[elem].weaponAngle_deg.heading);
 
-		# setprop(myNodeName ~ "/" ~elem~"/position/altitude-ft",
-		# getprop(myNodeName~"/position/altitude-ft")+weaps[elem].weaponOffset_m.z * .3048);
+		setprop(myNodeName ~ "/" ~elem~"/position/altitude-ft",
+		getprop(myNodeName~"/position/altitude-ft")+weaps[elem].weaponOffset_m.z * .3048);
 
-		# setprop(myNodeName ~ "/" ~elem~"/position/latitude-deg",
-		# getprop(myNodeName~"/position/latitude-deg") ); #todo: add the x & y offsets; they'll have to be rotated and then converted to lat/lon and that's going to be slow . . .
+		setprop(myNodeName ~ "/" ~elem~"/position/latitude-deg",
+		getprop(myNodeName~"/position/latitude-deg") ); #todo: add the x & y offsets; they'll have to be rotated and then converted to lat/lon and that's going to be slow . . .
 
-		# setprop(myNodeName ~ "/" ~elem~"/position/longitude-deg",
-		# getprop(myNodeName~"/position/longitude-deg")); #todo: add the x & y offsets
+		setprop(myNodeName ~ "/" ~elem~"/position/longitude-deg",
+		getprop(myNodeName~"/position/longitude-deg")); #todo: add the x & y offsets
 	}
 						
 }
@@ -9314,20 +9314,20 @@ var rotate_zxy = func (vector, alpha, beta, gamma) {
 
     var matrix = [
         [
-           c_gamma * c_beta - s_gamma * s_alpha * s_beta,
-           s_gamma * c_beta + c_gamma * s_alpha * s_beta,
-           -c_alpha * s_beta
+           c_gamma * c_beta + s_gamma * s_alpha * s_beta,
+           -s_gamma * c_beta + c_gamma * s_alpha * s_beta,
+           c_alpha * s_beta
         ],
 
         [
-            -s_gamma * c_alpha,
+            s_gamma * c_alpha,
             c_gamma * c_alpha,
-            s_alpha
+            -s_alpha
         ],
 
         [
-          c_gamma * s_beta + s_gamma * s_alpha * c_beta,
-          s_gamma * s_beta - c_gamma * s_alpha * c_beta,
+          -c_gamma * s_beta + s_gamma * s_alpha * c_beta,
+          s_gamma * s_beta + c_gamma * s_alpha * c_beta,
           c_alpha * c_beta
         ]
     ];
