@@ -5591,7 +5591,7 @@ targetSize_m = nil,  aiAimFudgeFactor = 1, maxDistance_m = 100, weaponAngle_deg 
 	#Note weaponAngle is a hash with components heading and elevation
 	#Function called only by main weapons_loop
 	#rjw modified to return a hash
-	var result = {pHit:0, targetDir:[0,0,1]};
+	var result = {pHit:0, weaponDirModelFrame:[0,0,1], weaponOffsetRefFrame:[0,0,1], weaponDirRefFrame:[0,0,1]};
 				
 	#Weapons malfunction in proportion to the damageValue, to 100% of the time when damage = 100%
 	#debprint ("Bombable: AI weapons, ", myNodeName1, ", ", myNodeName2);
@@ -5644,7 +5644,7 @@ targetSize_m = nil,  aiAimFudgeFactor = 1, maxDistance_m = 100, weaponAngle_deg 
 	var mAlt_m = getprop(""~myNodeName2~"/position/altitude-ft") * feet2meters;
 	var deltaAlt_m = mAlt_m - aAlt_m;
 
-	var targetDir = [deltaX_m, deltaY_m, deltaAlt_m];
+	var targetDirRefFrame = [deltaX_m, deltaY_m, deltaAlt_m];
 	var distance_m = vectorModulus (targetDir);
 				
 				
@@ -5721,7 +5721,7 @@ targetSize_m = nil,  aiAimFudgeFactor = 1, maxDistance_m = 100, weaponAngle_deg 
 	# newDir = rotate_round_y_axis(newDir, -roll_deg);
 	
 	# assume roll increases clockwise in the direction of travel
-	var newDir = rotate_yxz(targetDir, pitch_deg, -roll_deg, -myHeading_deg);
+	var newDir = rotate_yxz(targetDirRefFrame, pitch_deg, -roll_deg, -myHeading_deg);
 	
 	#translate to the frame of reference of the weapon
 	newDir[0] -= weaponOffset_m.y;
@@ -5773,7 +5773,15 @@ targetSize_m = nil,  aiAimFudgeFactor = 1, maxDistance_m = 100, weaponAngle_deg 
 	else
 	{
 		# change aim of weapon
-		result.targetDir = newDir;
+		result.weaponDirModelFrame = newDir;
+		result.weaponOffsetRefFrame = rotate_zxy([
+			weaponOffset_m.y,
+			weaponOffset_m.x,
+			weaponOffset_m.z
+		]);
+		result.weaponDirRefFrame = rotate_zxy(newDir);
+		
+
 		# debprint ("Bombable: checkAim for ", myNodeName1,
 		# " result.targetDir = ", result.targetDir);
 	}
@@ -5853,7 +5861,7 @@ var weapons_loop = func (id, myNodeName1 = "", myNodeName2 = "", targetSize_m = 
 		if ( ! stores.checkWeaponsReadiness ( myNodeName1, elem ) ) continue;
 
 					
-		var weaponAim = checkAim (myNodeName1, myNodeName2, 
+		var aim = checkAim (myNodeName1, myNodeName2, 
 		targetSize_m, aiAimFudgeFactor,
 		weaps[elem].maxDamageDistance_m, 
 		weaps[elem].weaponAngle_deg,
@@ -5861,20 +5869,32 @@ var weapons_loop = func (id, myNodeName1 = "", myNodeName2 = "", targetSize_m = 
 		damageValue );
 					
 		#debprint ("aim-check weapon");
-		if (weaponAim.pHit == 0) {
+		if (aim.pHit == 0) {
 			if (rand() < 1/5) {
-				var newElev = weaponAim.targetDir[2] * R2D;
-				var newHeading = math.atan2(weaponAim.targetDir[0], weaponAim.targetDir[1]) * R2D;
+				var newElev = aim.weaponDirModelFrame[2] * R2D;
+				var newHeading = math.atan2(aim.weaponDirModelFrame[0], aim.weaponDirModelFrame[1]) * R2D;
 				weaps[elem].weaponAngle_deg = {heading:newHeading, elevation:newElev};
 				setprop("" ~ myNodeName1 ~ "/surface-positions[" ~ weapCount ~ "]/cannon-elev-deg" , newElev);
 				setprop("" ~ myNodeName1 ~ "/surface-positions[" ~ weapCount ~ "]/turret-pos-deg" , -newHeading);
+
+				setprop(myNodeName ~ "/" ~elem~ "/orientation/pitch-deg", aim.weaponDirRefFrame[2] * R2D);
+				setprop(myNodeName ~ "/" ~elem~ "/orientation/true-heading-deg", math.atan2(aim.weaponDirRefFrame[0], aim.weaponDirRefFrame[1]) * R2D;
+				
+				setprop(myNodeName ~ "/" ~elem~ "/position/altitude-ft",
+				getprop(myNodeName ~ "/position/altitude-ft") + aim.weaponOffsetRefFrame[2] * .3048);
+
+				setprop(myNodeName ~ "/" ~elem~ "/position/latitude-deg",
+				getprop(myNodeName ~ "/position/latitude-deg") + aim.weaponOffsetRefFrame[1] * .3048 * m_per_deg_lat); 
+
+				setprop(myNodeName ~ "/" ~elem~ "/position/longitude-deg",
+				getprop(myNodeName ~ "/position/longitude-deg") + aim.weaponOffsetRefFrame[0] * .3048 * m_per_deg_lon);				
 			}
 		}
 		else
 		{
 			debprint ("Bombable: AI aircraft aimed at main aircraft, ",
 			myNodeName1, " ", weaps[elem].name, " ", elem,
-			" accuracy ", round(weaponAim.pHit * 100 ),"%");
+			" accuracy ", round(aim.pHit * 100 ),"%");
 
 						
 
@@ -5887,14 +5907,14 @@ var weapons_loop = func (id, myNodeName1 = "", myNodeName2 = "", targetSize_m = 
 			# There is a smaller chance of doing a fairly high level of damage (up to 3X the regular max),
 			# and the better/closer the hit, the greater chance of doing that significant damage.
 			var r = rand();
-			if (r < weaponAim.pHit) {
+			if (r < aim.pHit) {
 
 				var ai_callsign = getCallSign (myNodeName1);
 							
-				var damageAdd = weaponAim.pHit * weaps[elem].maxDamage_percent / 100;
+				var damageAdd = aim.pHit * weaps[elem].maxDamage_percent / 100;
 							
 				#Some chance of doing more damage (and a higher chance the closer the hit)
-				if (r < weaponAim.pHit / 5 ) damageAdd  *=  3 * rand();
+				if (r < aim.pHit / 5 ) damageAdd  *=  3 * rand();
 							
 				weaponName = weaps[elem].name;
 				if (weaponName == nil) weaponName = "Main Weapon";
@@ -8387,7 +8407,7 @@ var attack_init_func = func(myNodeName) {
 # to update the position/angle of weapons attached
 # to AI aircraft.  Use for visual weapons effects
 # now but could be used for weapons aim etc in the future.
-#
+# rjw not used weapon aim is integrated in checkAim
 
 var weaponsOrientationPositionUpdate_loop = func (id, myNodeName) {
 
@@ -8398,7 +8418,9 @@ var weaponsOrientationPositionUpdate_loop = func (id, myNodeName) {
 	var loopid = getprop(""~myNodeName~"/bombable/loopids/weaponsOrientation-loopid");
 	id == loopid or return;
 						
-	settimer (func {weaponsOrientationPositionUpdate_loop (id, myNodeName)}, .16 + rand()/50);
+	settimer (func {weaponsOrientationPositionUpdate_loop (id, myNodeName)}, 20 + rand()/50);
+	return; #rjw removed timing changed from 1/6 to 20sec
+	
 						
 	# no need to do this if any of these are turned off
 	# though we may update weapons_loop to rely on these numbers as well
@@ -8417,20 +8439,20 @@ var weaponsOrientationPositionUpdate_loop = func (id, myNodeName) {
 						
 	foreach (elem;keys (weaps) ) {
 							
-		setprop(myNodeName ~ "/" ~elem~"/orientation/pitch-deg",
-		getprop(myNodeName~"/orientation/pitch-deg")+weaps[elem].weaponAngle_deg.elevation);
+		# setprop(myNodeName ~ "/" ~elem~"/orientation/pitch-deg",
+		# getprop(myNodeName~"/orientation/pitch-deg")+weaps[elem].weaponAngle_deg.elevation);
 							
-		setprop(myNodeName ~ "/" ~elem~"/orientation/true-heading-deg",
-		getprop(myNodeName~"/orientation/true-heading-deg")+ weaps[elem].weaponAngle_deg.heading);
+		# setprop(myNodeName ~ "/" ~elem~"/orientation/true-heading-deg",
+		# getprop(myNodeName~"/orientation/true-heading-deg")+ weaps[elem].weaponAngle_deg.heading);
 
-		setprop(myNodeName ~ "/" ~elem~"/position/altitude-ft",
-		getprop(myNodeName~"/position/altitude-ft")+weaps[elem].weaponOffset_m.z * .3048);
+		# setprop(myNodeName ~ "/" ~elem~"/position/altitude-ft",
+		# getprop(myNodeName~"/position/altitude-ft")+weaps[elem].weaponOffset_m.z * .3048);
 
-		setprop(myNodeName ~ "/" ~elem~"/position/latitude-deg",
-		getprop(myNodeName~"/position/latitude-deg") ); #todo: add the x & y offsets; they'll have to be rotated and then converted to lat/lon and that's going to be slow . . .
+		# setprop(myNodeName ~ "/" ~elem~"/position/latitude-deg",
+		# getprop(myNodeName~"/position/latitude-deg") ); #todo: add the x & y offsets; they'll have to be rotated and then converted to lat/lon and that's going to be slow . . .
 
-		setprop(myNodeName ~ "/" ~elem~"/position/longitude-deg",
-		getprop(myNodeName~"/position/longitude-deg")); #todo: add the x & y offsets
+		# setprop(myNodeName ~ "/" ~elem~"/position/longitude-deg",
+		# getprop(myNodeName~"/position/longitude-deg")); #todo: add the x & y offsets
 	}
 						
 }
@@ -9275,6 +9297,48 @@ var rotate_round_z_axis = func (vector, gamma) {
 # setDir = (rotate_round_z_axis(pitchTank,30));
 
 # debug.dump(gunDir, raiseGun, turnTurret, rollTank, pitchTank, setDir);
+
+########################## rotate_zxy ###########################
+
+var rotate_zxy = func (vector, alpha, beta, gamma) {
+	var alpha_rad = alpha * D2R;
+	var beta_rad = beta * D2R;
+	var gamma_rad = gamma * D2R;
+ 
+    var c_alpha = math.cos(alpha_rad);
+    var s_alpha = math.sin(alpha_rad);
+    var c_beta = math.cos(beta_rad);
+    var s_beta = math.sin(beta_rad);
+    var c_gamma = math.cos(gamma_rad);
+    var s_gamma = math.sin(gamma_rad);
+
+    var matrix = [
+        [
+           c_gamma * c_beta - s_gamma * s_alpha * s_beta,
+           s_gamma * c_beta + c_gamma * s_alpha * s_beta,
+           -c_alpha * s_beta
+        ],
+
+        [
+            -s_gamma * c_alpha,
+            c_gamma * c_alpha,
+            s_alpha
+        ],
+
+        [
+          c_gamma * s_beta + s_gamma * s_alpha * c_beta,
+          s_gamma * s_beta - c_gamma * s_alpha * c_beta,
+          c_alpha * c_beta
+        ]
+    ];
+
+    var x2 = vector[0] * matrix[0][0] + vector[1] * matrix[1][0] + vector[2] * matrix[2][0]; # [row_no] [col_no]
+    var y2 = vector[0] * matrix[0][1] + vector[1] * matrix[1][1] + vector[2] * matrix[2][1];
+    var z2 = vector[0] * matrix[0][2] + vector[1] * matrix[1][2] + vector[2] * matrix[2][2];
+
+    # debug.dump(vector, gamma, x2, y2, z2);
+    return [x2, y2, z2];
+}
 
 ########################## rotate_yxz ###########################
 
