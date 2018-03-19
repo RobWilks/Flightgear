@@ -5645,7 +5645,7 @@ targetSize_m = nil,  aiAimFudgeFactor = 1, maxDistance_m = 100, weaponAngle_deg 
 	var deltaAlt_m = mAlt_m - aAlt_m;
 
 	var targetDirRefFrame = [deltaX_m, deltaY_m, deltaAlt_m];
-	var distance_m = vectorModulus (targetDir);
+	var distance_m = vectorModulus (targetDirRefFrame);
 				
 				
 	#offset the location of the weapon by the weaponOffset_m amount:
@@ -5702,7 +5702,7 @@ targetSize_m = nil,  aiAimFudgeFactor = 1, maxDistance_m = 100, weaponAngle_deg 
 	}
 
 	
-	# calculate targetDir, the displacement vector from node1 (AI) to node2 (mainAC) in a lon-lat-alt (x-y-z) frame of reference
+	# calculate targetDirRefFrame, the displacement vector from node1 (AI) to node2 (mainAC) in a lon-lat-alt (x-y-z) frame of reference
 	# rotate this vector to the frame of reference of AI object to give newDir
 	# calculate the angle between the direction in which the weapon is aimed and the displacement of the mainAC
 	# use this angle and the solid angle subtended by the mainAC to determine pHit
@@ -5778,12 +5778,12 @@ targetSize_m = nil,  aiAimFudgeFactor = 1, maxDistance_m = 100, weaponAngle_deg 
 			weaponOffset_m.y,
 			weaponOffset_m.x,
 			weaponOffset_m.z
-		]);
-		result.weaponDirRefFrame = rotate_zxy(newDir);
+		], pitch_deg, -roll_deg, -myHeading_deg);
+		result.weaponDirRefFrame = rotate_zxy(newDir, pitch_deg, -roll_deg, -myHeading_deg);
 		
 
 		# debprint ("Bombable: checkAim for ", myNodeName1,
-		# " result.targetDir = ", result.targetDir);
+		# " result.targetDirRefFrame = ", result.targetDirRefFrame);
 	}
 	
 	return (result);  #pHit ranges 0 to 1, 1 being direct hit
@@ -5877,17 +5877,17 @@ var weapons_loop = func (id, myNodeName1 = "", myNodeName2 = "", targetSize_m = 
 				setprop("" ~ myNodeName1 ~ "/surface-positions[" ~ weapCount ~ "]/cannon-elev-deg" , newElev);
 				setprop("" ~ myNodeName1 ~ "/surface-positions[" ~ weapCount ~ "]/turret-pos-deg" , -newHeading);
 
-				setprop(myNodeName ~ "/" ~elem~ "/orientation/pitch-deg", aim.weaponDirRefFrame[2] * R2D);
-				setprop(myNodeName ~ "/" ~elem~ "/orientation/true-heading-deg", math.atan2(aim.weaponDirRefFrame[0], aim.weaponDirRefFrame[1]) * R2D;
+				setprop("" ~ myNodeName1 ~ "/" ~elem~ "/orientation/pitch-deg", aim.weaponDirRefFrame[2] * R2D);
+				setprop("" ~ myNodeName1 ~ "/" ~elem~ "/orientation/true-heading-deg", math.atan2(aim.weaponDirRefFrame[0], aim.weaponDirRefFrame[1]) * R2D);
 				
-				setprop(myNodeName ~ "/" ~elem~ "/position/altitude-ft",
-				getprop(myNodeName ~ "/position/altitude-ft") + aim.weaponOffsetRefFrame[2] * .3048);
+				setprop("" ~ myNodeName1 ~ "/" ~elem~ "/position/altitude-ft",
+				getprop("" ~ myNodeName1 ~ "/position/altitude-ft") + aim.weaponOffsetRefFrame[2] * .3048);
 
-				setprop(myNodeName ~ "/" ~elem~ "/position/latitude-deg",
-				getprop(myNodeName ~ "/position/latitude-deg") + aim.weaponOffsetRefFrame[1] * .3048 * m_per_deg_lat); 
+				setprop("" ~ myNodeName1 ~ "/" ~elem~ "/position/latitude-deg",
+				getprop("" ~ myNodeName1 ~ "/position/latitude-deg") + aim.weaponOffsetRefFrame[1] * .3048 * m_per_deg_lat); 
 
-				setprop(myNodeName ~ "/" ~elem~ "/position/longitude-deg",
-				getprop(myNodeName ~ "/position/longitude-deg") + aim.weaponOffsetRefFrame[0] * .3048 * m_per_deg_lon);				
+				setprop("" ~ myNodeName1 ~ "/" ~elem~ "/position/longitude-deg",
+				getprop("" ~ myNodeName1 ~ "/position/longitude-deg") + aim.weaponOffsetRefFrame[0] * .3048 * m_per_deg_lon);				
 			}
 		}
 		else
