@@ -5505,7 +5505,7 @@ var fireAIWeapon_stop = func (id, myNodeName = "") {
 
 ###################### fireAIWeapon ######################
 # fireAIWeapon: turns on/off one of the triggers in AI/Aircraft/Fire-Particles/projectile-tracer.xml
-# Using the loopids ensures that it stays on for one full second are the last time it was
+# Using the loopids ensures that it stays on for one full second after the last time it was
 # turned on.
 #
 var fireAIWeapon = func (time_sec = 1, myNodeName = "") {
@@ -5765,25 +5765,27 @@ targetSize_m = nil,  aiAimFudgeFactor = 1, maxDistance_m = 100, weaponAngle_deg 
 		result.pHit *= result.pHit; # use a solid angle
 		#fire the weapons for 5 seconds/visual effect
 		#we start do this whenever we're within maxDistance & aimed generally at the right heading; might still have pHit zero
-		fireAIWeapon(5);
+		fireAIWeapon(5, myNodeName1);
 		debprint ("Bombable: hit ", myNodeName1,
 		" result.pHit = ", result.pHit);
 
 	}
 	else
 	{
+		if ( rand() < 1) {
 		# change aim of weapon
-		result.weaponDirModelFrame = newDir;
-		result.weaponOffsetRefFrame = rotate_zxy([
-			weaponOffset_m.y,
-			weaponOffset_m.x,
-			weaponOffset_m.z
-		], pitch_deg, -roll_deg, -myHeading_deg);
-		result.weaponDirRefFrame = rotate_zxy(newDir, pitch_deg, -roll_deg, -myHeading_deg);
-		
+			result.weaponDirModelFrame = newDir;
+			result.weaponOffsetRefFrame = rotate_zxy([
+				weaponOffset_m.y,
+				weaponOffset_m.x,
+				weaponOffset_m.z
+			], -pitch_deg, roll_deg, myHeading_deg);
+			result.weaponDirRefFrame = rotate_zxy(newDir, -pitch_deg, roll_deg, myHeading_deg);
+			
 
-		# debprint ("Bombable: checkAim for ", myNodeName1,
-		# " result.targetDirRefFrame = ", result.targetDirRefFrame);
+			debprint ("Bombable: checkAim for ", myNodeName1,
+			" result.weaponDirRefFrame = ", result.weaponDirRefFrame);
+		}
 	}
 	
 	return (result);  #pHit ranges 0 to 1, 1 being direct hit
@@ -5870,7 +5872,7 @@ var weapons_loop = func (id, myNodeName1 = "", myNodeName2 = "", targetSize_m = 
 					
 		#debprint ("aim-check weapon");
 		if (aim.pHit == 0) {
-			if (rand() < 1/5) {
+			if (rand() < 1) {
 				var newElev = aim.weaponDirModelFrame[2] * R2D;
 				var newHeading = math.atan2(aim.weaponDirModelFrame[0], aim.weaponDirModelFrame[1]) * R2D;
 				weaps[elem].weaponAngle_deg = {heading:newHeading, elevation:newElev};
@@ -5935,14 +5937,14 @@ var weapons_loop = func (id, myNodeName1 = "", myNodeName2 = "", targetSize_m = 
 #
 var stores = {};
 
-##########################################################
+############################ reduceWeaponsCount ##############################
 # FUNCTION reduceWeaponsCount
 # As the weapons are fired, reduce the count in the AC's stores
 #
 stores.reduceWeaponsCount = func (myNodeName, elem, time_sec) {
 
 	var stos = attributes[myNodeName].stores;
-	var ammo_seconds = 60;  #Number of seconds worth of ammo firing the weapon has
+	var ammo_seconds = 120;  #Number of seconds worth of ammo firing the weapon has
 	#TODO: This should be set per aircraft per weapon
 	if (stos["weapons"][elem] == nil) stos["weapons"][elem] = 0;
 	stos.weapons[elem]  -=  time_sec/ammo_seconds;
@@ -8418,8 +8420,7 @@ var weaponsOrientationPositionUpdate_loop = func (id, myNodeName) {
 	var loopid = getprop(""~myNodeName~"/bombable/loopids/weaponsOrientation-loopid");
 	id == loopid or return;
 						
-	settimer (func {weaponsOrientationPositionUpdate_loop (id, myNodeName)}, 20 + rand()/50);
-	return; #rjw removed rest of function.  Timing changed from 1/6 to 20sec
+	settimer (func {weaponsOrientationPositionUpdate_loop (id, myNodeName)}, 1/6 + rand()/50);
 	
 						
 	# no need to do this if any of these are turned off
