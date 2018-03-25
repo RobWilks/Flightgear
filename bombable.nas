@@ -8428,8 +8428,7 @@ var weaponsOrientationPositionUpdate_loop = func (id, myNodeName) {
 						
 	# no need to do this if any of these are turned off
 	# though we may update weapons_loop to rely on these numbers as well
-	if (! getprop(myNodeName ~ "/bombable/fire-particles/ai-weapon-firing")
-	or ! getprop ( trigger1_pp~"ai-weapon-fire-visual"~trigger2_pp)
+	if (! getprop ( trigger1_pp~"ai-weapon-fire-visual"~trigger2_pp)
 	or ! getprop(bomb_menu_pp~"bombable-enabled")
 	) return;
 	
@@ -8444,23 +8443,25 @@ var weaponsOrientationPositionUpdate_loop = func (id, myNodeName) {
 	# weaps[elem].weaponAngle_deg.elevation);
 						
 	foreach (elem;keys (weaps) ) {
-							
-		setprop(myNodeName ~ "/" ~elem~"/orientation/pitch-deg",
-		getprop(myNodeName~"/orientation/pitch-deg")+weaps[elem].weaponAngle_deg.elevation);
-							
-		setprop(myNodeName ~ "/" ~elem~"/orientation/true-heading-deg",
-		getprop(myNodeName~"/orientation/true-heading-deg")+ weaps[elem].weaponAngle_deg.heading);
+		if (getprop(myNodeName ~ "/" ~elem~ "/ai-weapon-firing"))
+		{
+			setprop(myNodeName ~ "/" ~elem~ "/orientation/pitch-deg",
+			getprop(myNodeName~"/orientation/pitch-deg") + weaps[elem].weaponAngle_deg.elevation);
+								
+			setprop(myNodeName ~ "/" ~elem~ "/orientation/true-heading-deg",
+			getprop(myNodeName~"/orientation/true-heading-deg") + weaps[elem].weaponAngle_deg.heading);
 
-		setprop(myNodeName ~ "/" ~elem~"/position/altitude-ft",
-		getprop(myNodeName~"/position/altitude-ft")+weaps[elem].weaponOffset_m.z * .3048);
+			setprop(myNodeName ~ "/" ~elem~ "/position/altitude-ft",
+			getprop(myNodeName~"/position/altitude-ft") + weaps[elem].weaponOffset_m.z * FT2M);
 
-		setprop(myNodeName ~ "/" ~elem~"/position/latitude-deg",
-		getprop(myNodeName~"/position/latitude-deg") ); #todo: add the x & y offsets; they'll have to be rotated and then converted to lat/lon and that's going to be slow . . .
+			setprop(myNodeName ~ "/" ~elem~ "/position/latitude-deg",
+			getprop(myNodeName~"/position/latitude-deg") ); #todo: add the x & y offsets; they'll have to be rotated and then converted to lat/lon and that's going to be slow . . .
 
-		setprop(myNodeName ~ "/" ~elem~"/position/longitude-deg",
-		getprop(myNodeName~"/position/longitude-deg")); #todo: add the x & y offsets
-		
-		debprint("weaponsOrientationPositionUpdate_loop ", elem);
+			setprop(myNodeName ~ "/" ~elem~ "/position/longitude-deg",
+			getprop(myNodeName~"/position/longitude-deg")); #todo: add the x & y offsets
+			
+			debprint("weaponsOrientationPositionUpdate_loop ", elem);
+		}
 	}
 						
 }
