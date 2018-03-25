@@ -384,12 +384,11 @@ var put_tied_model = func(myNodeName = "", path = "AI/Aircraft/Fire-Particles/Fi
 
 var put_tied_weapon = func(myNodeName = "", elem = "", startSize_m = .07, endSize_m = .05, path = "AI/Aircraft/Fire-Particles/Fire-Particles.xml ") {
 
-	#debprint ("Bombable: setprop 174");
 	# "environment" means the main aircraft
-	#if (myNodeName == "/environment" or myNodeName == "environment") myNodeName = "";
+	# if (myNodeName == "/environment" or myNodeName == "environment") myNodeName = "";
 
-	if (startSize_m != nil) setprop ("/bombable/fire-particles/projectile-startsize", startSize_m);
-	if (endSize_m != nil) setprop ("/bombable/fire-particles/projectile-endsize", endSize_m);
+	setprop (myNodeName ~ "/" ~ elem ~ "/fire-particles/projectile-startsize", startSize_m);
+	setprop (myNodeName ~ "/" ~ elem ~ "/fire-particles/projectile-endsize", endSize_m);
 
 
 	fgcommand("add-model", fireNode = props.Node.new({
@@ -399,7 +398,7 @@ var put_tied_weapon = func(myNodeName = "", elem = "", startSize_m = .07, endSiz
 		"elevation-ft-prop": myNodeName ~ "/" ~ elem ~ "/position/altitude-ft",
 		"heading-deg-prop": myNodeName ~ "/" ~ elem ~ "/orientation/true-heading-deg",
 		"pitch-deg-prop": myNodeName ~ "/" ~ elem ~ "/orientation/pitch-deg",
-		"roll-deg-prop": myNodeName ~ "/" ~ elem ~"/orientation/roll-deg",
+		"roll-deg-prop": myNodeName ~ "/" ~ elem ~ "/orientation/roll-deg",
 	}));
 	
 	return props.globals.getNode(fireNode.getNode("property").getValue());
@@ -5494,12 +5493,12 @@ var mp_send_damage = func (myNodeName = "", damageRise = 0 ) {
 ###################### fireAIWeapon_stop ######################
 # fireAIWeapon_stop: turns off one of the triggers in AI/Aircraft/Fire-Particles/projectile-tracer.xml
 #
-var fireAIWeapon_stop = func (id, myNodeName = "") {
+var fireAIWeapon_stop = func (id, myNodeName = "", elem = "") {
 
 	var loopid = getprop(""~myNodeName~"/bombable/loopids/fireAIWeapon-loopid");
 	if (loopid != id) return;
 	#if (myNodeName == "" or myNodeName == "environment") myNodeName = "/environment";
-	setprop(myNodeName ~"/bombable/fire-particles/ai-weapon-firing",0);
+	setprop(myNodeName ~ "/" ~ elem ~ "/ai-weapon-firing", 0);
 
 }
 
@@ -5508,12 +5507,12 @@ var fireAIWeapon_stop = func (id, myNodeName = "") {
 # Using the loopids ensures that it stays on for one full second after the last time it was
 # turned on.
 #
-var fireAIWeapon = func (time_sec = 1, myNodeName = "") {
+var fireAIWeapon = func (time_sec = 1, myNodeName = "", elem = "") {
 
 	#if (myNodeName == "" or myNodeName == "environment") myNodeName = "/environment";
-	setprop(""~myNodeName~"/bombable/fire-particles/ai-weapon-firing",1);
+	setprop(myNodeName ~ "/" ~ elem ~ "/ai-weapon-firing", 1);
 	var loopid = inc_loopid(myNodeName, "fireAIWeapon");
-	settimer ( func { fireAIWeapon_stop(loopid,myNodeName)}, time_sec);
+	settimer ( func { fireAIWeapon_stop(loopid, myNodeName, elem)}, time_sec);
 
 }
 
@@ -5765,7 +5764,6 @@ targetSize_m = nil,  aiAimFudgeFactor = 1, maxDistance_m = 100, weaponAngle_deg 
 		result.pHit *= result.pHit; # use a solid angle
 		#fire the weapons for 5 seconds/visual effect
 		#we start do this whenever we're within maxDistance & aimed generally at the right heading; might still have pHit zero
-		fireAIWeapon(5, myNodeName1);
 		debprint ("Bombable: hit ", myNodeName1,
 		" result.pHit = ", result.pHit);
 
@@ -5864,11 +5862,12 @@ var weapons_loop = func (id, myNodeName1 = "", myNodeName2 = "", targetSize_m = 
 
 					
 		var aim = checkAim (myNodeName1, myNodeName2, 
-		targetSize_m, aiAimFudgeFactor,
-		weaps[elem].maxDamageDistance_m, 
-		weaps[elem].weaponAngle_deg,
-		weaps[elem].weaponOffset_m, 
-		damageValue );
+			targetSize_m, aiAimFudgeFactor,
+			weaps[elem].maxDamageDistance_m, 
+			weaps[elem].weaponAngle_deg,
+			weaps[elem].weaponOffset_m, 
+			damageValue 
+		);
 					
 		#debprint ("aim-check weapon");
 		if (aim.pHit == 0) {
@@ -5879,17 +5878,17 @@ var weapons_loop = func (id, myNodeName1 = "", myNodeName2 = "", targetSize_m = 
 				setprop("" ~ myNodeName1 ~ "/surface-positions[" ~ weapCount ~ "]/cannon-elev-deg" , newElev);
 				setprop("" ~ myNodeName1 ~ "/surface-positions[" ~ weapCount ~ "]/turret-pos-deg" , -newHeading);
 
-				setprop("" ~ myNodeName1 ~ "/" ~elem~ "/orientation/pitch-deg", aim.weaponDirRefFrame[2] * R2D);
-				setprop("" ~ myNodeName1 ~ "/" ~elem~ "/orientation/true-heading-deg", math.atan2(aim.weaponDirRefFrame[0], aim.weaponDirRefFrame[1]) * R2D);
+				# setprop("" ~ myNodeName1 ~ "/" ~elem~ "/orientation/pitch-deg", aim.weaponDirRefFrame[2] * R2D);
+				# setprop("" ~ myNodeName1 ~ "/" ~elem~ "/orientation/true-heading-deg", math.atan2(aim.weaponDirRefFrame[0], aim.weaponDirRefFrame[1]) * R2D);
 				
-				setprop("" ~ myNodeName1 ~ "/" ~elem~ "/position/altitude-ft",
-				getprop("" ~ myNodeName1 ~ "/position/altitude-ft") + aim.weaponOffsetRefFrame[2] * .3048);
+				# setprop("" ~ myNodeName1 ~ "/" ~elem~ "/position/altitude-ft",
+				# getprop("" ~ myNodeName1 ~ "/position/altitude-ft") + aim.weaponOffsetRefFrame[2] * FT2M);
 
-				setprop("" ~ myNodeName1 ~ "/" ~elem~ "/position/latitude-deg",
-				getprop("" ~ myNodeName1 ~ "/position/latitude-deg") + aim.weaponOffsetRefFrame[1] * .3048 * m_per_deg_lat); 
+				# setprop("" ~ myNodeName1 ~ "/" ~elem~ "/position/latitude-deg",
+				# getprop("" ~ myNodeName1 ~ "/position/latitude-deg") + aim.weaponOffsetRefFrame[1] * FT2M / m_per_deg_lat); 
 
-				setprop("" ~ myNodeName1 ~ "/" ~elem~ "/position/longitude-deg",
-				getprop("" ~ myNodeName1 ~ "/position/longitude-deg") + aim.weaponOffsetRefFrame[0] * .3048 * m_per_deg_lon);				
+				# setprop("" ~ myNodeName1 ~ "/" ~elem~ "/position/longitude-deg",
+				# getprop("" ~ myNodeName1 ~ "/position/longitude-deg") + aim.weaponOffsetRefFrame[0] * FT2M / m_per_deg_lon);				
 			}
 		}
 		else
@@ -5897,11 +5896,14 @@ var weapons_loop = func (id, myNodeName1 = "", myNodeName2 = "", targetSize_m = 
 			debprint ("Bombable: AI aircraft aimed at main aircraft, ",
 			myNodeName1, " ", weaps[elem].name, " ", elem,
 			" accuracy ", round(aim.pHit * 100 ),"%");
+			
+			fireAIWeapon(5, myNodeName1, elem);
+
 
 						
 
 			#reduce ammo count; bad pilots waste more ammo; pilotskill ranges -1 to 1
-			stores.reduceWeaponsCount (myNodeName1,elem,loopLength * (3-pilotSkill));
+			stores.reduceWeaponsCount (myNodeName1, elem, loopLength * (3-pilotSkill));
 
 						
 			# As with our regular damage, it has a pHit% change of registering a hit
@@ -5944,7 +5946,7 @@ var stores = {};
 stores.reduceWeaponsCount = func (myNodeName, elem, time_sec) {
 
 	var stos = attributes[myNodeName].stores;
-	var ammo_seconds = 120;  #Number of seconds worth of ammo firing the weapon has
+	var ammo_seconds = 1200;  #Number of seconds worth of ammo firing the weapon has
 	#TODO: This should be set per aircraft per weapon
 	if (stos["weapons"][elem] == nil) stos["weapons"][elem] = 0;
 	stos.weapons[elem]  -=  time_sec/ammo_seconds;
@@ -8418,6 +8420,7 @@ var weaponsOrientationPositionUpdate_loop = func (id, myNodeName) {
 	#var myNodeName = myNode.getPath();
 						
 	var loopid = getprop(""~myNodeName~"/bombable/loopids/weaponsOrientation-loopid");
+	debprint ("weapsOrientatationPos_loop:  id= ",id," loopid= ",loopid);
 	id == loopid or return;
 						
 	settimer (func {weaponsOrientationPositionUpdate_loop (id, myNodeName)}, 1/6 + rand()/50);
@@ -8425,10 +8428,12 @@ var weaponsOrientationPositionUpdate_loop = func (id, myNodeName) {
 						
 	# no need to do this if any of these are turned off
 	# though we may update weapons_loop to rely on these numbers as well
-	if (! getprop("/bombable/fire-particles/ai-weapon-firing")
+	if (! getprop(myNodeName ~ "/bombable/fire-particles/ai-weapon-firing")
 	or ! getprop ( trigger1_pp~"ai-weapon-fire-visual"~trigger2_pp)
 	or ! getprop(bomb_menu_pp~"bombable-enabled")
 	) return;
+	
+	# return; # rjw for debug
 						
 	#debprint ("weapsOrientatationPos_loop calcs starting");
 	#var weaps = props.globals.getNode(myNodeName~"/bombable/attributes/weapons").getValues();
@@ -8454,6 +8459,8 @@ var weaponsOrientationPositionUpdate_loop = func (id, myNodeName) {
 
 		setprop(myNodeName ~ "/" ~elem~"/position/longitude-deg",
 		getprop(myNodeName~"/position/longitude-deg")); #todo: add the x & y offsets
+		
+		debprint("weaponsOrientationPositionUpdate_loop ", elem);
 	}
 						
 }
@@ -8566,9 +8573,12 @@ var weapons_init_func = func(myNodeName) {
 	var loopid = inc_loopid (myNodeName, "weaponsOrientation");
 	settimer (func { weaponsOrientationPositionUpdate_loop(loopid, myNodeName)} , 3 +rand());
 						
-	foreach (elem;keys (weaps) ) put_tied_weapon(myNodeName, elem,
-	weaps[elem].weaponSize_m.start, weaps[elem].weaponSize_m.end,
-	"AI/Aircraft/Fire-Particles/projectile-tracer.xml");
+	foreach (elem;keys (weaps) ) put_tied_weapon
+	(
+		myNodeName, elem,
+		weaps[elem].weaponSize_m.start, weaps[elem].weaponSize_m.end,
+		"AI/Aircraft/Fire-Particles/projectile-tracer.xml"
+	);
 	debprint ("Weaps: ", myNodeName, " initialized ");
 	#append(listenerids, listenerid);
 	#props.globals.getNode(""~myNodeName~"/bombable/weapons/listenerids",1).setValues({listenerids: listenerids});
