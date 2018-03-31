@@ -5607,18 +5607,13 @@ targetSize_m = nil,  aiAimFudgeFactor = 1, maxDistance_m = 100, weaponAngle_deg 
 	# m_per_deg_lat/lon are bombable general variables
 	
 	deltaLat_deg = mlat_deg - alat_deg;
-	if (abs(deltaLat_deg) > maxDistance_m/m_per_deg_lat ) {
+	if (abs(deltaLat_deg) > maxDistance_m / m_per_deg_lat ) {
 		#debprint ("Aim: Not close in lat.");
 		return (result);
 	}
-
-	#var maxLon_deg = getprop (""~myNodeName1~"/bombable/attributes/dimensions/maxLon");
-	#
-	var maxLon_deg = attributes[myNodeName1].dimensions['maxLon'];
-	# rjw maxLon_deg is not used in this function
 				
 	deltaLon_deg = mlon_deg - alon_deg ;
-	if (abs(deltaLon_deg) > maxDistance_m/m_per_deg_lon )  {
+	if (abs(deltaLon_deg) > maxDistance_m / m_per_deg_lon )  {
 		#debprint ("Aim: Not close in lon.");
 		return (result);
 	}
@@ -5763,7 +5758,6 @@ targetSize_m = nil,  aiAimFudgeFactor = 1, maxDistance_m = 100, weaponAngle_deg 
 		#we start do this whenever we're within maxDistance & aimed generally at the right heading; might still have pHit zero
 		debprint ("Bombable: hit ", myNodeName1,
 		" result.pHit = ", result.pHit);
-
 	}
 	else
 	{
@@ -5865,34 +5859,15 @@ var weapons_loop = func (id, myNodeName1 = "", myNodeName2 = "", targetSize_m = 
 			damageValue 
 		);
 
-		weaps[elem].aim = aim;
+		attributes[myNodeName1].weapons[elem].aim = aim;
 		# stored for use in weaponsOrientationPositionUpdate_loop 
-		
+		# debprint("aim = ", aim);
+		# debprint("attributes[myNodeName1].weapons[elem] = ", attributes[myNodeName1].weapons[elem]);
+		# debprint("attributes[myNodeName1].weapons[elem].aim = ", attributes[myNodeName1].weapons[elem].aim);
 		
 		
 		#debprint ("aim-check weapon");
-		if (aim.pHit == 0) {
-			if (rand() < 1) {
-				# var newElev = aim.weaponDirModelFrame[2] * R2D;
-				# var newHeading = math.atan2(aim.weaponDirModelFrame[0], aim.weaponDirModelFrame[1]) * R2D;
-				# weaps[elem].weaponAngle_deg = {heading:newHeading, elevation:newElev};
-				# setprop("" ~ myNodeName1 ~ "/surface-positions[" ~ weapCount ~ "]/cannon-elev-deg" , newElev);
-				# setprop("" ~ myNodeName1 ~ "/surface-positions[" ~ weapCount ~ "]/turret-pos-deg" , -newHeading);
-
-				# setprop("" ~ myNodeName1 ~ "/" ~elem~ "/orientation/pitch-deg", aim.weaponDirRefFrame[2] * R2D);
-				# setprop("" ~ myNodeName1 ~ "/" ~elem~ "/orientation/true-heading-deg", math.atan2(aim.weaponDirRefFrame[0], aim.weaponDirRefFrame[1]) * R2D);
-				
-				# setprop("" ~ myNodeName1 ~ "/" ~elem~ "/position/altitude-ft",
-				# getprop("" ~ myNodeName1 ~ "/position/altitude-ft") + aim.weaponOffsetRefFrame[2] * FT2M);
-
-				# setprop("" ~ myNodeName1 ~ "/" ~elem~ "/position/latitude-deg",
-				# getprop("" ~ myNodeName1 ~ "/position/latitude-deg") + aim.weaponOffsetRefFrame[1] * FT2M / m_per_deg_lat); 
-
-				# setprop("" ~ myNodeName1 ~ "/" ~elem~ "/position/longitude-deg",
-				# getprop("" ~ myNodeName1 ~ "/position/longitude-deg") + aim.weaponOffsetRefFrame[0] * FT2M / m_per_deg_lon);				
-			}
-		}
-		else
+		if (aim.pHit != 0) 
 		{
 			debprint ("Bombable: AI aircraft aimed at main aircraft, ",
 			myNodeName1, " ", weaps[elem].name, " ", elem,
@@ -8460,7 +8435,10 @@ var weaponsOrientationPositionUpdate_loop = func (id, myNodeName) {
 
 	var aim = weaps[elem].aim;
 	# stored in weapons_loop 
-
+	
+	if (aim == nil) return;
+	# skip if no data
+	
 	var weapCount = 0;
 	foreach (elem;keys (weaps) ) {
 	
@@ -8490,8 +8468,8 @@ var weaponsOrientationPositionUpdate_loop = func (id, myNodeName) {
 		debprint("weaponsOrientationPositionUpdate_loop ", elem, 
 			"newElev = ", newElev, 
 			"newHeading = ", newHeading, 
-			"true-heading-deg = ", true-heading-deg,
-			"pitch-deg = ", pitch-deg			
+			"true-heading-deg = ", math.atan2(aim.weaponDirRefFrame[0], aim.weaponDirRefFrame[1]) * R2D,
+			"pitch-deg = ", aim.weaponDirRefFrame[2] * R2D			
 		);
 	}
 }
@@ -8601,6 +8579,7 @@ var weapons_init_func = func(myNodeName) {
 			);
 		setprop ("/bombable/fire-particles/projectile-tracer[" ~ count ~ "]/projectile-startsize", weaps[elem].weaponSize_m.start);
 		setprop ("/bombable/fire-particles/projectile-tracer[" ~ count ~ "]/projectile-endsize", weaps[elem].weaponSize_m.end);
+		setprop(myNodeName ~ "/" ~ elem ~ "/ai-weapon-firing", 0);
 		debprint ("Weaps: ", myNodeName, " initialized ", count);
 		count += 1;
 	}
