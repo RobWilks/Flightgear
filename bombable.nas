@@ -239,7 +239,7 @@ var put_ballistic_model = func(myNodeName = "/ai/models/aircraft", path = "AI/Ai
 
 }
 
-################################################################################
+######################################### put_remove_model #######################################
 #put_remove_model places a new model at the location specified and then removes
 # it time_sec later
 #it puts out 12 models/sec so normally time_sec = .4 or thereabouts it plenty of time to let it run
@@ -382,19 +382,16 @@ var put_tied_model = func(myNodeName = "", path = "AI/Aircraft/Fire-Particles/Fi
 # and have the delta heading, pitch, lat, long, alt, as specified in weapons_init
 #
 
-var put_tied_weapon = func(myNodeName = "", elem = "", startSize_m = .07, endSize_m = .05, path = "AI/Aircraft/Fire-Particles/Fire-Particles.xml ") {
+var put_tied_weapon = func(myNodeName = "", elem = "", path = "AI/Aircraft/Fire-Particles/Fire-Particles.xml ") {
 
 	# "environment" means the main aircraft
 	# if (myNodeName == "/environment" or myNodeName == "environment") myNodeName = "";
-
-	setprop (myNodeName ~ "/" ~ elem ~ "/fire-particles/projectile-startsize", startSize_m);
-	setprop (myNodeName ~ "/" ~ elem ~ "/fire-particles/projectile-endsize", endSize_m);
 
 
 	fgcommand("add-model", fireNode = props.Node.new({
 		"path": path,
 		"latitude-deg-prop": myNodeName ~ "/" ~ elem ~ "/position/latitude-deg",
-		"longitude-deg-prop":myNodeName ~ "/" ~ elem ~ "/position/longitude-deg",
+		"longitude-deg-prop": myNodeName ~ "/" ~ elem ~ "/position/longitude-deg",
 		"elevation-ft-prop": myNodeName ~ "/" ~ elem ~ "/position/altitude-ft",
 		"heading-deg-prop": myNodeName ~ "/" ~ elem ~ "/orientation/true-heading-deg",
 		"pitch-deg-prop": myNodeName ~ "/" ~ elem ~ "/orientation/pitch-deg",
@@ -431,7 +428,7 @@ var deleteFire = func (myNodeName = "",fireNode = "") {
 
 }
 
-####################################################
+########################### speedDamage #########################
 #Check current speed & add damage due to excessive speed
 #
 var speedDamage = func {
@@ -8441,10 +8438,12 @@ var weaponsOrientationPositionUpdate_loop = func (id, myNodeName) {
 						
 	#debprint ("ist: ", myNodeName, " node: ",listenedNode.getName(), " weap:",
 	# weaps[elem].weaponAngle_deg.elevation);
-						
+	
+	var count = loopid * 10;
 	foreach (elem;keys (weaps) ) {
 		if (getprop(myNodeName ~ "/" ~elem~ "/ai-weapon-firing"))
 		{
+			setprop("bombable/fire-particles/projectile-tracer[" ~ count ~ "]/ai-weapon-firing", 1);
 			setprop(myNodeName ~ "/" ~elem~ "/orientation/pitch-deg",
 			getprop(myNodeName~"/orientation/pitch-deg") + weaps[elem].weaponAngle_deg.elevation);
 								
@@ -8462,11 +8461,16 @@ var weaponsOrientationPositionUpdate_loop = func (id, myNodeName) {
 			
 			debprint("weaponsOrientationPositionUpdate_loop ", elem);
 		}
+		else
+		{
+			setprop("bombable/fire-particles/projectile-tracer[" ~ count ~ "]/ai-weapon-firing", 0);
+		}
+		count += 1;
 	}
 						
 }
 
-#####################################
+################# weaponsTrigger_listener ####################
 # weaponsTrigger_listener
 # Listen when the remote MP aircraft triggers weapons and un-triggers them,
 # and show our local visual weapons effect whenever they are triggered
@@ -8558,29 +8562,22 @@ var weapons_init_func = func(myNodeName) {
 	# set to 1 if initialized and 0 when de-inited. Nil if never before inited.
 	setprop(""~myNodeName~"/bombable/initializers/weapons-initialized", 1);
 						
-	#listenerids = [];
-	#listenNodeName = ""~myNodeName~"/orientation/pitch-deg";
-	#listenNode = props.globals.getNode(listenNodeName);
-	#listenerid = setlistener (listenNode, weapsOrientationPositionUpdate );
-
-	# OK, FG doesn't seem to give any way to position or rotate a
-	# particlesystem xml model in relation to a submodel.  So we're going to do it by hand . . .
-	#
-	# a listener would seem better/more appropriate here, but in FG 2.4.0, listeners
-	# don't seem to work on AI aircraft position or orientation nodes???
-	# Anyway the timer loop seems to work well enough and probably has far less
-	# effect on framerate
-
 	var loopid = inc_loopid (myNodeName, "weaponsOrientation");
-	settimer (func { weaponsOrientationPositionUpdate_loop(loopid, myNodeName)} , 3 +rand());
-						
-	foreach (elem;keys (weaps) ) put_tied_weapon
-	(
-		myNodeName, elem,
-		weaps[elem].weaponSize_m.start, weaps[elem].weaponSize_m.end,
-		"AI/Aircraft/Fire-Particles/projectile-tracer.xml"
-	);
-	debprint ("Weaps: ", myNodeName, " initialized ");
+	settimer (func { weaponsOrientationPositionUpdate_loop(loopid, myNodeName)} , 3 + rand());
+	
+	var count = loopid * 10;					
+	foreach (elem;keys (weaps) ) 
+	{
+		put_tied_weapon
+			(
+				myNodeName, elem,
+				"AI/Aircraft/Fire-Particles/projectile-tracer/projectile-tracer" ~ count ~ ".xml"
+			);
+		setprop ("/bombable/fire-particles/projectile-tracer[" ~ count ~ "]/projectile-startsize", weaps[elem].weaponSize_m.start);
+		setprop ("/bombable/fire-particles/projectile-tracer[" ~ count ~ "]/projectile-endsize", weaps[elem].weaponSize_m.end);
+		debprint ("Weaps: ", myNodeName, " initialized ", count);
+		count += 1;
+	}
 	#append(listenerids, listenerid);
 	#props.globals.getNode(""~myNodeName~"/bombable/weapons/listenerids",1).setValues({listenerids: listenerids});
 
