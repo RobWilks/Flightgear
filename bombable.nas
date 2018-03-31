@@ -569,7 +569,7 @@ var damageCheck = func () {
 # delayed.  IE, even a WW1 pilot could probably withstand a short period of
 # 8-10 Gs and blackout would happen gradually rather than instantly.
 
-########################################################
+########################## setAttributes ##############################
 #Set attributes for main aircraft
 #  You can set vulnerabilities for any aircraft by
 #  simply creating a file 'vulnerabilities.nas',
@@ -5840,7 +5840,6 @@ var weapons_loop = func (id, myNodeName1 = "", myNodeName2 = "", targetSize_m = 
 	if (aiAimFudgeFactor < 0) aiAimFudgeFactor = 0;
 				
 				
-	var weapCount = 0;			
 	#debprint ("aim-each weapon");
 	foreach (elem;keys (weaps) ) {
 
@@ -5865,15 +5864,20 @@ var weapons_loop = func (id, myNodeName1 = "", myNodeName2 = "", targetSize_m = 
 			weaps[elem].weaponOffset_m, 
 			damageValue 
 		);
-					
+
+		weaps[elem].aim = aim;
+		# stored for use in weaponsOrientationPositionUpdate_loop 
+		
+		
+		
 		#debprint ("aim-check weapon");
 		if (aim.pHit == 0) {
 			if (rand() < 1) {
-				var newElev = aim.weaponDirModelFrame[2] * R2D;
-				var newHeading = math.atan2(aim.weaponDirModelFrame[0], aim.weaponDirModelFrame[1]) * R2D;
-				weaps[elem].weaponAngle_deg = {heading:newHeading, elevation:newElev};
-				setprop("" ~ myNodeName1 ~ "/surface-positions[" ~ weapCount ~ "]/cannon-elev-deg" , newElev);
-				setprop("" ~ myNodeName1 ~ "/surface-positions[" ~ weapCount ~ "]/turret-pos-deg" , -newHeading);
+				# var newElev = aim.weaponDirModelFrame[2] * R2D;
+				# var newHeading = math.atan2(aim.weaponDirModelFrame[0], aim.weaponDirModelFrame[1]) * R2D;
+				# weaps[elem].weaponAngle_deg = {heading:newHeading, elevation:newElev};
+				# setprop("" ~ myNodeName1 ~ "/surface-positions[" ~ weapCount ~ "]/cannon-elev-deg" , newElev);
+				# setprop("" ~ myNodeName1 ~ "/surface-positions[" ~ weapCount ~ "]/turret-pos-deg" , -newHeading);
 
 				# setprop("" ~ myNodeName1 ~ "/" ~elem~ "/orientation/pitch-deg", aim.weaponDirRefFrame[2] * R2D);
 				# setprop("" ~ myNodeName1 ~ "/" ~elem~ "/orientation/true-heading-deg", math.atan2(aim.weaponDirRefFrame[0], aim.weaponDirRefFrame[1]) * R2D);
@@ -5925,7 +5929,6 @@ var weapons_loop = func (id, myNodeName1 = "", myNodeName2 = "", targetSize_m = 
 							
 			}
 		}
-		weapCount += 1;
 	}
 }
 
@@ -8438,36 +8441,59 @@ var weaponsOrientationPositionUpdate_loop = func (id, myNodeName) {
 						
 	#debprint ("ist: ", myNodeName, " node: ",listenedNode.getName(), " weap:",
 	# weaps[elem].weaponAngle_deg.elevation);
+
 	
+	# loop to make weapon and projectile point in the direction of the target
+	# the direction is calculated in the checkAim loop
+
+	# there is a separate projectile model for each weapon enumerated in the order of the models listed in the scenario and then of the weapons listed in the model
+	# count is the index to the projectile model
 	var count = loopid * 10;
 	foreach (elem;keys (weaps) ) {
-		if (getprop(myNodeName ~ "/" ~elem~ "/ai-weapon-firing"))
-		{
-			setprop("bombable/fire-particles/projectile-tracer[" ~ count ~ "]/ai-weapon-firing", 1);
-			setprop(myNodeName ~ "/" ~elem~ "/orientation/pitch-deg",
-			getprop(myNodeName~"/orientation/pitch-deg") + weaps[elem].weaponAngle_deg.elevation);
-								
-			setprop(myNodeName ~ "/" ~elem~ "/orientation/true-heading-deg",
-			getprop(myNodeName~"/orientation/true-heading-deg") + weaps[elem].weaponAngle_deg.heading);
-
-			setprop(myNodeName ~ "/" ~elem~ "/position/altitude-ft",
-			getprop(myNodeName~"/position/altitude-ft") + weaps[elem].weaponOffset_m.z * FT2M);
-
-			setprop(myNodeName ~ "/" ~elem~ "/position/latitude-deg",
-			getprop(myNodeName~"/position/latitude-deg") ); #todo: add the x & y offsets; they'll have to be rotated and then converted to lat/lon and that's going to be slow . . .
-
-			setprop(myNodeName ~ "/" ~elem~ "/position/longitude-deg",
-			getprop(myNodeName~"/position/longitude-deg")); #todo: add the x & y offsets
-			
-			debprint("weaponsOrientationPositionUpdate_loop ", elem);
-		}
-		else
-		{
-			setprop("bombable/fire-particles/projectile-tracer[" ~ count ~ "]/ai-weapon-firing", 0);
-		}
+		setprop("bombable/fire-particles/projectile-tracer[" ~ count ~ "]/ai-weapon-firing", 
+		getprop(myNodeName ~ "/" ~elem~ "/ai-weapon-firing"));
 		count += 1;
 	}
 						
+	# loop to point weapon in the direction of the target
+	# and the projectile in the direction of the weapon
+
+	var aim = weaps[elem].aim;
+	# stored in weapons_loop 
+
+	var weapCount = 0;
+	foreach (elem;keys (weaps) ) {
+	
+		# first, point the weapon
+		var newElev = aim.weaponDirModelFrame[2] * R2D;
+		var newHeading = math.atan2(aim.weaponDirModelFrame[0], aim.weaponDirModelFrame[1]) * R2D;
+		weaps[elem].weaponAngle_deg = {heading:newHeading, elevation:newElev};
+		setprop("" ~ myNodeName ~ "/surface-positions[" ~ weapCount ~ "]/cannon-elev-deg" , newElev);
+		setprop("" ~ myNodeName ~ "/surface-positions[" ~ weapCount ~ "]/turret-pos-deg" , -newHeading);
+
+		
+		# next, point the projectile
+		setprop("" ~ myNodeName ~ "/" ~elem~ "/orientation/pitch-deg", aim.weaponDirRefFrame[2] * R2D);
+		setprop("" ~ myNodeName ~ "/" ~elem~ "/orientation/true-heading-deg", math.atan2(aim.weaponDirRefFrame[0], aim.weaponDirRefFrame[1]) * R2D);
+		
+		setprop("" ~ myNodeName ~ "/" ~elem~ "/position/altitude-ft",
+		getprop("" ~ myNodeName ~ "/position/altitude-ft") + aim.weaponOffsetRefFrame[2] * FT2M);
+
+		setprop("" ~ myNodeName ~ "/" ~elem~ "/position/latitude-deg",
+		getprop("" ~ myNodeName ~ "/position/latitude-deg") + aim.weaponOffsetRefFrame[1] * FT2M / m_per_deg_lat); 
+
+		setprop("" ~ myNodeName ~ "/" ~elem~ "/position/longitude-deg",
+		getprop("" ~ myNodeName ~ "/position/longitude-deg") + aim.weaponOffsetRefFrame[0] * FT2M / m_per_deg_lon);
+
+		
+		weapCount += 1;
+		debprint("weaponsOrientationPositionUpdate_loop ", elem, 
+			"newElev = ", newElev, 
+			"newHeading = ", newHeading, 
+			"true-heading-deg = ", true-heading-deg,
+			"pitch-deg = ", pitch-deg			
+		);
+	}
 }
 
 ################# weaponsTrigger_listener ####################
