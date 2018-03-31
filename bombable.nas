@@ -5622,7 +5622,7 @@ targetSize_m = nil,  aiAimFudgeFactor = 1, maxDistance_m = 100, weaponAngle_deg 
 
 				
 	if (targetSize_m == nil or targetSize_m.horz <= 0 or targetSize_m.vert <= 0 or maxDistance_m <= 0) return (result);				
-	if (weaponAngle_deg == nil ){ weaponAngle_deg = {heading: 0, elevation: 0, headingMin: -60, headingMax: 60, elevationMin: -20, elevationMax: 20};} #note definition of value for each key of hash
+	if (weaponAngle_deg == nil ){ weaponAngle_deg = {heading:0, elevation:0, headingMin:-60, headingMax:60, elevationMin:-20, elevationMax:20}; } #note definition of value for each key of hash
 	if (weaponOffset_m == nil ){ weaponOffset_m = {x:0,y:0,z:0}; }
 				
 	
@@ -5764,7 +5764,7 @@ targetSize_m = nil,  aiAimFudgeFactor = 1, maxDistance_m = 100, weaponAngle_deg 
 	
 	if ( rand() < 1) {
 		# ensure that newDir is in range
-		var newElev = math.asin(math.asin(newDir[2]) * R2D;
+		var newElev = math.asin(newDir[2]) * R2D;
 		var newHeading = math.atan2(newDir[0], newDir[1]) * R2D;
 		var changes = 2;
 
@@ -5786,22 +5786,19 @@ targetSize_m = nil,  aiAimFudgeFactor = 1, maxDistance_m = 100, weaponAngle_deg 
 		}
 		
 		# change aim of weapon
-			result.weaponDirModelFrame = newDir;
-			result.weaponOffsetRefFrame = rotate_zxy([
-				weaponOffset_m.y,
-				weaponOffset_m.x,
-				weaponOffset_m.z
-			], -pitch_deg, roll_deg, myHeading_deg);
-			result.weaponDirRefFrame = rotate_zxy(newDir, -pitch_deg, roll_deg, myHeading_deg);
-			
+		result.weaponDirModelFrame = newDir;
+		result.weaponOffsetRefFrame = rotate_zxy([
+			weaponOffset_m.y,
+			weaponOffset_m.x,
+			weaponOffset_m.z
+		], -pitch_deg, roll_deg, myHeading_deg);
+		result.weaponDirRefFrame = rotate_zxy(newDir, -pitch_deg, roll_deg, myHeading_deg);
+		
 
-			debprint ("Bombable: checkAim for ", myNodeName1,
-			" result.weaponDirRefFrame = ", result.weaponDirRefFrame);
+		debprint ("Bombable: checkAim for ", myNodeName1,
+		" result.weaponDirRefFrame = ", result.weaponDirRefFrame);
 	}
-	
-	return (result);  #pHit ranges 0 to 1, 1 being direct hit
-
-				
+	return (result);  #pHit ranges 0 to 1, 1 being direct hit				
 }
 
 ############################ weapons_loop #############################
