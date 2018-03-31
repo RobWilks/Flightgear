@@ -2187,7 +2187,7 @@ var setupBombableMenu = func {
 	["flare",66,3600],
 	] ) {
 				
-		#trigger is the overall flag for that type of smoke/fire
+		# trigger is the overall flag for that type of smoke/fire
 		# for Bombable as a whole
 		# burning is the flag as to whether that effect is turned on
 		# for the main aircraft
@@ -2203,7 +2203,7 @@ var setupBombableMenu = func {
 	}
 			
 	init_bombable_dialog();
-	#the previously attempted " == nil" trick doesn't work because this io.read routine
+	# the previously attempted " == nil" trick doesn't work because this io.read routine
 	# leaves unchecked values as 'nil'
 	# so we set our defaults first & then load the file.  Anything that wasn't set by
 	# the file just remains as our default.
@@ -2594,7 +2594,6 @@ var hitground_stop_explode = func (myNodeName, alt) {
 			
 
 	startFire( myNodeName ); #if it wasn't on fire before it is now
-	# debprint ("Bombable: setprop 4256");
 	setprop (""~myNodeName~"/position/altitude-ft",  alt  );
 	setprop (""~myNodeName~"/bombable/on-ground",  1 ); #this affects the slow-down system which is handled by add-damage, and will stop any forward movement very quickly
 	add_damage(1, myNodeName, "nonweapon");  #and once we have buried ourselves in the ground we are surely dead; this also will stop any & all forward movement
@@ -2897,11 +2896,14 @@ var ground_loop = func( id, myNodeName ) {
 	if ((type == "groundvehicle") or (type == "ship")) {
 		if (speed_kt <= 2) {
 			setprop(""~myNodeName~"/bombable/exploded", 1);
-			debprint("Bombable:  Ground loop terminated for ",myNodeName);
+			setprop(""~myNodeName~"/bombable/attributes/damage", 1); # could continue fighting even though immobilised
 			setprop(""~myNodeName~"/controls/tgt-speed-kt", 0);
 			setprop(""~myNodeName~"/controls/flight/target-spd", 0);
 			setprop(""~myNodeName~"/velocities/true-airspeed-kt", 0);
 			setprop(""~myNodeName~"/velocities/vertical-speed-fps", 0);
+			if (type == "groundvehicle") deleteSmoke("pistonexhaust", myNodeName); # could set a timer here; smoke from ship?
+			debprint("Bombable:  Ground loop terminated for ",myNodeName);
+			
 			return;
 		}
 	}
@@ -5587,7 +5589,7 @@ targetSize_m = nil,  aiAimFudgeFactor = 1, maxDistance_m = 100, weaponAngle_deg 
 	#Note weaponAngle is a hash with components heading and elevation
 	#Function called only by main weapons_loop
 	#rjw modified to return a hash
-	var result = {pHit:0, weaponDirModelFrame:[0,0,1], weaponOffsetRefFrame:[0,0,1], weaponDirRefFrame:[0,0,1]};
+	var result = {pHit:0, weaponDirModelFrame:[0,0,-1], weaponOffsetRefFrame:[0,0,0], weaponDirRefFrame:[0,0,-1]};
 				
 	#Weapons malfunction in proportion to the damageValue, to 100% of the time when damage = 100%
 	#debprint ("Bombable: AI weapons, ", myNodeName1, ", ", myNodeName2);
@@ -5619,8 +5621,8 @@ targetSize_m = nil,  aiAimFudgeFactor = 1, maxDistance_m = 100, weaponAngle_deg 
 	}
 
 				
-	if ( targetSize_m == nil or targetSize_m.horz <= 0 or targetSize_m.vert <= 0 or maxDistance_m <= 0) return (result);				
-	if (weaponAngle_deg == nil ){ weaponAngle_deg = {heading:0, elevation:0};} #note definition of value for each key of hash
+	if (targetSize_m == nil or targetSize_m.horz <= 0 or targetSize_m.vert <= 0 or maxDistance_m <= 0) return (result);				
+	if (weaponAngle_deg == nil ){ weaponAngle_deg = {heading: 0, elevation: 0, headingMin: -60, headingMax: 60, elevationMin: -20, elevationMax: 20};} #note definition of value for each key of hash
 	if (weaponOffset_m == nil ){ weaponOffset_m = {x:0,y:0,z:0}; }
 				
 	
@@ -5694,8 +5696,8 @@ targetSize_m = nil,  aiAimFudgeFactor = 1, maxDistance_m = 100, weaponAngle_deg 
 
 	
 	# calculate targetDirRefFrame, the displacement vector from node1 (AI) to node2 (mainAC) in a lon-lat-alt (x-y-z) frame of reference
-	# rotate this vector to the frame of reference of AI object to give newDir
-	# calculate the angle between the direction in which the weapon is aimed and the displacement of the mainAC
+	# normalise this vector and rotate it to the frame of reference of AI object to give newDir
+	# calculate the angle between the direction in which the weapon is aimed and newDir
 	# use this angle and the solid angle subtended by the mainAC to determine pHit
 	
 	if (myNodeName1 == "") myHeading_deg = getprop (""~myNodeName1~"/orientation/heading-deg");
@@ -5759,9 +5761,30 @@ targetSize_m = nil,  aiAimFudgeFactor = 1, maxDistance_m = 100, weaponAngle_deg 
 		debprint ("Bombable: hit ", myNodeName1,
 		" result.pHit = ", result.pHit);
 	}
-	else
-	{
-		if ( rand() < 1) {
+	
+	if ( rand() < 1) {
+		# ensure that newDir is in range
+		var newElev = math.asin(math.asin(newDir[2]) * R2D;
+		var newHeading = math.atan2(newDir[0], newDir[1]) * R2D;
+		var changes = 2;
+
+		if (newElev < weaponAngle_deg.elevationMin) newElev = weaponAngle_deg.elevationMin;
+		elsif (newElev > weaponAngle_deg.elevationMax) newElev = weaponAngle_deg.elevationMax;
+		else changes -= 1;
+
+		if (newHeading < weaponAngle_deg.headingMin) newHeading = weaponAngle_deg.headingMin;
+		elsif (newHeading > weaponAngle_deg.headingMax) newHeading = weaponAngle_deg.headingMax;
+		else changes -= 1;
+		
+		if (changes !=0)
+		{
+			newDir = [
+				cos(newElev) * sin(newHeading),
+				cos(newElev) * cos(newHeading),
+				sin(newElev)
+			];
+		}
+		
 		# change aim of weapon
 			result.weaponDirModelFrame = newDir;
 			result.weaponOffsetRefFrame = rotate_zxy([
@@ -5774,7 +5797,6 @@ targetSize_m = nil,  aiAimFudgeFactor = 1, maxDistance_m = 100, weaponAngle_deg 
 
 			debprint ("Bombable: checkAim for ", myNodeName1,
 			" result.weaponDirRefFrame = ", result.weaponDirRefFrame);
-		}
 	}
 	
 	return (result);  #pHit ranges 0 to 1, 1 being direct hit
@@ -5823,7 +5845,7 @@ var weapons_loop = func (id, myNodeName1 = "", myNodeName2 = "", targetSize_m = 
 	var damageValue = getprop(""~myNodeName1~"/bombable/attributes/damage");
 	if (damageValue == 1) return;
 				
-	aiAimFudgeFactor = getprop (""~bomb_menu_pp~"ai-weapon-power");
+	var aiAimFudgeFactor = getprop ("" ~bomb_menu_pp~ "ai-weapon-power"); # rjw variable not used.  Delete?
 	if (aiAimFudgeFactor == nil or aiAimFudgeFactor == 0) aiAimFudgeFactor = 11.5;
 				
 	#pilotSkill varies -1 to 1, 0 = average
@@ -5859,11 +5881,11 @@ var weapons_loop = func (id, myNodeName1 = "", myNodeName2 = "", targetSize_m = 
 			damageValue 
 		);
 
-		attributes[myNodeName1].weapons[elem].aim = aim;
-		# stored for use in weaponsOrientationPositionUpdate_loop 
-		# debprint("aim = ", aim);
-		# debprint("attributes[myNodeName1].weapons[elem] = ", attributes[myNodeName1].weapons[elem]);
-		# debprint("attributes[myNodeName1].weapons[elem].aim = ", attributes[myNodeName1].weapons[elem].aim);
+		if (aim.weaponDirModelFrame[2] != -1) attributes[myNodeName1].weapons[elem].aim = aim;
+		# stored for use in weaponsOrientationPositionUpdate_loop
+		# -1 is a flag to indicate whether new aim data are available
+
+		
 		
 		
 		#debprint ("aim-check weapon");
@@ -8423,7 +8445,7 @@ var weaponsOrientationPositionUpdate_loop = func (id, myNodeName) {
 
 	# there is a separate projectile model for each weapon enumerated in the order of the models listed in the scenario and then of the weapons listed in the model
 	# count is the index to the projectile model
-	var count = loopid * 10;
+	var count = loopid * 10; # up to 10 weapons per model
 	foreach (elem;keys (weaps) ) {
 		setprop("bombable/fire-particles/projectile-tracer[" ~ count ~ "]/ai-weapon-firing", 
 		getprop(myNodeName ~ "/" ~elem~ "/ai-weapon-firing"));
@@ -8431,7 +8453,7 @@ var weaponsOrientationPositionUpdate_loop = func (id, myNodeName) {
 	}
 						
 	# loop to point weapon in the direction of the target
-	# and the projectile in the direction of the weapon
+	# and then the projectile in the direction of the weapon
 
 	var aim = weaps[elem].aim;
 	# stored in weapons_loop 
@@ -8443,9 +8465,10 @@ var weaponsOrientationPositionUpdate_loop = func (id, myNodeName) {
 	foreach (elem;keys (weaps) ) {
 	
 		# first, point the weapon
-		var newElev = aim.weaponDirModelFrame[2] * R2D;
+		var newElev = math.asin(aim.weaponDirModelFrame[2]) * R2D;
 		var newHeading = math.atan2(aim.weaponDirModelFrame[0], aim.weaponDirModelFrame[1]) * R2D;
-		weaps[elem].weaponAngle_deg = {heading:newHeading, elevation:newElev};
+		weaps[elem].weaponAngle_deg.heading = newHeading;
+		weaps[elem].weaponAngle_deg.elevation = newElev;
 		setprop("" ~ myNodeName ~ "/surface-positions[" ~ weapCount ~ "]/cannon-elev-deg" , newElev);
 		setprop("" ~ myNodeName ~ "/surface-positions[" ~ weapCount ~ "]/turret-pos-deg" , -newHeading);
 
@@ -8556,7 +8579,10 @@ var weapons_init_func = func(myNodeName) {
 	if (!contains (attributes[myNodeName], "weapons")) { debprint ("no attributes.weapons, exiting"); weapsSuccess = 0;}
 	else {
 		weaps = attributes[myNodeName].weapons;
-		if (weaps == nil or typeof(weaps) != "hash") {debprint ("attributes.weapons not a hash"); weapsSuccess = 0; }
+		if (weaps == nil or typeof(weaps) != "hash") {
+			debprint ("attributes.weapons not a hash"); 
+			weapsSuccess = 0; 
+		}
 	}
 						
 	if (weapsSuccess == 0) return;   #alternatively we could implement a fake/basic armament here
@@ -8580,6 +8606,8 @@ var weapons_init_func = func(myNodeName) {
 		setprop ("/bombable/fire-particles/projectile-tracer[" ~ count ~ "]/projectile-startsize", weaps[elem].weaponSize_m.start);
 		setprop ("/bombable/fire-particles/projectile-tracer[" ~ count ~ "]/projectile-endsize", weaps[elem].weaponSize_m.end);
 		setprop(myNodeName ~ "/" ~ elem ~ "/ai-weapon-firing", 0);
+		attributes[myNodeName].weapons[elem].aim = {pHit:0, weaponDirModelFrame:[0,0,-1], weaponOffsetRefFrame:[0,0,0], weaponDirRefFrame:[0,0,-1]}; 
+		#used to translate weapon position and orientation from frame of reference of model to the frame of reference of the scene
 		debprint ("Weaps: ", myNodeName, " initialized ", count);
 		count += 1;
 	}
