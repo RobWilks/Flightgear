@@ -5494,7 +5494,7 @@ var mp_send_damage = func (myNodeName = "", damageRise = 0 ) {
 #
 var fireAIWeapon_stop = func (id, myNodeName = "", elem = "") {
 
-	var loopid = getprop(""~myNodeName~"/bombable/loopids/fireAIWeapon-loopid");
+	var loopid = getprop(""~myNodeName~"/bombable/loopids/fireAIWeapon/" ~ elem ~ "-loopid");
 	if (loopid != id) return;
 	#if (myNodeName == "" or myNodeName == "environment") myNodeName = "/environment";
 	setprop(myNodeName ~ "/" ~ elem ~ "/ai-weapon-firing", 0);
@@ -5510,7 +5510,7 @@ var fireAIWeapon = func (time_sec = 1, myNodeName = "", elem = "") {
 
 	#if (myNodeName == "" or myNodeName == "environment") myNodeName = "/environment";
 	setprop(myNodeName ~ "/" ~ elem ~ "/ai-weapon-firing", 1);
-	var loopid = inc_loopid(myNodeName, "fireAIWeapon");
+	var loopid = inc_loopid(myNodeName, "fireAIWeapon/" ~ elem);
 	settimer ( func { fireAIWeapon_stop(loopid, myNodeName, elem)}, time_sec);
 
 }
@@ -8426,11 +8426,9 @@ var weaponsOrientationPositionUpdate_loop = func (id, myNodeName) {
 	or ! getprop(bomb_menu_pp~"bombable-enabled")
 	) return;
 	
-	# return; # rjw for debug
-						
-	#debprint ("weapsOrientatationPos_loop calcs starting");
-	#var weaps = props.globals.getNode(myNodeName~"/bombable/attributes/weapons").getValues();
-						
+	var damageValue = getprop(""~myNodeName~"/bombable/attributes/damage");
+	if (rand() < damageValue) return;
+	
 	weaps = attributes[myNodeName].weapons;
 						
 	#debprint ("ist: ", myNodeName, " node: ",listenedNode.getName(), " weap:",
