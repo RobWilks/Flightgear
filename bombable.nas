@@ -5742,26 +5742,37 @@ targetSize_m = nil,  aiAimFudgeFactor = 1, maxDistance_m = 100, weaponAngle_deg 
 	{	
 		dotProduct += newDir[i] * weapDir[i]; # vector to target from AI object
 	}
-	var targetOffset_rad = math.acos(dotProduct); # angular offset from weapon direction - cosine is even function therefore expect > 0	
-	var targetSize_rad = math.atan2(math.sqrt(targetSize_m.horz * targetSize_m.vert) / 2 , distance_m);	
+	if (dotProduct > 0.5)
+	{
+		# only calculate pHit if target direction within 60 degrees of weapon direction
+		var targetOffset_rad = math.acos(dotProduct); # angular offset from weapon direction - cosine is even function therefore expect > 0	
+		var targetSize_rad = math.atan2(math.sqrt(targetSize_m.horz * targetSize_m.vert) / 2 , distance_m);	
+		# geometric mean of key dimensions and half angle
 
-	debprint ("Bombable: checkAim for ", myNodeName1,
-		" targetOffset_rad = ", targetOffset_rad,
-		" targetSize_rad = ", targetSize_rad);
-	debprint (sprintf("Bombable: newDir[%6.1f,%6.1f,%6.1f] dist=%6.0f", newDir[0], newDir[1], newDir[2], distance_m));
-	debprint (sprintf("Bombable: weapDir[%6.1f,%6.1f,%6.1f]", weapDir[0], weapDir[1], weapDir[2]));
+		debprint ("Bombable: checkAim for ", myNodeName1,
+			" targetOffset_rad = ", targetOffset_rad,
+			" targetSize_rad = ", targetSize_rad);
+		debprint (sprintf("Bombable: newDir[%6.1f,%6.1f,%6.1f] dist=%6.0f", newDir[0], newDir[1], newDir[2], distance_m));
+		debprint (sprintf("Bombable: weapDir[%6.1f,%6.1f,%6.1f]", weapDir[0], weapDir[1], weapDir[2]));
 
-	if ( targetSize_rad > targetOffset_rad ) 
-	{		
-
-		result.pHit = (targetSize_rad - targetOffset_rad) * 2 / math.pi; # if the target subtends pi/2 rad then p(hit) = 1
-		result.pHit *= result.pHit; # use a solid angle
-		#fire the weapons for 5 seconds/visual effect
-		#we start do this whenever we're within maxDistance & aimed generally at the right heading; might still have pHit zero
+		var weapSDev = 1/12; # spray vs sharpshooter
+		if ( targetSize_rad > targetOffset_rad ) 
+		{		
+			# calculate pHit as the joint probability distribution of the weapon angular range of fire and the angular range of te target
+			# Assume:  pTargetHit = 1 within the angle range it subtends at the weapon
+			# and pFireAtAngle = normal distribution centred on weapon and of SD = 5 degrees or 1/12 radian
+			# could approximate normal distribution using central limit https://en.wikipedia.org/wiki/Normal_distribution#Generating_values_from_normal_distribution and use MonteCarlo
+			# instead use error function to calculate integral of normal distribution
+			
+			result.pHit = erf((targetSize_rad + targetOffset_rad) / weapSDev) +  erf((targetSize_rad - targetOffset_rad) / weapSDev);
+		}
+		else
+		{
+			result.pHit = 0.5 - erf((targetOffset_rad - targetSize_rad) / weapSDev);
+		}
 		debprint ("Bombable: hit ", myNodeName1,
 		" result.pHit = ", result.pHit);
 	}
-	
 	if ( rand() < 1) {
 		# ensure that newDir is in range
 		var newElev = math.asin(newDir[2]) * R2D;
@@ -5892,6 +5903,8 @@ var weapons_loop = func (id, myNodeName1 = "", myNodeName2 = "", targetSize_m = 
 			myNodeName1, " ", weaps[elem].name, " ", elem,
 			" accuracy ", round(aim.pHit * 100 ),"%");
 			
+			#fire the weapons for 5 seconds/visual effect
+			#we start do this whenever we're within maxDistance & aimed approximately in the right direction
 			fireAIWeapon(5, myNodeName1, elem);
 
 
@@ -9418,31 +9431,16 @@ var rotate_yxz = func (vector, alpha, beta, gamma) {
     # debug.dump(vector, gamma, x2, y2, z2);
     return [x2, y2, z2];
 }
+########################## erf ###########################
+var erf = func (xVal) 
+{
+	# require xVal positive
+	# from https://en.wikipedia.org/wiki/Error_function
 
-########################## turnGun ###########################
-
-var turnGun = func(myNodeName, targetDir, targetDist, myHeading_deg) {
-
-	if (getprop("" ~ myNodeName ~ "/surface-positions/cannon-elev-deg") == nil) return();
-	if (getprop("" ~ myNodeName ~ "/surface-positions/turret-pos-deg") == nil) return();
-	var newDir = [0, 0, 0];
-	for (var i = 0; i < 3; i += 1) {	
-		newDir[i] = targetDir[i] / targetDist;
-	}
-	var pitch_deg = getprop("" ~ myNodeName ~ "/orientation/pitch-animation");
-	var roll_deg = getprop("" ~ myNodeName ~ "/orientation/roll-animation");
-	var newDir = rotate_round_z_axis(newDir, -myHeading_deg);
-	newDir = rotate_round_x_axis(newDir, pitch_deg);
-	# assume roll increases clockwise in the direction of travel
-	newDir = rotate_round_y_axis(newDir, -roll_deg);
-	var newElev = newDir[2] * R2D;
-	var newHeading = math.atan2(newDir[0], newDir[1]) * R2D;
-	debprint ("Bombable: Turn gun for ", myNodeName,
-	" elev = ", newElev,
-	" heading = ", newHeading);
-	# setprop("" ~ myNodeName ~ "/surface-positions/cannon-elev-deg" , newElev);
-	# setprop("" ~ myNodeName ~ "/surface-positions/turret-pos-deg" , -newHeading);
-	return(newDir);
+	var expVal = exp(-xVal * xVal);
+	var result = math.sqrt(1 - expVal);
+	result *= (.5 + 0.08744939 * expVal - 0.02404858 * expVal * expVal);
+	return(result);
 }
 
 
