@@ -2360,7 +2360,7 @@ var damage_msg = func (callsign, damageAdd, damageTotal, smoke = 0, fire = 0, me
 
 }
 
-###############################################################################
+######################################## reset_msg #######################################
 # reset_msg - part of MP messages
 #
 
@@ -2381,6 +2381,7 @@ var reset_msg = func () {
 	Binary.encodeByte(2);
 }
 
+######################################## parse_msg #######################################
 var parse_msg = func (source, msg) {
 	if (!getprop(MP_share_pp)) return;
 	if (!getprop (MP_broadcast_exists_pp)) return;
@@ -2499,7 +2500,7 @@ var parse_msg = func (source, msg) {
 	}
 }
 
-####################################################
+######################### fire_loop ###########################
 # timer function, every 1.5 to 2.5 seconds, adds damage if on fire
 # TODO: This seems to be causing stutters.  We can separate out a separate
 # loop to update the fire sizes and probably do some simplification of the
@@ -5273,9 +5274,9 @@ var mp_send_main_aircraft_damage_update = func (damageRise = 0 ) {
 
 }
 
-################################################################
+############################### mainAC_add_damage #################################
 # function adds damage to the main aircraft when a msg
-# is received over MP or for any othe reason
+# is received over MP or for any other reason
 #
 # Also start smoke/fire if appropriate, and turn off engines/explode
 # when damage reaches 100%.
@@ -5755,6 +5756,7 @@ targetSize_m = nil,  weaponSkill = 1, maxDistance_m = 100, weaponAngle_deg = nil
 		# debprint (sprintf("Bombable: newDir[%6.1f,%6.1f,%6.1f] dist=%6.0f", newDir[0], newDir[1], newDir[2], distance_m));
 		# debprint (sprintf("Bombable: weapDir[%6.1f,%6.1f,%6.1f]", weapDir[0], weapDir[1], weapDir[2]));
 
+		# pHit ranges 0 to 1, 1 being direct hit			
 		# calculate pHit as a joint probability distribution: the angular range of fire of the weapon and the angular range subtended by the target
 		# Assume:  pTargetHit = 1 within the angle range it subtends at the weapon
 		# Assume:  angular distribution of bullets from weapon is a normal distribution centred on weapon and of SD 5 degrees i.e. 1/12 radian
@@ -5774,7 +5776,7 @@ targetSize_m = nil,  weaponSkill = 1, maxDistance_m = 100, weaponAngle_deg = nil
 		" result.pHit = ", result.pHit);
 	}
 	if ( rand() < weaponSkill) {
-		# ensure that newDir is in range
+		# ensure that newDir is in range of movement of weapon
 		var newElev = math.asin(newDir[2]) * R2D;
 		var newHeading = math.atan2(newDir[0], newDir[1]) * R2D;
 		var changes = 2;
@@ -5809,7 +5811,7 @@ targetSize_m = nil,  weaponSkill = 1, maxDistance_m = 100, weaponAngle_deg = nil
 		debprint ("Bombable: checkAim for ", myNodeName1,
 		" result.weaponDirRefFrame = ", result.weaponDirRefFrame);
 	}
-	return (result);  #pHit ranges 0 to 1, 1 being direct hit				
+	return (result); 	
 }
 
 ############################ weapons_loop #############################
@@ -5853,11 +5855,11 @@ var weapons_loop = func (id, myNodeName1 = "", myNodeName2 = "", targetSize_m = 
 	var damageValue = getprop(""~myNodeName1~"/bombable/attributes/damage");
 	if (damageValue == 1) return;
 	
-	# varies between 0 and 1
+	# weaponPower varies between 0 and 1
 	var weaponPower = getprop ("" ~bomb_menu_pp~ "ai-weapon-power");
-	if (weaponPower == nil or weaponPower == 0) weaponPower = 0.2;
+	if (weaponPower == nil) weaponPower = 0.2;
 				
-	# weaponSkill varies 0-1, average 0.4
+	# weaponSkill varies 0-1, average varies with power-skill combo
 	var weaponSkill = getprop(""~myNodeName1~"/bombable/weapons-pilot-ability");
 	if (weaponSkill == nil) weaponSkill = 0;
 				
@@ -5874,7 +5876,7 @@ var weapons_loop = func (id, myNodeName1 = "", myNodeName2 = "", targetSize_m = 
 		mDD_m = weaps[elem].maxDamageDistance_m;
 		if (mDD_m == nil or mDD_m == 0) mDD_m = 100;
 
-		#can't shoot if no ammo left!
+		#can only shoot if ammo left!
 		if ( stores.checkWeaponsReadiness ( myNodeName1, elem )) 
 		# Could also check weaponSkill here. However skill of gunner not simply correlated with how frequently they fire
 		{
@@ -5895,7 +5897,8 @@ var weapons_loop = func (id, myNodeName1 = "", myNodeName2 = "", targetSize_m = 
 			
 			
 			#debprint ("aim-check weapon");
-			if (aim.pHit > 0.001) 
+			if (aim.pHit > (0.01 * weaponSkill))
+			# a skilled gunner will fire at 1% pHit; an unskilled one 0.1%
 			{
 				debprint ("Bombable: AI aircraft aimed at main aircraft, ",
 				myNodeName1, " ", weaps[elem].name, " ", elem,
@@ -7413,24 +7416,27 @@ if (damageIncrease > 0.05 and type == "aircraft") reduceRPM(myNodeName);
 if (damagetype == "weapon") records.record_impact ( myNodeName, damageRise, damageIncrease, damageValue, impactNodeName, ballisticMass_lb, lat_deg, lon_deg, alt_m );
 				
 var callsign = getCallSign (myNodeName);
-				
+var weaponSkill = getprop(myNodeName~"/bombable/weapons-pilot-ability");				
 					
-	if ( damageValue > prevDamageValue ) {
-						
-		damageRiseDisplay = round( damageRise * 100 );
-		if (damageRise < .01) damageRiseDisplay = sprintf ("%1.2f",damageRise * 100);
-		elsif (damageRise < .1) damageRiseDisplay = sprintf ("%1.1f",damageRise * 100);
-						
-						
-		var msg = "Damage added: " ~ damageRiseDisplay ~ "% - Total damage: " ~ round ( damageValue * 100 ) ~ "% for " ~  string.trim(callsign);
-		debprint ("Bombable: " ~ msg ~ " (" ~ myNodeName ~ ", " ~ origDamageRise ~")" );
-						
+	if ( damageValue > prevDamageValue ) 
+	{
 		# Always display the message if a weapon hit or large damageRise. Otherwise
 		# only display about 1 in 20 of the messages.
-		# If we don't do this the small 0.4 damageRises from fires overwhelm the message area
+		# If we don't do this the small damageRises from fires overwhelm the message area
 		# and we don't know what's going on.
-		if (damagetype == "weapon" or damageRise > 4 or rand() < .05) targetStatusPopupTip (msg, 20);
+		if (damagetype == "weapon" or damageRise > 0.1 or rand() < .05)
+		{
+			damageRiseDisplay = round( damageRise * 100 );
+			if (damageRise < .01) damageRiseDisplay = sprintf ("%1.2f",damageRise * 100);
+			elsif (damageRise < .1) damageRiseDisplay = sprintf ("%1.1f",damageRise * 100);
+							
+							
+			var msg = "Damage added: " ~ damageRiseDisplay ~ "% - Total damage: " ~ round ( damageValue * 100 ) ~ "% for " ~  string.trim(callsign) ~ ", skill level " ~ math.ceil(10 * weaponSkill);
+			debprint ("Bombable: " ~ msg ~ " (" ~ myNodeName ~ ", " ~ origDamageRise ~")" );
+							
+			targetStatusPopupTip (msg, 20);
 		}
+	}
 
 					
 					
@@ -9339,6 +9345,7 @@ var rotate_round_z_axis = func (vector, gamma) {
 # debug.dump(gunDir, raiseGun, turnTurret, rollTank, pitchTank, setDir);
 
 ########################## rotate_zxy ###########################
+# from http://www.songho.ca/opengl/gl_anglestoaxes.html
 
 var rotate_zxy = func (vector, alpha, beta, gamma) {
 	var alpha_rad = alpha * D2R;
@@ -9381,6 +9388,7 @@ var rotate_zxy = func (vector, alpha, beta, gamma) {
 }
 
 ########################## rotate_yxz ###########################
+# from http://www.songho.ca/opengl/gl_anglestoaxes.html
 
 var rotate_yxz = func (vector, alpha, beta, gamma) {
 	var alpha_rad = alpha * D2R;
@@ -9439,7 +9447,7 @@ var setWeaponSkill = func(myNodeName)
 	var weaponPower = getprop ("" ~bomb_menu_pp~ "ai-weapon-power");
 	if (weaponPower == nil) weaponPower = 0.2;
 	# Set weaponSkill, 0 to 1, with average varying according to setting on Bombable weapon power-skill menu
-	var weaponSkill = math.pow (rand(), 0.5 + weaponPower) ;
+	var weaponSkill = 0.1 + 0.9 * math.pow (rand(), 0.5 + weaponPower) ;
 	setprop(""~myNodeName~"/bombable/weapons-pilot-ability", weaponSkill);
 }
 ########################## END ###########################
