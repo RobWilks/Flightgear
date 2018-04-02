@@ -1505,13 +1505,11 @@ var resetBombableDamageFuelWeapons = func (myNodeName) {
 					
 			#take the opportunity to reset the pilot's abilities, giving them
 			# a new personality when they come back alive
-			pilotAbility = math.pow (rand(), 1.5) ;
+			var pilotAbility = math.pow (rand(), 1.5) ;
 			if (rand() > .5) pilotAbility = -pilotAbility;
 			setprop(""~myNodeName~"/bombable/attack-pilot-ability", pilotAbility);
-			# Set an individual pilot weapons ability, -1 to 1, with 0 being average
-			pilotAbility = math.pow (rand(), 1.5) ;
-			if (rand() > .5) pilotAbility = -pilotAbility;
-			setprop(""~myNodeName~"/bombable/weapons-pilot-ability", pilotAbility);
+
+			setWeaponSkill (myNodeName);							
 
 					
 			if (myNodeName != "") {
@@ -2072,23 +2070,23 @@ var init_bombable_dialog_listeners = func {
 		var weap_pow = ""~bomb_menu_pp~"ai-weapon-power-combo";
 		var val = getprop(weap_pow);
 				
-		if (val == "More effective") {
-			setprop (bomb_menu_pp~"ai-weapon-power", 15);
+		if (val == "Much more effective") {
+			setprop (bomb_menu_pp~"ai-weapon-power", 1);
 			setprop (bomb_menu_pp~"ai-aircraft-weapons-enabled", 1);
-			} elsif (val == "Much more effective") {
-			setprop (bomb_menu_pp~"ai-weapon-power", 22.5);
+			} elsif (val == "More effective") {
+			setprop (bomb_menu_pp~"ai-weapon-power", .8);
 			setprop (bomb_menu_pp~"ai-aircraft-weapons-enabled", 1);
 			} elsif (val == "Less effective") {
-			setprop (bomb_menu_pp~"ai-weapon-power", 7.5);
+			setprop (bomb_menu_pp~"ai-weapon-power", .6);
 			setprop (bomb_menu_pp~"ai-aircraft-weapons-enabled", 1);
 			} elsif (val == "Normal") {
-			setprop (bomb_menu_pp~"ai-weapon-power", 11);
+			setprop (bomb_menu_pp~"ai-weapon-power", .4);
 			setprop (bomb_menu_pp~"ai-aircraft-weapons-enabled", 1);
 			} elsif (val == "Disabled (they can't shoot at you)") {
 			setprop (bomb_menu_pp~"ai-weapon-power", 0);
 			setprop (bomb_menu_pp~"ai-aircraft-weapons-enabled", 0);
 			} else { #value "Much less effective" is the default
-			setprop (bomb_menu_pp~"ai-weapon-power", 5);
+			setprop (bomb_menu_pp~"ai-weapon-power", .2);
 			setprop (bomb_menu_pp~"ai-aircraft-weapons-enabled", 1);
 		}
 				
@@ -5492,12 +5490,12 @@ var mp_send_damage = func (myNodeName = "", damageRise = 0 ) {
 ###################### fireAIWeapon_stop ######################
 # fireAIWeapon_stop: turns off one of the triggers in AI/Aircraft/Fire-Particles/projectile-tracer.xml
 #
-var fireAIWeapon_stop = func (id, myNodeName = "", elem = "") {
+var fireAIWeapon_stop = func (id, myNodeName, elem, count) {
 
 	var loopid = getprop(""~myNodeName~"/bombable/loopids/fireAIWeapon/" ~ elem ~ "-loopid");
 	if (loopid != id) return;
 	#if (myNodeName == "" or myNodeName == "environment") myNodeName = "/environment";
-	setprop(myNodeName ~ "/" ~ elem ~ "/ai-weapon-firing", 0);
+	setprop("bombable/fire-particles/projectile-tracer[" ~ count ~ "]/ai-weapon-firing", 0); 
 
 }
 
@@ -5506,13 +5504,15 @@ var fireAIWeapon_stop = func (id, myNodeName = "", elem = "") {
 # Using the loopids ensures that it stays on for one full second after the last time it was
 # turned on.
 #
-var fireAIWeapon = func (time_sec = 1, myNodeName = "", elem = "") {
+var fireAIWeapon = func (time_sec, myNodeName, elem, count) {
 
 	#if (myNodeName == "" or myNodeName == "environment") myNodeName = "/environment";
-	setprop(myNodeName ~ "/" ~ elem ~ "/ai-weapon-firing", 1);
+	var isFiring = getprop("bombable/fire-particles/projectile-tracer[" ~ count ~ "]/ai-weapon-firing");
+	if (isFiring != nil) isFiring = 0;
+	if (isFiring == 1) return;
+	setprop("bombable/fire-particles/projectile-tracer[" ~ count ~ "]/ai-weapon-firing", 1); 
 	var loopid = inc_loopid(myNodeName, "fireAIWeapon/" ~ elem);
-	settimer ( func { fireAIWeapon_stop(loopid, myNodeName, elem)}, time_sec);
-
+	settimer ( func { fireAIWeapon_stop(loopid, myNodeName, elem, count)}, time_sec);
 }
 
 ###################### vertAngle_deg #########################
@@ -5585,7 +5585,7 @@ var vertAngle_deg = func (geocoord1, geocoord2) {
 			
 
 var checkAim = func (myNodeName1 = "", myNodeName2 = "",
-targetSize_m = nil,  aiAimFudgeFactor = 1, maxDistance_m = 100, weaponAngle_deg = nil, weaponOffset_m = nil, damageValue = 0 ) {
+targetSize_m = nil,  weaponSkill = 1, maxDistance_m = 100, weaponAngle_deg = nil, weaponOffset_m = nil, damageValue = 0 ) {
 	#Note weaponAngle is a hash with components heading and elevation
 	#Function called only by main weapons_loop
 	#rjw modified to return a hash
@@ -5745,7 +5745,7 @@ targetSize_m = nil,  aiAimFudgeFactor = 1, maxDistance_m = 100, weaponAngle_deg 
 	if (dotProduct > 0.5)
 	{
 		# only calculate pHit if target direction within 60 degrees of weapon direction
-		var targetOffset_rad = math.acos(dotProduct); # angular offset from weapon direction - cosine is even function therefore expect > 0	
+		var targetOffset_rad = math.acos(dotProduct); # angular offset from weapon direction
 		var targetSize_rad = math.atan2(math.sqrt(targetSize_m.horz * targetSize_m.vert) / 2 , distance_m);	
 		# geometric mean of key dimensions and half angle
 
@@ -5755,15 +5755,15 @@ targetSize_m = nil,  aiAimFudgeFactor = 1, maxDistance_m = 100, weaponAngle_deg 
 		debprint (sprintf("Bombable: newDir[%6.1f,%6.1f,%6.1f] dist=%6.0f", newDir[0], newDir[1], newDir[2], distance_m));
 		debprint (sprintf("Bombable: weapDir[%6.1f,%6.1f,%6.1f]", weapDir[0], weapDir[1], weapDir[2]));
 
+		# calculate pHit as a joint probability distribution: the angular range of fire of the weapon and the angular range subtended by the target
+		# Assume:  pTargetHit = 1 within the angle range it subtends at the weapon
+		# Assume:  angular distribution of bullets from weapon is a normal distribution centred on weapon and of SD 5 degrees i.e. 1/12 radian
+		# could approximate normal distribution using central limit https://en.wikipedia.org/wiki/Normal_distribution#Generating_values_from_normal_distribution and use MonteCarlo
+		# instead use error function to calculate integral of normal distribution
+
 		var weapSDev = 1/12; # spray vs sharpshooter
 		if ( targetSize_rad > targetOffset_rad ) 
-		{		
-			# calculate pHit as the joint probability distribution of the weapon angular range of fire and the angular range of te target
-			# Assume:  pTargetHit = 1 within the angle range it subtends at the weapon
-			# and pFireAtAngle = normal distribution centred on weapon and of SD = 5 degrees or 1/12 radian
-			# could approximate normal distribution using central limit https://en.wikipedia.org/wiki/Normal_distribution#Generating_values_from_normal_distribution and use MonteCarlo
-			# instead use error function to calculate integral of normal distribution
-			
+		{				
 			result.pHit = erf((targetSize_rad + targetOffset_rad) / weapSDev) +  erf((targetSize_rad - targetOffset_rad) / weapSDev);
 		}
 		else
@@ -5773,7 +5773,7 @@ targetSize_m = nil,  aiAimFudgeFactor = 1, maxDistance_m = 100, weaponAngle_deg 
 		debprint ("Bombable: hit ", myNodeName1,
 		" result.pHit = ", result.pHit);
 	}
-	if ( rand() < 1) {
+	if ( rand() < weaponSkill) {
 		# ensure that newDir is in range
 		var newElev = math.asin(newDir[2]) * R2D;
 		var newHeading = math.atan2(newDir[0], newDir[1]) * R2D;
@@ -5835,8 +5835,8 @@ var weapons_loop = func (id, myNodeName1 = "", myNodeName2 = "", targetSize_m = 
 	id == loopid or return;
 	#debprint ("aim-timer");
 				
-	var loopLength = .5;
-	settimer (  func { weapons_loop (id, myNodeName1, myNodeName2, targetSize_m )}, loopLength * (1 + rand()/8));
+	var loopTime = .5;
+	settimer (  func { weapons_loop (id, myNodeName1, myNodeName2, targetSize_m )}, loopTime * (1 + rand()/8));
 
 	#debprint ("weapons_loop starting");
 
@@ -5852,90 +5852,90 @@ var weapons_loop = func (id, myNodeName1 = "", myNodeName2 = "", targetSize_m = 
 	#If damage = 100% we're going to assume the weapons won't work.
 	var damageValue = getprop(""~myNodeName1~"/bombable/attributes/damage");
 	if (damageValue == 1) return;
+	
+	# varies between 0 and 22.5
+	var weaponPower = getprop ("" ~bomb_menu_pp~ "ai-weapon-power");
+	if (weaponPower == nil or weaponPower == 0) weaponPower = 0.2;
 				
-	var aiAimFudgeFactor = getprop ("" ~bomb_menu_pp~ "ai-weapon-power"); # rjw variable not used.  Delete?
-	if (aiAimFudgeFactor == nil or aiAimFudgeFactor == 0) aiAimFudgeFactor = 11.5;
+	# weaponSkill varies 0-1, average 0.4
+	var weaponSkill = getprop(""~myNodeName1~"/bombable/weapons-pilot-ability");
+	if (weaponSkill == nil) weaponSkill = 0;
 				
-	#pilotSkill varies -1 to 1, 0 = average
-	var pilotSkill = getprop(""~myNodeName1~"/bombable/weapons-pilot-ability");
-	if (pilotSkill == nil) pilotSkill = 0;
+	# use of AI power and skill
+	# weaponPower determines the probability of damage if there is a hit
+	# weaponSkill determines how frequently weapon aim is updated
+	# currently both are attributes of the AI model, not the weapon
+	
+	
+	var count = loopid * 10;					
 				
-	aiAimFudgeFactor +=   pilotSkill * 9;
-	if (aiAimFudgeFactor < 0) aiAimFudgeFactor = 0;
-				
-				
-	#debprint ("aim-each weapon");
-	foreach (elem;keys (weaps) ) {
-
-		#   elem.maxDamageDistance_m,
-		#           elem.maxDamage_percent, elem.weaponAngle_deg,
-		#           elem.weaponOffset_m
-		#
-		#
-		#
+	foreach (elem;keys (weaps) ) 
+	{
 		mDD_m = weaps[elem].maxDamageDistance_m;
 		if (mDD_m == nil or mDD_m == 0) mDD_m = 100;
 		#debprint ("Bombable: Weapons_loop ", myNodeName1, " ", weaps[elem].maxDamageDistance_m);
 
 		#can't shoot if no ammo left!
-		if ( ! stores.checkWeaponsReadiness ( myNodeName1, elem ) ) continue;
-
-					
-		var aim = checkAim (myNodeName1, myNodeName2, 
-			targetSize_m, aiAimFudgeFactor,
-			weaps[elem].maxDamageDistance_m, 
-			weaps[elem].weaponAngle_deg,
-			weaps[elem].weaponOffset_m, 
-			damageValue 
-		);
-
-		if (aim.weaponDirModelFrame[2] != -1) attributes[myNodeName1].weapons[elem].aim = aim;
-		# stored for use in weaponsOrientationPositionUpdate_loop
-		# -1 is a flag to indicate whether new aim data are available
-
-		
-		
-		
-		#debprint ("aim-check weapon");
-		if (aim.pHit != 0) 
+		if ( stores.checkWeaponsReadiness ( myNodeName1, elem )) 
+		# Could also check weaponsSkill here. However skill of gunner not simply correlated with how frequently they fire
 		{
-			debprint ("Bombable: AI aircraft aimed at main aircraft, ",
-			myNodeName1, " ", weaps[elem].name, " ", elem,
-			" accuracy ", round(aim.pHit * 100 ),"%");
+			var aim = checkAim (myNodeName1, myNodeName2, 
+				targetSize_m, aiAimFudgeFactor,
+				weaps[elem].maxDamageDistance_m, 
+				weaps[elem].weaponAngle_deg,
+				weaps[elem].weaponOffset_m, 
+				damageValue 
+			);
+
+			if (aim.weaponDirModelFrame[2] != -1) attributes[myNodeName1].weapons[elem].aim = aim;
+			# stored for use in weaponsOrientationPositionUpdate_loop
+			# -1 is a flag to indicate whether new aim data are available
+
 			
-			#fire the weapons for 5 seconds/visual effect
-			#we start do this whenever we're within maxDistance & aimed approximately in the right direction
-			fireAIWeapon(5, myNodeName1, elem);
+			
+			
+			#debprint ("aim-check weapon");
+			if (aim.pHit != 0) 
+			{
+				debprint ("Bombable: AI aircraft aimed at main aircraft, ",
+				myNodeName1, " ", weaps[elem].name, " ", elem,
+				" accuracy ", round(aim.pHit * 100 ),"%");
+				
+				#fire weapons for visual effect
+				#we start do this whenever we're within maxDistance & aimed approximately in the right direction
+				fireAIWeapon(loopTime * 3, myNodeName1, elem, count);
 
 
-						
+							
 
-			#reduce ammo count; bad pilots waste more ammo; pilotskill ranges -1 to 1
-			stores.reduceWeaponsCount (myNodeName1, elem, loopLength * (3-pilotSkill));
+				#reduce ammo count; bad pilots waste more ammo; weaponSkill ranges -1 to 1
+				stores.reduceWeaponsCount (myNodeName1, elem, loopTime * (2 + 2 * weaponSkill));
 
-						
-			# As with our regular damage, it has a pHit% change of registering a hit
-			# The amount of damage also increases with pHit.
-			# There is a smaller chance of doing a fairly high level of damage (up to 3X the regular max),
-			# and the better/closer the hit, the greater chance of doing that significant damage.
-			var r = rand();
-			if (r < aim.pHit) {
+							
+				# As with our regular damage, it has a pHit% change of registering a hit
+				# The amount of damage also increases with pHit.
+				# There is a smaller chance of doing a fairly high level of damage (up to 3X the regular max),
+				# and the better/closer the hit, the greater chance of doing that significant damage.
+				var r = rand();
+				if (r < aim.pHit) {
 
-				var ai_callsign = getCallSign (myNodeName1);
-							
-				var damageAdd = aim.pHit * weaps[elem].maxDamage_percent / 100;
-							
-				#Some chance of doing more damage (and a higher chance the closer the hit)
-				if (r < aim.pHit / 5 ) damageAdd  *=  3 * rand();
-							
-				weaponName = weaps[elem].name;
-				if (weaponName == nil) weaponName = "Main Weapon";
-							
-				mainAC_add_damage ( damageAdd, 0, "weapons",
-				"Hit from " ~ ai_callsign ~ " - " ~ weaponName ~"!");
-							
+					var ai_callsign = getCallSign (myNodeName1);
+								
+					var damageAdd = aim.pHit * weaponPower;
+					if (damageAdd > weaps[elem].maxDamage_percent / 100) damageAdd = weaps[elem].maxDamage_percent / 100;
+								
+					# Some chance of doing more damage (and a higher chance the closer the hit)
+					# if (r < aim.pHit / 5 ) damageAdd  *=  3 * rand(); # rjw omitted
+								
+					weaponName = weaps[elem].name;
+					if (weaponName == nil) weaponName = "Main Weapon";
+								
+					mainAC_add_damage ( damageAdd, 0, "weapons",
+					"Hit from " ~ ai_callsign ~ " - " ~ weaponName ~"!");								
+				}
 			}
 		}
+		count += 1;
 	}
 }
 
@@ -8429,8 +8429,10 @@ var weaponsOrientationPositionUpdate_loop = func (id, myNodeName) {
 	var loopid = getprop(""~myNodeName~"/bombable/loopids/weaponsOrientation-loopid");
 	debprint ("weapsOrientatationPos_loop:  id= ",id," loopid= ",loopid);
 	id == loopid or return;
-						
-	settimer (func {weaponsOrientationPositionUpdate_loop (id, myNodeName)}, 1/6 + rand()/50);
+	
+	# weaponSkill varies 0-1, average 0.4
+	var weaponSkill = getprop(""~myNodeName~"/bombable/weapons-pilot-ability"); 
+	settimer (func {weaponsOrientationPositionUpdate_loop (id, myNodeName)}, 1/(2 + 4 * weaponSkill));
 	
 						
 	# no need to do this if any of these are turned off
@@ -8451,27 +8453,18 @@ var weaponsOrientationPositionUpdate_loop = func (id, myNodeName) {
 	# loop to make weapon and projectile point in the direction of the target
 	# the direction is calculated in the checkAim loop
 
-	# there is a separate projectile model for each weapon enumerated in the order of the models listed in the scenario and then of the weapons listed in the model
-	# count is the index to the projectile model
-	var count = loopid * 10; # up to 10 weapons per model
-	foreach (elem;keys (weaps) ) {
-		setprop("bombable/fire-particles/projectile-tracer[" ~ count ~ "]/ai-weapon-firing", 
-		getprop(myNodeName ~ "/" ~elem~ "/ai-weapon-firing"));
-		count += 1;
-	}
 						
 	# loop to point weapon in the direction of the target
 	# and then the projectile in the direction of the weapon
 
-	var aim = weaps[elem].aim;
-	# stored in weapons_loop 
-	
-	if (aim == nil) return;
-	# skip if no data
 	
 	var weapCount = 0;
 	foreach (elem;keys (weaps) ) {
 	
+		var aim = weaps[elem].aim;
+		# stored in weapons_loop 
+
+		
 		# first, point the weapon
 		var newElev = math.asin(aim.weaponDirModelFrame[2]) * R2D;
 		var newHeading = math.atan2(aim.weaponDirModelFrame[0], aim.weaponDirModelFrame[1]) * R2D;
@@ -8524,7 +8517,8 @@ var weaponsTrigger_listener = func (changedNode,listenedNode){
 	# trigger = 1 turns on all weapons for all AI/Multiplayer aircraft.
 	# Making it turn on/off individually per weapon per aircraft is going to be a
 	# fair-sized job.
-						
+	
+	# rjw TODO include MP ACs in the stack of projectile tracer models 
 	if (!getprop(bomb_menu_pp~"bombable-enabled") ) return 0;
 	# debprint ("Bombable: WeaponsTrigger_listener: ",changedNode.getValue(), " ", changedNode.getPath());
 	if ( changedNode.getValue()) {
@@ -8535,6 +8529,7 @@ var weaponsTrigger_listener = func (changedNode,listenedNode){
 
 }
 
+############################## weapons_init ##############################
 var weapons_init = func (myNodeName = "") {
 
 	debprint ("Bombable: Delaying weapons_init . . . ", myNodeName);
@@ -8613,7 +8608,7 @@ var weapons_init_func = func(myNodeName) {
 			);
 		setprop ("/bombable/fire-particles/projectile-tracer[" ~ count ~ "]/projectile-startsize", weaps[elem].weaponSize_m.start);
 		setprop ("/bombable/fire-particles/projectile-tracer[" ~ count ~ "]/projectile-endsize", weaps[elem].weaponSize_m.end);
-		setprop(myNodeName ~ "/" ~ elem ~ "/ai-weapon-firing", 0);
+		setprop("bombable/fire-particles/projectile-tracer[" ~ count ~ "]/ai-weapon-firing", 0); 
 		attributes[myNodeName].weapons[elem].aim = {pHit:0, weaponDirModelFrame:[0,0,-1], weaponOffsetRefFrame:[0,0,0], weaponDirRefFrame:[0,0,-1]}; 
 		#used to translate weapon position and orientation from frame of reference of model to the frame of reference of the scene
 		debprint ("Weaps: ", myNodeName, " initialized ", count);
@@ -8664,13 +8659,8 @@ var weapons_init_func = func(myNodeName) {
 		# specific damage vulnerability etc.
 
 		var mainAircraftSize_m = { vert : 4, horz : 8 };
-							
-		# Set an individual pilot weapons ability, -1 to 1, with 0 being average
-		pilotAbility = math.pow (rand(), 1.5) ;
-		if (rand() > .5) pilotAbility = -pilotAbility;
-		setprop(""~myNodeName~"/bombable/weapons-pilot-ability", pilotAbility);
-							
-		#settimer (  func { weapons_loop (myNodeName, "", vertAngle_deg, horzAngle_deg, atts.maxDamageDistance_m, atts.maxDamage_percent)}, 5);
+		
+		setWeaponSkill (myNodeName);							
 							
 		#we increment this each time we are inited or de-inited
 		#when the loopid is changed it kills the timer loops that have that id
@@ -9434,14 +9424,22 @@ var rotate_yxz = func (vector, alpha, beta, gamma) {
 ########################## erf ###########################
 var erf = func (xVal) 
 {
-	# require xVal positive
+	# require xVal positive.  Calculates for halfspace, 0 to xVal
 	# from https://en.wikipedia.org/wiki/Error_function
 
-	var expVal = exp(-xVal * xVal);
+	var expVal = math.exp(-xVal * xVal);
 	var result = math.sqrt(1 - expVal);
 	result *= (.5 + 0.08744939 * expVal - 0.02404858 * expVal * expVal);
 	return(result);
 }
-
-
+########################## setWeaponSkill ###########################
+	# called by resetBombableDamageFuelWeapons and weapons_init_func
+var setWeaponSkill = func(myNodeName)
+{
+	var weaponPower = getprop ("" ~bomb_menu_pp~ "ai-weapon-power");
+	if (weaponPower == nil) weaponPower = 0.2;
+	# Set weaponSkill, 0 to 1, with average varying according to setting on Bombable weapon power-skill menu
+	var weaponSkill = math.pow (rand(), 0.5 + weaponPower) ;
+	setprop(""~myNodeName~"/bombable/weapons-pilot-ability", weaponSkill);
+}
 ########################## END ###########################
