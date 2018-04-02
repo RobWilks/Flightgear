@@ -5749,11 +5749,11 @@ targetSize_m = nil,  weaponSkill = 1, maxDistance_m = 100, weaponAngle_deg = nil
 		var targetSize_rad = math.atan2(math.sqrt(targetSize_m.horz * targetSize_m.vert) / 2 , distance_m);	
 		# geometric mean of key dimensions and half angle
 
-		debprint ("Bombable: checkAim for ", myNodeName1,
-			" targetOffset_rad = ", targetOffset_rad,
-			" targetSize_rad = ", targetSize_rad);
-		debprint (sprintf("Bombable: newDir[%6.1f,%6.1f,%6.1f] dist=%6.0f", newDir[0], newDir[1], newDir[2], distance_m));
-		debprint (sprintf("Bombable: weapDir[%6.1f,%6.1f,%6.1f]", weapDir[0], weapDir[1], weapDir[2]));
+		# debprint ("Bombable: checkAim for ", myNodeName1,
+			# " targetOffset_rad = ", targetOffset_rad,
+			# " targetSize_rad = ", targetSize_rad);
+		# debprint (sprintf("Bombable: newDir[%6.1f,%6.1f,%6.1f] dist=%6.0f", newDir[0], newDir[1], newDir[2], distance_m));
+		# debprint (sprintf("Bombable: weapDir[%6.1f,%6.1f,%6.1f]", weapDir[0], weapDir[1], weapDir[2]));
 
 		# calculate pHit as a joint probability distribution: the angular range of fire of the weapon and the angular range subtended by the target
 		# Assume:  pTargetHit = 1 within the angle range it subtends at the weapon
@@ -5853,7 +5853,7 @@ var weapons_loop = func (id, myNodeName1 = "", myNodeName2 = "", targetSize_m = 
 	var damageValue = getprop(""~myNodeName1~"/bombable/attributes/damage");
 	if (damageValue == 1) return;
 	
-	# varies between 0 and 22.5
+	# varies between 0 and 1
 	var weaponPower = getprop ("" ~bomb_menu_pp~ "ai-weapon-power");
 	if (weaponPower == nil or weaponPower == 0) weaponPower = 0.2;
 				
@@ -5873,14 +5873,13 @@ var weapons_loop = func (id, myNodeName1 = "", myNodeName2 = "", targetSize_m = 
 	{
 		mDD_m = weaps[elem].maxDamageDistance_m;
 		if (mDD_m == nil or mDD_m == 0) mDD_m = 100;
-		#debprint ("Bombable: Weapons_loop ", myNodeName1, " ", weaps[elem].maxDamageDistance_m);
 
 		#can't shoot if no ammo left!
 		if ( stores.checkWeaponsReadiness ( myNodeName1, elem )) 
-		# Could also check weaponsSkill here. However skill of gunner not simply correlated with how frequently they fire
+		# Could also check weaponSkill here. However skill of gunner not simply correlated with how frequently they fire
 		{
 			var aim = checkAim (myNodeName1, myNodeName2, 
-				targetSize_m, aiAimFudgeFactor,
+				targetSize_m, weaponSkill,
 				weaps[elem].maxDamageDistance_m, 
 				weaps[elem].weaponAngle_deg,
 				weaps[elem].weaponOffset_m, 
@@ -5891,18 +5890,19 @@ var weapons_loop = func (id, myNodeName1 = "", myNodeName2 = "", targetSize_m = 
 			# stored for use in weaponsOrientationPositionUpdate_loop
 			# -1 is a flag to indicate whether new aim data are available
 
+			# debprint ("Bombable: Weapons_loop ", myNodeName1, " weaponSkill = ",weaponSkill, " weaponPower = ", weaponPower, " aim.pHit = ", aim.pHit);
 			
 			
 			
 			#debprint ("aim-check weapon");
-			if (aim.pHit != 0) 
+			if (aim.pHit > 0.001) 
 			{
 				debprint ("Bombable: AI aircraft aimed at main aircraft, ",
 				myNodeName1, " ", weaps[elem].name, " ", elem,
 				" accuracy ", round(aim.pHit * 100 ),"%");
 				
 				#fire weapons for visual effect
-				#we start do this whenever we're within maxDistance & aimed approximately in the right direction
+				#whenever we're within maxDistance & aimed approximately in the right direction
 				fireAIWeapon(loopTime * 3, myNodeName1, elem, count);
 
 
@@ -8427,10 +8427,10 @@ var weaponsOrientationPositionUpdate_loop = func (id, myNodeName) {
 	#var myNodeName = myNode.getPath();
 						
 	var loopid = getprop(""~myNodeName~"/bombable/loopids/weaponsOrientation-loopid");
-	debprint ("weapsOrientatationPos_loop:  id= ",id," loopid= ",loopid);
+	# debprint ("weapsOrientatationPos_loop:  id= ",id," loopid= ",loopid);
 	id == loopid or return;
 	
-	# weaponSkill varies 0-1, average 0.4
+	# weaponSkill varies 0-1, average determined by power-skill combo on Bombable menu
 	var weaponSkill = getprop(""~myNodeName~"/bombable/weapons-pilot-ability"); 
 	settimer (func {weaponsOrientationPositionUpdate_loop (id, myNodeName)}, 1/(2 + 4 * weaponSkill));
 	
@@ -8489,12 +8489,12 @@ var weaponsOrientationPositionUpdate_loop = func (id, myNodeName) {
 
 		
 		weapCount += 1;
-		debprint("weaponsOrientationPositionUpdate_loop ", elem, 
-			"newElev = ", newElev, 
-			"newHeading = ", newHeading, 
-			"true-heading-deg = ", math.atan2(aim.weaponDirRefFrame[0], aim.weaponDirRefFrame[1]) * R2D,
-			"pitch-deg = ", aim.weaponDirRefFrame[2] * R2D			
-		);
+		# debprint("weaponsOrientationPositionUpdate_loop ", elem, 
+			# "newElev = ", newElev, 
+			# "newHeading = ", newHeading, 
+			# "true-heading-deg = ", math.atan2(aim.weaponDirRefFrame[0], aim.weaponDirRefFrame[1]) * R2D,
+			# "pitch-deg = ", aim.weaponDirRefFrame[2] * R2D			
+		# );
 	}
 }
 
