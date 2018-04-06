@@ -2849,7 +2849,7 @@ var ground_loop = func( id, myNodeName ) {
 		{
 			setprop (""~myNodeName~"/position/altitude-ft", alt_ft ); # ships and groundvehicles are set to altitude of ground in their initial location
 			setprop (""~myNodeName~"/controls/flight/target-alt",  alt_ft);
-			alts.targetAGL_ft = 0;  # allows aircraft to fly at constant height AGL
+			alts.targetAGL_ft = 0; 
 			alts.initialAlt_ft = alt_ft;  # rjw mod to check for grounded ships
 		}
 		else
@@ -2857,7 +2857,7 @@ var ground_loop = func( id, myNodeName ) {
 			setprop (""~myNodeName~"/position/altitude-ft", initial_altitude_ft );
 			setprop (""~myNodeName~"/controls/flight/target-alt",  initial_altitude_ft);
 			alts.targetAGL_ft = target_alt_AGL_ft;  # allows aircraft to fly at constant height AGL
-			alts.initialAlt_ft = initial_altitude_ft;  # rjw mod to check for grounded ships
+			alts.initialAlt_ft = initial_altitude_ft; 
 		}
 		vels.speedOnFlat = speed_kt; # rjw used for groundVehicles which slow down and speed up according to gradient; not used
 		alts.initialized = 1;
@@ -5627,7 +5627,6 @@ targetSize_m = nil,  weaponSkill = 1, maxDistance_m = 100, weaponAngle_deg = nil
 	if (weaponOffset_m == nil ){ weaponOffset_m = {x:0,y:0,z:0}; }
 				
 	
-
 				
 	#the following plus deltaAlt_m make a < vector > where impactor is at < 0,0,0 > 
 	#and target object is at < deltaX,deltaY,deltaAlt > in relation to it.
@@ -5641,12 +5640,6 @@ targetSize_m = nil,  weaponSkill = 1, maxDistance_m = 100, weaponAngle_deg = nil
 	var targetDirRefFrame = [deltaX_m, deltaY_m, deltaAlt_m];
 	var distance_m = vectorModulus (targetDirRefFrame);
 				
-				
-	#offset the location of the weapon by the weaponOffset_m amount:
-	# Ok, this is slow, we're disabling it for now
-	#var geocoord1 = geocoord1.set_xyz(geocoord1.x()+ weaponOffset_m.x, geocoord1.y()+ weaponOffset_m.y, geocoord1.z()+ weaponOffset_m.z);
-				
-	#var distance_m = geocoord1.direct_distance_to(geocoord2);
 				
 	# debprint ("Bombable: AI weapons, distance: ", distance_m, " for ", myNodeName1);
 				
@@ -5695,6 +5688,21 @@ targetSize_m = nil,  weaponSkill = 1, maxDistance_m = 100, weaponAngle_deg = nil
 		return (result);
 	}
 
+	# check line of sight by calculating the height above ground of the bullet trajectory at the mid point between AI and main AC
+	var mid_lat_deg = (alat_deg + mlat_deg) / 2;
+	var mid_lon_deg = (alon_deg + mlon_deg) / 2;
+	var mid_Alt_m = (aAlt_m + mAlt_m) / 2;
+	var GeoCoord = geo.Coord.new();
+	GeoCoord.set_latlon(mid_lat_deg, mid_lon_deg);
+	var ground_Alt_m = elev (GeoCoord.lat(), GeoCoord.lon()) * FT2M; 
+	if (ground_Alt_m > mid_Alt_m) 
+	{
+		debprint ("Bombable: checkLoS for ",  myNodeName1, "deltaAlt at mid point = ", ground_Alt_m - mid_Alt_m);
+		result.pHit = -1; #flag for no line of sight
+		return(result);
+	}
+	
+	
 	
 	# calculate targetDirRefFrame, the displacement vector from node1 (AI) to node2 (mainAC) in a lon-lat-alt (x-y-z) frame of reference
 	# normalise this vector and rotate it to the frame of reference of AI object to give newDir
@@ -5714,12 +5722,16 @@ targetSize_m = nil,  weaponSkill = 1, maxDistance_m = 100, weaponAngle_deg = nil
 	# # assume roll increases clockwise in the direction of travel
 	# newDir = rotate_round_y_axis(newDir, -roll_deg);
 	
-	# assume roll increases clockwise in the direction of travel
-	var newDir = rotate_yxz(targetDirRefFrame, pitch_deg, -roll_deg, -myHeading_deg);
+	# roll increases clockwise in the direction of travel
+	var newDir = rotate_yxz(targetDirRefFrame, pitch_deg, roll_deg, -myHeading_deg);
 	
 	#translate to the frame of reference of the weapon
+	#in 3D model co-ords the x-axis points 180 deg from direction of travel i.e. backwards
+	#the y-axis points at 90 deg to the direction ot travel i.e. to the right
+	#weaponOffset is given in model co-ords
+	
 	newDir[0] -= weaponOffset_m.y;
-	newDir[1] -= weaponOffset_m.x;
+	newDir[1] -= -weaponOffset_m.x;
 	newDir[2] -= weaponOffset_m.z;
 	
 	#recalculate distance
@@ -5798,17 +5810,19 @@ targetSize_m = nil,  weaponSkill = 1, maxDistance_m = 100, weaponAngle_deg = nil
 			];
 		}
 		
+		
+		
 		# change aim of weapon
 		result.weaponDirModelFrame = newDir;
 		result.weaponOffsetRefFrame = rotate_zxy([
 			weaponOffset_m.y,
-			weaponOffset_m.x,
+			-weaponOffset_m.x,
 			weaponOffset_m.z
-		], -pitch_deg, roll_deg, myHeading_deg);
-		result.weaponDirRefFrame = rotate_zxy(newDir, -pitch_deg, roll_deg, myHeading_deg);
+		], -pitch_deg, -roll_deg, myHeading_deg);
+		result.weaponDirRefFrame = rotate_zxy(newDir, -pitch_deg, -roll_deg, myHeading_deg);
 		
 
-		debprint ("Bombable: checkAim for ", myNodeName1,
+		debprint ("Bombable: changed aim for ", myNodeName1,
 		" result.weaponDirRefFrame = ", result.weaponDirRefFrame);
 	}
 	return (result); 	
@@ -5894,7 +5908,8 @@ var weapons_loop = func (id, myNodeName1 = "", myNodeName2 = "", targetSize_m = 
 
 			# debprint ("Bombable: Weapons_loop ", myNodeName1, " weaponSkill = ",weaponSkill, " weaponPower = ", weaponPower, " aim.pHit = ", aim.pHit);
 			
-			
+			if (aim.pHit == -1) break; #flag for no line of sight; assume none of the gunners can see the target so abort loop
+
 			
 			#debprint ("aim-check weapon");
 			if (aim.pHit > (0.01 * weaponSkill))
@@ -5906,12 +5921,12 @@ var weapons_loop = func (id, myNodeName1 = "", myNodeName2 = "", targetSize_m = 
 				
 				#fire weapons for visual effect
 				#whenever we're within maxDistance & aimed approximately in the right direction
-				fireAIWeapon(loopTime * 3, myNodeName1, elem, count);
+				fireAIWeapon(loopTime, myNodeName1, elem, count);
 
 
 							
 
-				#reduce ammo count; bad pilots waste more ammo; weaponSkill ranges -1 to 1
+				#reduce ammo count; bad pilots waste more ammo; weaponSkill ranges 0 to 1
 				stores.reduceWeaponsCount (myNodeName1, elem, loopTime * (2 + 2 * weaponSkill));
 
 							
@@ -5924,7 +5939,7 @@ var weapons_loop = func (id, myNodeName1 = "", myNodeName2 = "", targetSize_m = 
 
 					var ai_callsign = getCallSign (myNodeName1);
 								
-					var damageAdd = aim.pHit * weaponPower;
+					var damageAdd = aim.pHit * weaponPower * 0;
 					if (damageAdd > weaps[elem].maxDamage_percent / 100) damageAdd = weaps[elem].maxDamage_percent / 100;
 								
 					# Some chance of doing more damage (and a higher chance the closer the hit)
@@ -5956,7 +5971,7 @@ var stores = {};
 stores.reduceWeaponsCount = func (myNodeName, elem, time_sec) {
 
 	var stos = attributes[myNodeName].stores;
-	var ammo_seconds = 1200;  #Number of seconds worth of ammo firing the weapon has
+	var ammo_seconds = 600;  #Number of seconds worth of ammo firing the weapon has
 	#TODO: This should be set per aircraft per weapon
 	if (stos["weapons"][elem] == nil) stos["weapons"][elem] = 0;
 	stos.weapons[elem]  -=  time_sec/ammo_seconds;
@@ -7107,7 +7122,7 @@ var aircraftCrash = func (myNodeName) {
 				
 }
 
-##################################################################
+################################ variable_safe ##################################
 # return string converted into nasal variable/proptree safe form
 #
 var variable_safe = func(str) {
@@ -7122,7 +7137,7 @@ var variable_safe = func(str) {
 	return s;
 }
 
-##################################################################
+################################ un_variable_safe ##################################
 # return string converted from nasal variable/proptree safe form
 # back into human readable form
 #
@@ -8495,12 +8510,12 @@ var weaponsOrientationPositionUpdate_loop = func (id, myNodeName) {
 
 		
 		weapCount += 1;
-		# debprint("weaponsOrientationPositionUpdate_loop ", elem, 
-			# "newElev = ", newElev, 
-			# "newHeading = ", newHeading, 
-			# "true-heading-deg = ", math.atan2(aim.weaponDirRefFrame[0], aim.weaponDirRefFrame[1]) * R2D,
-			# "pitch-deg = ", aim.weaponDirRefFrame[2] * R2D			
-		# );
+		debprint("weaponsOrientationPositionUpdate_loop ", elem, 
+			"newElev = ", newElev, 
+			"newHeading = ", newHeading, 
+			"true-heading-deg = ", math.atan2(aim.weaponDirRefFrame[0], aim.weaponDirRefFrame[1]) * R2D,
+			"pitch-deg = ", aim.weaponDirRefFrame[2] * R2D			
+		);
 	}
 }
 
@@ -9346,6 +9361,7 @@ var rotate_round_z_axis = func (vector, gamma) {
 
 ########################## rotate_zxy ###########################
 # from http://www.songho.ca/opengl/gl_anglestoaxes.html
+# rotations of the x-, y-, and z-axes in a counterclockwise direction when looking towards the origin
 
 var rotate_zxy = func (vector, alpha, beta, gamma) {
 	var alpha_rad = alpha * D2R;
@@ -9389,6 +9405,7 @@ var rotate_zxy = func (vector, alpha, beta, gamma) {
 
 ########################## rotate_yxz ###########################
 # from http://www.songho.ca/opengl/gl_anglestoaxes.html
+# rotations of the x-, y-, and z-axes in a counterclockwise direction when looking towards the origin
 
 var rotate_yxz = func (vector, alpha, beta, gamma) {
 	var alpha_rad = alpha * D2R;
@@ -9447,7 +9464,7 @@ var setWeaponSkill = func(myNodeName)
 	var weaponPower = getprop ("" ~bomb_menu_pp~ "ai-weapon-power");
 	if (weaponPower == nil) weaponPower = 0.2;
 	# Set weaponSkill, 0 to 1, with average varying according to setting on Bombable weapon power-skill menu
-	var weaponSkill = 0.1 + 0.9 * math.pow (rand(), 0.5 + weaponPower) ;
+	var weaponSkill = 0.1 + 0.9 * math.pow (rand(), 1.5 - weaponPower) ;
 	setprop(""~myNodeName~"/bombable/weapons-pilot-ability", weaponSkill);
 }
 ########################## END ###########################
