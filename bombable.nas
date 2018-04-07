@@ -2720,6 +2720,7 @@ var ground_loop = func( id, myNodeName ) {
 	setprop(""~myNodeName~ "/position/groundLoopCounter", groundLoopCounter);	
 	# rjw used to control debug printing and roll calculation
 	var thorough = (math.fmod(groundLoopCounter , 10) == 0); # to save FR we only do it thoroughly sometimes
+	if (onGround) thorough = 0; #never need thorough when crashed
 	
 	node = props.globals.getNode(myNodeName);
 	type = node.getName();
@@ -2739,7 +2740,6 @@ var ground_loop = func( id, myNodeName ) {
 	var FGAltObjectPerimeterBuffer_m = 0.5 * dims.length_m;
 	var FGAltObjectPerimeterBuffer_ft = FGAltObjectPerimeterBuffer_m / feet2meters;
 			
-	if (onGround) thorough = 0; #never need thorough when crashed
 			
 	# Update altitude to keep moving objects at ground level the ground
 	var currAlt_ft = getprop(""~myNodeName~"/position/altitude-ft"); #where the object is, in feet
@@ -2884,11 +2884,15 @@ var ground_loop = func( id, myNodeName ) {
 	
 
 	# rjw use the lowest allowed altitude and current altitude to check for aircraft crash
-	if (type == "aircraft" and (
-	(damageValue > 0.8 and ( currAlt_ft <= objectsLowestAllowedAlt_ft and speed_kt > 20 )
-	or ( currAlt_ft <= objectsLowestAllowedAlt_ft - 5))
-	or (damageValue == 1 and currAlt_ft <= objectsLowestAllowedAlt_ft) )
-	) hitground_stop_explode(myNodeName, alt_ft);
+	if (
+		type == "aircraft" and !onGround and 
+		(
+			(damageValue > 0.8 and ( currAlt_ft <= objectsLowestAllowedAlt_ft and speed_kt > 20 ) or ( currAlt_ft <= objectsLowestAllowedAlt_ft - 5))
+			or 
+			(damageValue == 1 and currAlt_ft <= objectsLowestAllowedAlt_ft)
+		)
+	)
+	hitground_stop_explode(myNodeName, alt_ft); #rjw added onGround check to avoid multiple calls to hitground_stop_explode
 			
 	# end of life:  damaged ships and ground vehicles grind to a halt; aircraft explode and flag onGround
 	# speed is adjusted by add_damage
@@ -2912,6 +2916,8 @@ var ground_loop = func( id, myNodeName ) {
 	if (onGround){
 		#go to object's resting altitude
 		#rjw onGround is set by hitground_stop_explode
+		debprint("Bombable: ", myNodeName, " on ground. Exploded = ", getprop(""~myNodeName~"/bombable/exploded"));
+		
 		setprop (""~myNodeName~"/position/altitude-ft", objectsLowestAllowedAlt_ft );
 		setprop (""~myNodeName~"/controls/flight/target-alt",  objectsLowestAllowedAlt_ft);
 		setprop (""~myNodeName~"/controls/flight/target-roll",  rollangle_deg);
@@ -7489,6 +7495,7 @@ var weaponSkill = getprop(myNodeName~"/bombable/weapons-pilot-ability");
 					
 	# debprint("spds.speedOnFlat = ",spds.speedOnFlat);				
 	if ((type == "aircraft") or (type == "groundvehicle"))  {
+	# rjw: if AC on ground will exit before this point
 
 		var flight_tgt_spd = getprop (""~myNodeName~"/controls/flight/target-spd");
 		if (flight_tgt_spd == nil ) flight_tgt_spd = 0;
@@ -7497,17 +7504,16 @@ var weaponSkill = getprop(myNodeName~"/bombable/weapons-pilot-ability");
 		if (true_spd == nil ) true_spd = 0;
 
 	
-		# rjw: if AC on ground will exit before this point
 		# only reduce speeds at high damage values
 		if ( damageValue >= 0.75) {
 				if (flight_tgt_spd > minSpeed) {
 					setprop(""~myNodeName~"/controls/flight/target-spd", flight_tgt_spd * speedReduce);
-					spds.speedOnFlat *= speedReduce;
+					if (type == "groundvehicle") spds.speedOnFlat *= speedReduce;
 				}
 				else 
 				{
 					setprop(""~myNodeName~"/controls/flight/target-spd", minSpeed);
-					spds.speedOnFlat = minSpeed;
+					if (type == "groundvehicle") spds.speedOnFlat = minSpeed;
 				}
 		}
 	}  
