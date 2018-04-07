@@ -7401,6 +7401,11 @@ var liveriesCount = livs.count;
 var type = node.getName();
 if ((spds.maxSpeed_kt < 50) and (type == "aircraft")) type = "groundvehicle";
 
+# check for destroyed AC on ground; if so, no further action needed
+var onGround = getprop (""~myNodeName~"/bombable/on-ground");
+if (onGround == nil) onGround = 0;
+if (onGround) return 0;
+
 
 var damageValue = getprop(""~myNodeName~"/bombable/attributes/damage");
 if ( damageValue == nil ) damageValue = 0;
@@ -7409,9 +7414,9 @@ if ( damageValue == nil ) damageValue = 0;
 var origDamageRise = damageRise;
 # make sure it's in range 0-1.0
 if(damageRise > 1.0)
-damageRise = 1.0;
+	damageRise = 1.0;
 elsif(damageRise < 0.0)
-damageRise = 0.0;
+	damageRise = 0.0;
 # rjw damageRise < 0!!! Is this function called for repair?
 				
 # update bombable/attributes/damage: 0.0 mean no damage, 1.0 mean full damage
@@ -7420,9 +7425,9 @@ damageValue  +=  damageRise;
 				
 #make sure it's in range 0-1.0
 if(damageValue > 1.0)
-damageValue = 1.0;
+	damageValue = 1.0;
 elsif(damageValue < 0.0)
-damageValue = 0.0;
+	damageValue = 0.0;
 setprop(""~myNodeName~"/bombable/attributes/damage", damageValue);
 damageIncrease = damageValue - prevDamageValue;
 
@@ -7439,7 +7444,7 @@ if (damagetype == "weapon") records.record_impact ( myNodeName, damageRise, dama
 var callsign = getCallSign (myNodeName);
 var weaponSkill = getprop(myNodeName~"/bombable/weapons-pilot-ability");				
 					
-	if ( damageValue > prevDamageValue ) 
+	if ( damageIncrease > 0 ) 
 	{
 		# Always display the message if a weapon hit or large damageRise. Otherwise
 		# only display about 1 in 20 of the messages.
@@ -7477,7 +7482,7 @@ var weaponSkill = getprop(myNodeName~"/bombable/weapons-pilot-ability");
 
 	maxSpeedReduceProp = 1 - spds.maxSpeedReduce_percent / 100;  #spds.maxSpeedReduce_percent is a percentage
 
-	if ( damageValue == 1 and damageValue > prevDamageValue) {
+	if ( damageValue == 1 and damageIncrease > 0) {
 		if (type == "aircraft") {
 		# rjw: aircraft will now crash
 		reduceRPM(myNodeName);
