@@ -5803,9 +5803,16 @@ targetSize_m = nil,  weaponSkill = 1, maxDistance_m = 100, weaponAngle_deg = nil
 		elsif (newElev > weaponAngle_deg.elevationMax) newElev = weaponAngle_deg.elevationMax;
 		else changes -= 1;
 
-		if (newHeading < weaponAngle_deg.headingMin) newHeading = weaponAngle_deg.headingMin;
-		elsif (newHeading > weaponAngle_deg.headingMax) newHeading = weaponAngle_deg.headingMax;
-		else changes -= 1;
+		var headingVal = keepInsideRange(weaponAngle_deg.elevationMin, weaponAngle_deg.elevationMax, newHeading);
+		if (headingVal.insideRange)
+		{
+			changes -= 1;
+		}
+		else
+		{
+			newHeading = headingVal.newHdg;
+		}
+		
 		
 		if (changes !=0)
 		{
@@ -9478,4 +9485,32 @@ var setWeaponSkill = func(myNodeName)
 	var weaponSkill = 0.1 + 0.9 * math.pow (rand(), 1.5 - weaponPower) ;
 	setprop(""~myNodeName~"/bombable/weapons-pilot-ability", weaponSkill);
 }
+
+
+########################## keepInsideRange ###########################
+var keepInsideRange = func(hd1, hd2, hd)
+{
+	var inRange = 0;
+	if (hd1 > hd2) 
+	{
+		if ((hd2 >= hd) or (hd >= hd1)) inRange = 1;
+	}
+	else
+	{
+		if ((hd2 >= hd) and (hd >= hd1)) inRange = 1;
+	}
+	if (!inRange)
+	{
+		var deltaHd1 = math.fmod ( hd1 - hd + 360, 360);
+		var deltaHd2 = math.fmod ( hd - hd2 + 360, 360);
+		var newHd = hd1;
+		if (deltaHd1 > deltaHd2) newHd = hd2;
+	}
+	else
+	{
+		var newHd = hd;
+	}
+	return ({newHdg:newHd, insideRange:inRange});
+}
+
 ########################## END ###########################
