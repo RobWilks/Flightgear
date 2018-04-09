@@ -5768,11 +5768,12 @@ targetSize_m = nil,  weaponSkill = 1, maxDistance_m = 100, weaponAngle_deg = nil
 		var targetSize_rad = math.atan2(math.sqrt(targetSize_m.horz * targetSize_m.vert) / 2 , distance_m);	
 		# geometric mean of key dimensions and half angle
 
-		# debprint ("Bombable: checkAim for ", myNodeName1,
-			# " targetOffset_rad = ", targetOffset_rad,
-			# " targetSize_rad = ", targetSize_rad);
-		# debprint (sprintf("Bombable: newDir[%6.1f,%6.1f,%6.1f] dist=%6.0f", newDir[0], newDir[1], newDir[2], distance_m));
-		# debprint (sprintf("Bombable: weapDir[%6.1f,%6.1f,%6.1f]", weapDir[0], weapDir[1], weapDir[2]));
+		debprint (sprintf("Bombable: CheckAim for %s targetOffset_rad =%6.2f targetSize_rad =%6.2f", 
+			myNodeName1,
+			targetOffset_rad,
+			targetSize_rad));
+		debprint (sprintf("Bombable: newDir[%6.2f,%6.2f,%6.2f] dist=%6.0f", newDir[0], newDir[1], newDir[2], distance_m));
+		debprint (sprintf("Bombable: weapDir[%6.2f,%6.2f,%6.2f]", weapDir[0], weapDir[1], weapDir[2]));
 
 		# pHit ranges 0 to 1, 1 being direct hit			
 		# calculate pHit as a joint probability distribution: the angular range of fire of the weapon and the angular range subtended by the target
@@ -5803,7 +5804,7 @@ targetSize_m = nil,  weaponSkill = 1, maxDistance_m = 100, weaponAngle_deg = nil
 		elsif (newElev > weaponAngle_deg.elevationMax) newElev = weaponAngle_deg.elevationMax;
 		else changes -= 1;
 
-		var headingVal = keepInsideRange(weaponAngle_deg.elevationMin, weaponAngle_deg.elevationMax, newHeading);
+		var headingVal = keepInsideRange(weaponAngle_deg.headingMin, weaponAngle_deg.headingMax, newHeading);
 		if (headingVal.insideRange)
 		{
 			changes -= 1;
@@ -5835,8 +5836,8 @@ targetSize_m = nil,  weaponSkill = 1, maxDistance_m = 100, weaponAngle_deg = nil
 		result.weaponDirRefFrame = rotate_zxy(newDir, -pitch_deg, -roll_deg, myHeading_deg);
 		
 
-		debprint ("Bombable: changed aim for ", myNodeName1,
-		" result.weaponDirRefFrame = ", result.weaponDirRefFrame);
+		debprint ("Bombable: Changed aim for ", myNodeName1,
+		sprintf("newElev =%6.1f newHeading =%6.1f", newElev, newHeading));
 	}
 	return (result); 	
 }
@@ -5984,7 +5985,7 @@ var stores = {};
 stores.reduceWeaponsCount = func (myNodeName, elem, time_sec) {
 
 	var stos = attributes[myNodeName].stores;
-	var ammo_seconds = 600;  #Number of seconds worth of ammo firing the weapon has
+	var ammo_seconds = 6000;  #Number of seconds worth of ammo firing the weapon has
 	#TODO: This should be set per aircraft per weapon
 	if (stos["weapons"][elem] == nil) stos["weapons"][elem] = 0;
 	stos.weapons[elem]  -=  time_sec/ammo_seconds;
@@ -8514,6 +8515,7 @@ var weaponsOrientationPositionUpdate_loop = func (id, myNodeName) {
 
 		
 		# next, point the projectile
+		# the projectile models follow the aircraft using these orientation and position data from the property tree
 		setprop("" ~ myNodeName ~ "/" ~elem~ "/orientation/pitch-deg", aim.weaponDirRefFrame[2] * R2D);
 		setprop("" ~ myNodeName ~ "/" ~elem~ "/orientation/true-heading-deg", math.atan2(aim.weaponDirRefFrame[0], aim.weaponDirRefFrame[1]) * R2D);
 		
@@ -8528,11 +8530,12 @@ var weaponsOrientationPositionUpdate_loop = func (id, myNodeName) {
 
 		
 		weapCount += 1;
-		debprint("weaponsOrientationPositionUpdate_loop ", elem, 
-			"newElev = ", newElev, 
-			"newHeading = ", newHeading, 
-			"true-heading-deg = ", math.atan2(aim.weaponDirRefFrame[0], aim.weaponDirRefFrame[1]) * R2D,
-			"pitch-deg = ", aim.weaponDirRefFrame[2] * R2D			
+		debprint("weaponsOrientationPositionUpdate_loop " ~ elem ~ 
+			sprintf(" newElev =%6.1f newHeading =%6.1f true-heading-deg =%6.1f pitch-deg =%6.1f", 
+			newElev, 
+			newHeading, 
+			math.atan2(aim.weaponDirRefFrame[0], aim.weaponDirRefFrame[1]) * R2D,
+			aim.weaponDirRefFrame[2] * R2D)			
 		);
 	}
 }
@@ -9488,6 +9491,12 @@ var setWeaponSkill = func(myNodeName)
 
 
 ########################## keepInsideRange ###########################
+# function to check whether heading, hd, is within 2 range limits, hd1 and hd2
+# hd2 is clockwise of hd1
+# values range from -180 to + 180 where 0 is in the directoin of travel
+# if hd is ourside the range it is set to the limit that is closest in angle
+# function returns a hash with the new value of hd and a flag that is set to 1 if in range
+
 var keepInsideRange = func(hd1, hd2, hd)
 {
 	var inRange = 0;
@@ -9512,5 +9521,68 @@ var keepInsideRange = func(hd1, hd2, hd)
 	}
 	return ({newHdg:newHd, insideRange:inRange});
 }
+
+########################## findRoots ###########################
+# simple quadratic solver
+# returns hash of roots and flag if real
+# a, b, c are the coefficients of form ax2 + bx + c = 0
+var findRoots = func(a, b, c)
+{
+	var d = b * b - 4 * a * c;
+	if (d < 0) return ({x1:0, x2:0, isReal:0});
+	var term1 = -b / 2 / a;
+	var term2 = math.sqrt(d) / 2 / a;
+	return ({x1:term1 - term2, x2:term1 + term2, isReal:1});
+}
+########################## findInterceptVector ###########################
+# calculate intercept vector given:
+# speed of interceptor, displacement vector between aircraft1 and aircraft2
+# returns hash of time to intercept and velocity vector of interceptor
+var findInterceptVector = func (myNodeName1 = "", myNodeName2 = "", displacement, dist_ft, interceptSpeed)
+{
+
+	var speed1 = getprop(""~myNodeName1~"/velocities/true-airspeed-kt") * knots2fps; # AI
+	var speedVert1 = getprop(""~myNodeName1~"/velocities/vertical-speed-fps");
+	var heading1 = getprop(""~myNodeName1~"/orientation/heading-deg") * D2R;
+	var speed2 = getprop(""~myNodeName2~"/velocities/true-airspeed-kt") * knots2fps; # main AC
+	var speedVert2 = getprop(""~myNodeName2~"/velocities/vertical-speed-fps");
+	var heading2 = getprop(""~myNodeName2~"/orientation/heading-deg") * D2R;
+	var glideAngle1 = math.asin(speedVert1 / speed1);
+	var glideAngle2 = math.asin(speedVert2 / speed2);
+	var vxy1 = speed1 * math.cos(glideAngle1); # the projection of velocity1 in the x-y plane
+	var vxy2 = speed2 * math.cos(glideAngle2); # the projection of velocity2 in the x-y plane
+	var velocity1 = [
+					vxy1 * math.cos(heading1),
+					vxy1 * math.cos(glideAngle1) * math.sin(heading1),
+					speedVert1
+					];
+	var velocity2 = [
+					vxy1 * math.cos(heading2),
+					vxy1 * math.cos(glideAngle2) * math.sin(heading2),
+					speedVert2
+					];
+	var deltaVelocity = [
+					velocity2[0] - velocity1[0],
+					velocity2[1] - velocity1[1],
+					velocity2[2] - velocity1[2]
+					];
+	var time_sec = findRoots(
+		interceptSpeed * interceptSpeed - speed2 * speed2,
+		2 * dotProduct(displacement, deltaVelocity),
+		dist_ft * dist_ft); # in reference frame of AC1
+	if (time_sec.isReal != 1) return {timeToIntercept:-1, interceptVector:[0, 0, 0]};
+	return (
+	{
+	timeToIntercept:time_sec.x1, 
+	interceptVector:[
+				distance[0] / time_sec.x1 - deltaVelocity[0], 
+				distance[1] / time_sec.x1 - deltaVelocity[1],
+				distance[2] / time_sec.x1 - deltaVelocity[2]
+				] 
+	}); # in earth reference frame
+}	
+
+
+
 
 ########################## END ###########################
