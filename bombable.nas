@@ -5772,6 +5772,7 @@ targetSize_m = nil,  weaponSkill = 1, maxDistance_m = 100, weaponAngle_deg = nil
 			targetSize_rad));
 		debprint (sprintf("Bombable: newDir[%6.2f,%6.2f,%6.2f] dist=%6.0f", newDir[0], newDir[1], newDir[2], distance_m));
 		debprint (sprintf("Bombable: weapDir[%6.2f,%6.2f,%6.2f]", weapDir[0], weapDir[1], weapDir[2]));
+		
 
 		# pHit ranges 0 to 1, 1 being direct hit			
 		# calculate pHit as a joint probability distribution: the angular range of fire of the weapon and the angular range subtended by the target
@@ -5816,8 +5817,8 @@ targetSize_m = nil,  weaponSkill = 1, maxDistance_m = 100, weaponAngle_deg = nil
 		
 		
 		if (changes !=0)
-		var cosNewElev = cos(newElev);
 		{
+			var cosNewElev = cos(newElev);
 			newDir = [
 				cosNewElev * sin(newHeading),
 				cosNewElev * cos(newHeading),
@@ -5837,9 +5838,26 @@ targetSize_m = nil,  weaponSkill = 1, maxDistance_m = 100, weaponAngle_deg = nil
 		result.weaponDirRefFrame = rotate_zxy(newDir, -pitch_deg, -roll_deg, myHeading_deg);
 		
 
-		# debprint ("Bombable: Changed aim for ", myNodeName1,
-		# sprintf("newElev =%6.1f newHeading =%6.1f", newElev, newHeading));
-	}
+		debprint ("Bombable: Changed aim for ", myNodeName1,
+		sprintf("newElev =%6.1f newHeading =%6.1f", newElev, newHeading));
+
+		var intercept = findIntercept(
+			myNodeName1, myNodeName2, 
+			[
+				targetDirRefFrame[0] - result.weaponOffsetRefFrame[0],
+				targetDirRefFrame[1] - result.weaponOffsetRefFrame[1],
+				targetDirRefFrame[2] - result.weaponOffsetRefFrame[2]
+			],
+			distance_m,
+			500
+			);
+			debprint (
+				sprintf(
+					"Bombable: Intercept time =%6.1f Intercept vector =[%8.0f, %8.0f, %8.0f]",
+					intercept.time, intercept.vector[0], intercept.vector[1], intercept.vector[2]
+				)
+			);
+		}
 	return (result); 	
 }
 
@@ -9535,57 +9553,56 @@ var findRoots = func(a, b, c)
 	var term2 = math.sqrt(d) / 2 / a;
 	return ({x1:term1 - term2, x2:term1 + term2, isReal:1});
 }
-########################## findInterceptVector ###########################
+########################## findIntercept ###########################
 # calculate intercept vector given:
 # speed of interceptor, displacement vector between aircraft1 and aircraft2
 # returns hash of time to intercept and velocity vector of interceptor
-var findInterceptVector = func (myNodeName1 = "", myNodeName2 = "", displacement, dist_ft, interceptSpeed)
+var findIntercept = func (myNodeName1, myNodeName2, displacement, dist_m, interceptSpeed)
 {
-
-	var speed1 = getprop(""~myNodeName1~"/velocities/true-airspeed-kt") * knots2fps; # AI
-	var speedVert1 = getprop(""~myNodeName1~"/velocities/vertical-speed-fps");
-	var heading1 = getprop(""~myNodeName1~"/orientation/heading-deg") * D2R;
-	var speed2 = getprop(""~myNodeName2~"/velocities/true-airspeed-kt") * knots2fps; # main AC
-	var speedVert2 = getprop(""~myNodeName2~"/velocities/vertical-speed-fps");
+	var speed1 = getprop(""~myNodeName1~"/velocities/true-airspeed-kt") * KT2MPS; # AI
+	var speedVert1 = getprop(""~myNodeName1~"/velocities/vertical-speed-fps") * FT2M;
+	var heading1 = getprop(""~myNodeName1~"/orientation/true-heading-deg") * D2R;
+	var speed2 = getprop(""~myNodeName2~"/velocities/airspeed-kt") * KT2MPS; # main AC
+	var speedVert2 = getprop(""~myNodeName2~"/velocities/vertical-speed-fps") * FT2M;
 	var heading2 = getprop(""~myNodeName2~"/orientation/heading-deg") * D2R;
 	var glideAngle1 = math.asin(speedVert1 / speed1);
 	var glideAngle2 = math.asin(speedVert2 / speed2);
 	var vxy1 = speed1 * math.cos(glideAngle1); # the projection of velocity1 in the x-y plane
-	var vxy2 = speed2 * math.cos(glideAngle2); # the projection of velocity2 in the x-y plane
+	var vxy2 = speed2 * math.cos(glideAngle2); 
 	var velocity1 = [
 					vxy1 * math.cos(heading1),
 					vxy1 * math.sin(heading1),
 					speedVert1
 					];
 	var velocity2 = [
-					vxy1 * math.cos(heading2),
-					vxy1 * math.sin(heading2),
+					vxy2 * math.cos(heading2),
+					vxy2 * math.sin(heading2),
 					speedVert2
 					];
-	var deltaVelocity = [
+	var velocity21 = [
 					velocity2[0] - velocity1[0],
 					velocity2[1] - velocity1[1],
 					velocity2[2] - velocity1[2]
 					];
 	var time_sec = findRoots(
-		interceptSpeed * interceptSpeed - dotProduct(deltaVelocity, deltaVelocity),
-		-2 * dotProduct(displacement, deltaVelocity),
-		-dist_ft * dist_ft); # in reference frame of AC1
-	if (time_sec.isReal != 1) return {timeToIntercept:-1, interceptVector:[0, 0, 0]};
+		dotProduct(velocity21, velocity21) - interceptSpeed * interceptSpeed,
+		2 * dotProduct(displacement, velocity21),
+		dist_m * dist_m); # in reference frame of AC1
+	if (time_sec.isReal != 1) return ({time:-1, vector:[0, 0, 0]});
 	return (
 	{
-	timeToIntercept:time_sec.x1, 
-	interceptVector:[
-				distance[0] / time_sec.x2 + velocity2[0], 
-				distance[1] / time_sec.x2 + velocity2[1],
-				distance[2] / time_sec.x2 + velocity2[2]
+	time:time_sec.x1, 
+	vector:[
+				displacement[0] / time_sec.x2 + velocity2[0], 
+				displacement[1] / time_sec.x2 + velocity2[1],
+				displacement[2] / time_sec.x2 + velocity2[2]
 				] 
 	}); # in earth reference frame
 }	
 
 ########################## dotProduct ###########################
 #calculate dot product of two 3D vectors, v1 and v2
-var dotProduct = func(v1 = [0,0,0], v2 = [0,0,0])
+var dotProduct = func(v1, v2)
 {
 	return(v1[0] * v2[0] + v1[1] * v2[1] + v1[2] * v2[2]);
 }
