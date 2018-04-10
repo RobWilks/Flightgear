@@ -5703,7 +5703,7 @@ targetSize_m = nil,  weaponSkill = 1, maxDistance_m = 100, weaponAngle_deg = nil
 	var ground_Alt_m = elev (GeoCoord.lat(), GeoCoord.lon()) * FT2M; 
 	if (ground_Alt_m > mid_Alt_m) 
 	{
-		debprint ("Bombable: checkLoS for ",  myNodeName1, "deltaAlt at mid point = ", ground_Alt_m - mid_Alt_m);
+		# debprint ("Bombable: checkLoS for ",  myNodeName1, "deltaAlt at mid point = ", ground_Alt_m - mid_Alt_m);
 		result.pHit = -1; #flag for no line of sight
 		return(result);
 	}
@@ -5749,22 +5749,20 @@ targetSize_m = nil,  weaponSkill = 1, maxDistance_m = 100, weaponAngle_deg = nil
 	}
 	
 	#form vector for weapon direction, weapDir
+	var cosWeapElev = cos(weaponAngle_deg.elevation);
 	weapDir = [
-		cos(weaponAngle_deg.elevation) * sin(weaponAngle_deg.heading),
-		cos(weaponAngle_deg.elevation) * cos(weaponAngle_deg.heading),
+		cosWeapElev * sin(weaponAngle_deg.heading),
+		cosWeapElev * cos(weaponAngle_deg.heading),
 		sin(weaponAngle_deg.elevation)
 	];
 	
-	#calculate dot product
-	var dotProduct = 0;
-	for (i = 0; i < 3; i += 1) 
-	{	
-		dotProduct += newDir[i] * weapDir[i]; # vector to target from AI object
-	}
-	if (dotProduct > 0.5)
+	#calculate angular offset
+	var cosOffset = dotProduct(newDir, weapDir);
+
+	if (cosOffset > 0.5)
 	{
 		# only calculate pHit if target direction within 60 degrees of weapon direction
-		var targetOffset_rad = math.acos(dotProduct); # angular offset from weapon direction
+		var targetOffset_rad = math.acos(cosOffset); # angular offset from weapon direction
 		var targetSize_rad = math.atan2(math.sqrt(targetSize_m.horz * targetSize_m.vert) / 2 , distance_m);	
 		# geometric mean of key dimensions and half angle
 
@@ -5791,9 +5789,11 @@ targetSize_m = nil,  weaponSkill = 1, maxDistance_m = 100, weaponAngle_deg = nil
 		{
 			result.pHit = 0.5 - erf((targetOffset_rad - targetSize_rad) / weapSDev);
 		}
-		debprint ("Bombable: hit ", myNodeName1,
-		" result.pHit = ", result.pHit);
+		# debprint ("Bombable: hit ", myNodeName1,
+		# " result.pHit = ", result.pHit);
 	}
+
+	
 	if ( rand() < weaponSkill) {
 		# ensure that newDir is in range of movement of weapon
 		var newElev = math.asin(newDir[2]) * R2D;
@@ -5816,10 +5816,11 @@ targetSize_m = nil,  weaponSkill = 1, maxDistance_m = 100, weaponAngle_deg = nil
 		
 		
 		if (changes !=0)
+		var cosNewElev = cos(newElev);
 		{
 			newDir = [
-				cos(newElev) * sin(newHeading),
-				cos(newElev) * cos(newHeading),
+				cosNewElev * sin(newHeading),
+				cosNewElev * cos(newHeading),
 				sin(newElev)
 			];
 		}
@@ -5836,8 +5837,8 @@ targetSize_m = nil,  weaponSkill = 1, maxDistance_m = 100, weaponAngle_deg = nil
 		result.weaponDirRefFrame = rotate_zxy(newDir, -pitch_deg, -roll_deg, myHeading_deg);
 		
 
-		debprint ("Bombable: Changed aim for ", myNodeName1,
-		sprintf("newElev =%6.1f newHeading =%6.1f", newElev, newHeading));
+		# debprint ("Bombable: Changed aim for ", myNodeName1,
+		# sprintf("newElev =%6.1f newHeading =%6.1f", newElev, newHeading));
 	}
 	return (result); 	
 }
@@ -9493,8 +9494,8 @@ var setWeaponSkill = func(myNodeName)
 ########################## keepInsideRange ###########################
 # function to check whether heading, hd, is within 2 range limits, hd1 and hd2
 # hd2 is clockwise of hd1
-# values range from -180 to + 180 where 0 is in the directoin of travel
-# if hd is ourside the range it is set to the limit that is closest in angle
+# values range from -180 to + 180 where 0 is in the direction of travel
+# if hd is outside the range it is set to the limit that is closest in angle
 # function returns a hash with the new value of hd and a flag that is set to 1 if in range
 
 var keepInsideRange = func(hd1, hd2, hd)
@@ -9553,12 +9554,12 @@ var findInterceptVector = func (myNodeName1 = "", myNodeName2 = "", displacement
 	var vxy2 = speed2 * math.cos(glideAngle2); # the projection of velocity2 in the x-y plane
 	var velocity1 = [
 					vxy1 * math.cos(heading1),
-					vxy1 * math.cos(glideAngle1) * math.sin(heading1),
+					vxy1 * math.sin(heading1),
 					speedVert1
 					];
 	var velocity2 = [
 					vxy1 * math.cos(heading2),
-					vxy1 * math.cos(glideAngle2) * math.sin(heading2),
+					vxy1 * math.sin(heading2),
 					speedVert2
 					];
 	var deltaVelocity = [
@@ -9567,22 +9568,27 @@ var findInterceptVector = func (myNodeName1 = "", myNodeName2 = "", displacement
 					velocity2[2] - velocity1[2]
 					];
 	var time_sec = findRoots(
-		interceptSpeed * interceptSpeed - speed2 * speed2,
-		2 * dotProduct(displacement, deltaVelocity),
-		dist_ft * dist_ft); # in reference frame of AC1
+		interceptSpeed * interceptSpeed - dotProduct(deltaVelocity, deltaVelocity),
+		-2 * dotProduct(displacement, deltaVelocity),
+		-dist_ft * dist_ft); # in reference frame of AC1
 	if (time_sec.isReal != 1) return {timeToIntercept:-1, interceptVector:[0, 0, 0]};
 	return (
 	{
 	timeToIntercept:time_sec.x1, 
 	interceptVector:[
-				distance[0] / time_sec.x1 - deltaVelocity[0], 
-				distance[1] / time_sec.x1 - deltaVelocity[1],
-				distance[2] / time_sec.x1 - deltaVelocity[2]
+				distance[0] / time_sec.x2 + velocity2[0], 
+				distance[1] / time_sec.x2 + velocity2[1],
+				distance[2] / time_sec.x2 + velocity2[2]
 				] 
 	}); # in earth reference frame
 }	
 
-
+########################## dotProduct ###########################
+#calculate dot product of two 3D vectors, v1 and v2
+var dotProduct = func(v1 = [0,0,0], v2 = [0,0,0])
+{
+	return(v1[0] * v2[0] + v1[1] * v2[1] + v1[2] * v2[2]);
+}
 
 
 ########################## END ###########################
