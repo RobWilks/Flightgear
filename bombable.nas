@@ -5643,8 +5643,8 @@ targetSize_m = nil,  weaponSkill = 1, maxDistance_m = 100, weaponAngle_deg = nil
 	var mAlt_m = getprop(""~myNodeName2~"/position/altitude-ft") * feet2meters;
 	var deltaAlt_m = mAlt_m - aAlt_m;
 
-	var targetDirRefFrame = [deltaX_m, deltaY_m, deltaAlt_m];
-	var distance_m = vectorModulus (targetDirRefFrame);
+	var targetDispRefFrame = [deltaX_m, deltaY_m, deltaAlt_m];
+	var distance_m = vectorModulus (targetDispRefFrame);
 				
 				
 	# debprint ("Bombable: AI weapons, distance: ", distance_m, " for ", myNodeName1);
@@ -5710,10 +5710,16 @@ targetSize_m = nil,  weaponSkill = 1, maxDistance_m = 100, weaponAngle_deg = nil
 	
 	
 	
-	# calculate targetDirRefFrame, the displacement vector from node1 (AI) to node2 (mainAC) in a lon-lat-alt (x-y-z) frame of reference
-	# normalise this vector and rotate it to the frame of reference of AI object to give newDir
+	# calculate targetDispRefFrame, the displacement vector from node1 (AI) to node2 (mainAC) in a lon-lat-alt (x-y-z) frame of reference
+	# calculate the offset of the weapon in the lon-lat-alt frame of reference aka 'reference frame'
+	# correct targetDispRefFrame for weapon offset
+	# find newDir the direction required for a missile travelling at missileSpeed_mps (constant) to intercept the target given the relative velocities of node1 and node2
 	# calculate the angle between the direction in which the weapon is aimed and newDir
 	# use this angle and the solid angle subtended by the mainAC to determine pHit
+
+	#in 3D model co-ords the x-axis points 180 deg from direction of travel i.e. backwards
+	#the y-axis points at 90 deg to the direction of travel i.e. to the right
+	#weaponOffset is given in model co-ords
 	
 	if (myNodeName1 == "") myHeading_deg = getprop (""~myNodeName1~"/orientation/heading-deg");
 	else myHeading_deg = getprop (""~myNodeName1~"/orientation/true-heading-deg");
@@ -5723,31 +5729,37 @@ targetSize_m = nil,  weaponSkill = 1, maxDistance_m = 100, weaponAngle_deg = nil
 		pitch_deg = getprop("" ~ myNodeName1 ~ "/orientation/pitch-deg");
 		roll_deg = getprop("" ~ myNodeName1 ~ "/orientation/roll-deg");
 	}
-	# var newDir = rotate_round_z_axis(targetDir, -myHeading_deg);
-	# newDir = rotate_round_x_axis(newDir, pitch_deg);
-	# # assume roll increases clockwise in the direction of travel
-	# newDir = rotate_round_y_axis(newDir, -roll_deg);
 	
 	# roll increases clockwise in the direction of travel
-	var newDir = rotate_yxz(targetDirRefFrame, pitch_deg, roll_deg, -myHeading_deg);
+	# calculate weapon offset in reference frame
 	
-	#translate to the frame of reference of the weapon
-	#in 3D model co-ords the x-axis points 180 deg from direction of travel i.e. backwards
-	#the y-axis points at 90 deg to the direction ot travel i.e. to the right
-	#weaponOffset is given in model co-ords
+	result.weaponOffsetRefFrame = rotate_zxy([
+		weaponOffset_m.y,
+		-weaponOffset_m.x,
+		weaponOffset_m.z
+	], -pitch_deg, -roll_deg, myHeading_deg);
+
 	
-	newDir[0] -= weaponOffset_m.y;
-	newDir[1] -= -weaponOffset_m.x;
-	newDir[2] -= weaponOffset_m.z;
+	targetDispRefFrame = vectorSubtract(targetDispRefFrame, result.weaponOffsetRefFrame);
 	
 	#recalculate distance
-	distance_m = vectorModulus(newDir);
+	distance_m = vectorModulus(targetDispRefFrame);	
 	
-	#normalise to create unit direction vector
-	for (var i = 0; i < 3; i += 1) {	
-		newDir[i] = newDir[i] / distance_m; # vector to target from AI object
-	}
+	var missileSpeed_mps = 500;
 	
+	var intercept = findIntercept(
+		myNodeName1, myNodeName2, 
+		targetDispRefFrame,
+		distance_m,
+		missileSpeed_mps
+	);
+
+	var interceptDirRefFrame = normalize(intercept.vector);
+	
+	#translate to the frame of reference of the weapon
+	var newDir = rotate_yxz(interceptDirRefFrame, pitch_deg, roll_deg, -myHeading_deg);
+	
+		
 	#form vector for weapon direction, weapDir
 	var cosWeapElev = cos(weaponAngle_deg.elevation);
 	weapDir = [
@@ -5830,36 +5842,13 @@ targetSize_m = nil,  weaponSkill = 1, maxDistance_m = 100, weaponAngle_deg = nil
 		
 		# change aim of weapon
 		result.weaponDirModelFrame = newDir;
-		result.weaponOffsetRefFrame = rotate_zxy([
-			weaponOffset_m.y,
-			-weaponOffset_m.x,
-			weaponOffset_m.z
-		], -pitch_deg, -roll_deg, myHeading_deg);
 		result.weaponDirRefFrame = rotate_zxy(newDir, -pitch_deg, -roll_deg, myHeading_deg);
 		
 
 		debprint ("Bombable: Changed aim for ", myNodeName1,
 		sprintf("newElev =%6.1f newHeading =%6.1f", newElev, newHeading));
 
-		var intercept = findIntercept(
-			myNodeName1, myNodeName2, 
-			[
-				targetDirRefFrame[0] - result.weaponOffsetRefFrame[0],
-				targetDirRefFrame[1] - result.weaponOffsetRefFrame[1],
-				targetDirRefFrame[2] - result.weaponOffsetRefFrame[2]
-			],
-			distance_m,
-			500
-			);
-			var interceptSpdRefFrame = vectorModulus(intercept.vector);
-			debprint (
-				sprintf(
-					"Bombable: Intercept time =%6.1f Intercept vector =[%6.2f, %6.2f, %6.2f] Weapon direction =[%6.2f, %6.2f, %6.2f]",
-					intercept.time, intercept.vector[0] / interceptSpdRefFrame, intercept.vector[1] / interceptSpdRefFrame, intercept.vector[2] / interceptSpdRefFrame,
-					result.weaponDirRefFrame[0], result.weaponDirRefFrame[1], result.weaponDirRefFrame[2] 
-				)
-			);
-		}
+	}
 	return (result); 	
 }
 
@@ -9617,6 +9606,29 @@ var findIntercept = func (myNodeName1, myNodeName2, displacement, dist_m, interc
 var dotProduct = func(v1, v2)
 {
 	return(v1[0] * v2[0] + v1[1] * v2[1] + v1[2] * v2[2]);
+}
+
+
+########################## vectorSum ###########################
+#calculate vector sum of two 3D vectors, v1 and v2
+var vectorSum = func(v1, v2)
+{
+	return([v1[0] + v2[0] , v1[1] + v2[1] , v1[2] + v2[2]]);
+}
+
+########################## vectorSubtract ###########################
+#subtract 3D vectors v2 from v1
+var vectorSubtract = func(v1, v2)
+{
+	return([v1[0] - v2[0] , v1[1] - v2[1] , v1[2] - v2[2]]);
+}
+
+########################## normalize ###########################
+#normalize 3D vector v1
+var vectorSum = func(v1)
+{
+	var magnitude = vectorModulus (v1);
+	return([v1[0] / magnitude , v1[1] / magnitude , v1[2] / magnitude]);
 }
 
 
