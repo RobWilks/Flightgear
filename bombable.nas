@@ -9593,8 +9593,14 @@ var findIntercept = func (myNodeName1, myNodeName2, displacement, dist_m, interc
 	if (time_sec.isReal != 1) return ({time:-1, vector:[0, 0, 0]});
 	debprint(sprintf("Roots are %5.3f and %5.3f", time_sec.x1, time_sec.x2));
 	var chooseRoot = time_sec.x2;
-	if ((time_sec.x1 < time_sec.x2) and (time_sec.x1 > 0)) chooseRoot = time_sec.x1
-	elsif (time_sec.x2 < 0) return ({time:-1, vector:[0, 0, 0]}
+	if (time_sec.x1 < 0) 
+	{
+		if (time_sec.x2 < 0) return ({time:-1, vector:[0, 0, 0]});
+	}
+	else 
+	{
+		if ((time_sec.x2 < 0) or (time_sec.x2 > time_sec.x1)) chooseRoot = time_sec.x1;
+	}
 	return (
 	{
 	time:chooseRoot, 
