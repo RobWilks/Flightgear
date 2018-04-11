@@ -5851,10 +5851,12 @@ targetSize_m = nil,  weaponSkill = 1, maxDistance_m = 100, weaponAngle_deg = nil
 			distance_m,
 			500
 			);
+			var interceptSpdRefFrame = vectorModulus(intercept.vector);
 			debprint (
 				sprintf(
-					"Bombable: Intercept time =%6.1f Intercept vector =[%8.0f, %8.0f, %8.0f]",
-					intercept.time, intercept.vector[0], intercept.vector[1], intercept.vector[2]
+					"Bombable: Intercept time =%6.1f Intercept vector =[%6.2f, %6.2f, %6.2f] Weapon direction =[%6.2f, %6.2f, %6.2f]",
+					intercept.time, intercept.vector[0] / interceptSpdRefFrame, intercept.vector[1] / interceptSpdRefFrame, intercept.vector[2] / interceptSpdRefFrame,
+					result.weaponDirRefFrame[0], result.weaponDirRefFrame[1], result.weaponDirRefFrame[2] 
 				)
 			);
 		}
@@ -9589,13 +9591,17 @@ var findIntercept = func (myNodeName1, myNodeName2, displacement, dist_m, interc
 		2 * dotProduct(displacement, velocity21),
 		dist_m * dist_m); # in reference frame of AC1
 	if (time_sec.isReal != 1) return ({time:-1, vector:[0, 0, 0]});
+	debprint(sprintf("Roots are %5.3f and %5.3f", time_sec.x1, time_sec.x2));
+	var chooseRoot = time_sec.x2;
+	if ((time_sec.x1 < time_sec.x2) and (time_sec.x1 > 0)) chooseRoot = time_sec.x1
+	elsif (time_sec.x2 < 0) return ({time:-1, vector:[0, 0, 0]}
 	return (
 	{
-	time:time_sec.x1, 
+	time:chooseRoot, 
 	vector:[
-				displacement[0] / time_sec.x2 + velocity2[0], 
-				displacement[1] / time_sec.x2 + velocity2[1],
-				displacement[2] / time_sec.x2 + velocity2[2]
+				displacement[0] / chooseRoot + velocity2[0], 
+				displacement[1] / chooseRoot + velocity2[1],
+				displacement[2] / chooseRoot + velocity2[2]
 				] 
 	}); # in earth reference frame
 }	
