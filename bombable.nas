@@ -5593,7 +5593,7 @@ var vertAngle_deg = func (geocoord1, geocoord2) {
 			
 
 var checkAim = func (myNodeName1 = "", myNodeName2 = "",
-targetSize_m = nil,  weaponSkill = 1, maxDistance_m = 100, weaponAngle_deg = nil, weaponOffset_m = nil, damageValue = 0, trackWeapon = 0 ) {
+targetSize_m = nil,  weaponSkill = 1, maxDistance_m = 100, weaponAngle_deg = nil, weaponOffset_m = nil, damageValue = 0 ) {
 	#Note weaponAngle is a hash with components heading and elevation
 	#Function called only by main weapons_loop
 	#rjw modified to return a hash
@@ -5630,7 +5630,7 @@ targetSize_m = nil,  weaponSkill = 1, maxDistance_m = 100, weaponAngle_deg = nil
 
 				
 	if (targetSize_m == nil or targetSize_m.horz <= 0 or targetSize_m.vert <= 0 or maxDistance_m <= 0) return (result);				
-	if (weaponAngle_deg == nil ){ weaponAngle_deg = {heading:0, elevation:0, headingMin:-60, headingMax:60, elevationMin:-20, elevationMax:20}; } #note definition of value for each key of hash
+	if (weaponAngle_deg == nil ){ weaponAngle_deg = {heading:0, elevation:0, headingMin:-60, headingMax:60, elevationMin:-20, elevationMax:20, track:0}; } #note definition of value for each key of hash
 	if (weaponOffset_m == nil ){ weaponOffset_m = {x:0,y:0,z:0}; }
 				
 	
@@ -5818,7 +5818,7 @@ targetSize_m = nil,  weaponSkill = 1, maxDistance_m = 100, weaponAngle_deg = nil
 		# " result.pHit = ", result.pHit);
 	}
 
-	if (trackWeapon)
+	if (weaponAngle_deg.track)
 	{
 		if ( rand() < weaponSkill) {
 			# ensure that newDir is in range of movement of weapon
@@ -5937,8 +5937,7 @@ var weapons_loop = func (id, myNodeName1 = "", myNodeName2 = "", targetSize_m = 
 				weaps[elem].maxDamageDistance_m, 
 				weaps[elem].weaponAngle_deg,
 				weaps[elem].weaponOffset_m, 
-				damageValue,
-				weaps[elem].track
+				damageValue
 			);
 
 			if (aim.weaponDirModelFrame[2] != -1) attributes[myNodeName1].weapons[elem].aim = aim;
@@ -8679,15 +8678,6 @@ var weapons_init_func = func(myNodeName) {
 		setprop("bombable/fire-particles/projectile-tracer[" ~ count ~ "]/ai-weapon-firing", 0); 
 		attributes[myNodeName].weapons[elem].aim = {pHit:0, weaponDirModelFrame:[0,0,-1], weaponOffsetRefFrame:[0,0,0], weaponDirRefFrame:[0,0,-1]}; 
 		#used to translate weapon position and orientation from frame of reference of model to the frame of reference of the scene
-		if ((attributes[myNodeName].weapons[elem].weaponAngle_deg.elevationMin) == (attributes[myNodeName].weapons[elem].weaponAngle_deg.elevationMax) and
-		(attributes[myNodeName].weapons[elem].weaponAngle_deg.headingMin) == (attributes[myNodeName].weapons[elem].weaponAngle_deg.headingMax)) 
-		{
-			attributes[myNodeName].weapons[elem].track = 0;
-		)
-		else
-		{
-			attributes[myNodeName].weapons[elem].track = 1;
-		}
 		
 		debprint ("Weaps: ", myNodeName, " initialized ", count);
 		count += 1;
