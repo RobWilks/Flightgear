@@ -5511,13 +5511,14 @@ var fireAIWeapon_stop = func (id, myNodeName, elem, count) {
 # Using the loopids ensures that it stays on for one full second after the last time it was
 # turned on.
 #
-var fireAIWeapon = func (time_sec, myNodeName, elem, count) {
+var fireAIWeapon = func (time_sec, myNodeName, elem, count, speed) {
 
 	#if (myNodeName == "" or myNodeName == "environment") myNodeName = "/environment";
 	var isFiring = getprop("bombable/fire-particles/projectile-tracer[" ~ count ~ "]/ai-weapon-firing");
 	if (isFiring != nil) isFiring = 0;
 	if (isFiring == 1) return;
 	setprop("bombable/fire-particles/projectile-tracer[" ~ count ~ "]/ai-weapon-firing", 1); 
+	setprop("bombable/fire-particles/projectile-tracer[" ~ count ~ "]/speed", speed); 
 	var loopid = inc_loopid(myNodeName, "fireAIWeapon/" ~ elem);
 	settimer ( func { fireAIWeapon_stop(loopid, myNodeName, elem, count)}, time_sec);
 }
@@ -5592,11 +5593,11 @@ var vertAngle_deg = func (geocoord1, geocoord2) {
 			
 
 var checkAim = func (myNodeName1 = "", myNodeName2 = "",
-targetSize_m = nil,  weaponSkill = 1, maxDistance_m = 100, weaponAngle_deg = nil, weaponOffset_m = nil, damageValue = 0 ) {
+targetSize_m = nil,  weaponSkill = 1, maxDistance_m = 100, weaponAngle_deg = nil, weaponOffset_m = nil, damageValue = 0, trackWeapon = 0 ) {
 	#Note weaponAngle is a hash with components heading and elevation
 	#Function called only by main weapons_loop
 	#rjw modified to return a hash
-	var result = {pHit:0, weaponDirModelFrame:[0,0,-1], weaponOffsetRefFrame:[0,0,0], weaponDirRefFrame:[0,0,-1]};
+	var result = {pHit:0, weaponDirModelFrame:[0,0,-1], weaponOffsetRefFrame:[0,0,0], weaponDirRefFrame:[0,0,-1], interceptSpd:0};
 				
 	#Weapons malfunction in proportion to the damageValue, to 100% of the time when damage = 100%
 	#debprint ("Bombable: AI weapons, ", myNodeName1, ", ", myNodeName2);
@@ -5634,8 +5635,10 @@ targetSize_m = nil,  weaponSkill = 1, maxDistance_m = 100, weaponAngle_deg = nil
 				
 	
 				
-	#the following plus deltaAlt_m make a < vector > where impactor is at < 0,0,0 > 
-	#and target object is at < deltaX,deltaY,deltaAlt > in relation to it.
+	# calculate targetDispRefFrame, the displacement vector from node1 (AI) to node2 (mainAC) in a lon-lat-alt (x-y-z) frame of reference aka 'reference frame'
+	# the AI model is at < 0,0,0 > 
+	# and the main AC or target is at < deltaX,deltaY,deltaAlt > in relation to it.
+
 	var deltaY_m = deltaLat_deg * m_per_deg_lat;
 	var deltaX_m = deltaLon_deg * m_per_deg_lon;
 
@@ -5710,18 +5713,13 @@ targetSize_m = nil,  weaponSkill = 1, maxDistance_m = 100, weaponAngle_deg = nil
 	
 	
 	
-	# calculate targetDispRefFrame, the displacement vector from node1 (AI) to node2 (mainAC) in a lon-lat-alt (x-y-z) frame of reference
-	# calculate the offset of the weapon in the lon-lat-alt frame of reference aka 'reference frame'
+	# calculate the offset of the weapon in the reference frame
 	# correct targetDispRefFrame for weapon offset
 	# find newDir the direction required for a missile travelling at missileSpeed_mps (constant) to intercept the target given the relative velocities of node1 and node2
 	# calculate the angle between the direction in which the weapon is aimed and newDir
 	# use this angle and the solid angle subtended by the mainAC to determine pHit
-
-	#in 3D model co-ords the x-axis points 180 deg from direction of travel i.e. backwards
-	#the y-axis points at 90 deg to the direction of travel i.e. to the right
-	#weaponOffset is given in model co-ords
 	
-	if (myNodeName1 == "") myHeading_deg = getprop (""~myNodeName1~"/orientation/heading-deg");
+	if (myNodeName1 == "") myHeading_deg = getprop ("/orientation/heading-deg");
 	else myHeading_deg = getprop (""~myNodeName1~"/orientation/true-heading-deg");
 	var pitch_deg = getprop("" ~ myNodeName1 ~ "/orientation/pitch-animation");
 	var roll_deg = getprop("" ~ myNodeName1 ~ "/orientation/roll-animation");
@@ -5731,8 +5729,11 @@ targetSize_m = nil,  weaponSkill = 1, maxDistance_m = 100, weaponAngle_deg = nil
 	}
 	
 	# roll increases clockwise in the direction of travel
+	# in 3D model co-ords the x-axis points 180 deg from direction of travel i.e. backwards
+	# the y-axis points at 90 deg to the direction of travel i.e. to the right
+	# weaponOffset is given in model co-ords
+
 	# calculate weapon offset in reference frame
-	
 	result.weaponOffsetRefFrame = rotate_zxy([
 		weaponOffset_m.y,
 		-weaponOffset_m.x,
@@ -5754,8 +5755,19 @@ targetSize_m = nil,  weaponSkill = 1, maxDistance_m = 100, weaponAngle_deg = nil
 		missileSpeed_mps
 	);
 
-	var interceptDirRefFrame = normalize(intercept.vector);
+	if (intercept.time == -1) return(result);
 	
+	result.interceptSpd = vectorModulus(intercept.vector);
+	
+	var interceptDirRefFrame = vectorDivide(intercept.vector, result.interceptSpd);
+	
+	debprint (
+		sprintf(
+			"Bombable: Intercept time =%6.1f Intercept vector =[%6.2f, %6.2f, %6.2f]",
+			intercept.time, interceptDirRefFrame[0], interceptDirRefFrame[1], interceptDirRefFrame[2] 
+		)
+	);
+
 	#translate to the frame of reference of the weapon
 	var newDir = rotate_yxz(interceptDirRefFrame, pitch_deg, roll_deg, -myHeading_deg);
 	
@@ -5806,48 +5818,50 @@ targetSize_m = nil,  weaponSkill = 1, maxDistance_m = 100, weaponAngle_deg = nil
 		# " result.pHit = ", result.pHit);
 	}
 
-	
-	if ( rand() < weaponSkill) {
-		# ensure that newDir is in range of movement of weapon
-		var newElev = math.asin(newDir[2]) * R2D;
-		var newHeading = math.atan2(newDir[0], newDir[1]) * R2D;
-		var changes = 2;
+	if (trackWeapon)
+	{
+		if ( rand() < weaponSkill) {
+			# ensure that newDir is in range of movement of weapon
+			var newElev = math.asin(newDir[2]) * R2D;
+			var newHeading = math.atan2(newDir[0], newDir[1]) * R2D;
+			var changes = 2;
 
-		if (newElev < weaponAngle_deg.elevationMin) newElev = weaponAngle_deg.elevationMin;
-		elsif (newElev > weaponAngle_deg.elevationMax) newElev = weaponAngle_deg.elevationMax;
-		else changes -= 1;
+			if (newElev < weaponAngle_deg.elevationMin) newElev = weaponAngle_deg.elevationMin;
+			elsif (newElev > weaponAngle_deg.elevationMax) newElev = weaponAngle_deg.elevationMax;
+			else changes -= 1;
 
-		var headingVal = keepInsideRange(weaponAngle_deg.headingMin, weaponAngle_deg.headingMax, newHeading);
-		if (headingVal.insideRange)
-		{
-			changes -= 1;
+			var headingVal = keepInsideRange(weaponAngle_deg.headingMin, weaponAngle_deg.headingMax, newHeading);
+			if (headingVal.insideRange)
+			{
+				changes -= 1;
+			}
+			else
+			{
+				newHeading = headingVal.newHdg;
+			}
+			
+			
+			if (changes !=0)
+			{
+				var cosNewElev = cos(newElev);
+				newDir = [
+					cosNewElev * sin(newHeading),
+					cosNewElev * cos(newHeading),
+					sin(newElev)
+				];
+			}
+			
+			
+			
+			# change aim of weapon
+			result.weaponDirModelFrame = newDir;
+			result.weaponDirRefFrame = rotate_zxy(newDir, -pitch_deg, -roll_deg, myHeading_deg);
+			
+
+			debprint ("Bombable: Changed aim for ", myNodeName1,
+			sprintf("newElev =%6.1f newHeading =%6.1f", newElev, newHeading));
+
 		}
-		else
-		{
-			newHeading = headingVal.newHdg;
-		}
-		
-		
-		if (changes !=0)
-		{
-			var cosNewElev = cos(newElev);
-			newDir = [
-				cosNewElev * sin(newHeading),
-				cosNewElev * cos(newHeading),
-				sin(newElev)
-			];
-		}
-		
-		
-		
-		# change aim of weapon
-		result.weaponDirModelFrame = newDir;
-		result.weaponDirRefFrame = rotate_zxy(newDir, -pitch_deg, -roll_deg, myHeading_deg);
-		
-
-		debprint ("Bombable: Changed aim for ", myNodeName1,
-		sprintf("newElev =%6.1f newHeading =%6.1f", newElev, newHeading));
-
 	}
 	return (result); 	
 }
@@ -5923,7 +5937,8 @@ var weapons_loop = func (id, myNodeName1 = "", myNodeName2 = "", targetSize_m = 
 				weaps[elem].maxDamageDistance_m, 
 				weaps[elem].weaponAngle_deg,
 				weaps[elem].weaponOffset_m, 
-				damageValue 
+				damageValue,
+				weaps[elem].track
 			);
 
 			if (aim.weaponDirModelFrame[2] != -1) attributes[myNodeName1].weapons[elem].aim = aim;
@@ -5941,11 +5956,12 @@ var weapons_loop = func (id, myNodeName1 = "", myNodeName2 = "", targetSize_m = 
 			{
 				debprint ("Bombable: AI aircraft aimed at main aircraft, ",
 				myNodeName1, " ", weaps[elem].name, " ", elem,
-				" accuracy ", round(aim.pHit * 100 ),"%");
+				" accuracy ", round(aim.pHit * 100 ),"%",
+				" interceptSpd", round(aim.interceptSpd), " mps");
 				
 				#fire weapons for visual effect
 				#whenever we're within maxDistance & aimed approximately in the right direction
-				fireAIWeapon(loopTime, myNodeName1, elem, count);
+				fireAIWeapon(loopTime * 3, myNodeName1, elem, count, aim.interceptSpd);
 
 
 							
@@ -8663,6 +8679,16 @@ var weapons_init_func = func(myNodeName) {
 		setprop("bombable/fire-particles/projectile-tracer[" ~ count ~ "]/ai-weapon-firing", 0); 
 		attributes[myNodeName].weapons[elem].aim = {pHit:0, weaponDirModelFrame:[0,0,-1], weaponOffsetRefFrame:[0,0,0], weaponDirRefFrame:[0,0,-1]}; 
 		#used to translate weapon position and orientation from frame of reference of model to the frame of reference of the scene
+		if ((attributes[myNodeName].weapons[elem].weaponAngle_deg.elevationMin) == (attributes[myNodeName].weapons[elem].weaponAngle_deg.elevationMax) and
+		(attributes[myNodeName].weapons[elem].weaponAngle_deg.headingMin) == (attributes[myNodeName].weapons[elem].weaponAngle_deg.headingMax)) 
+		{
+			attributes[myNodeName].weapons[elem].track = 0;
+		)
+		else
+		{
+			attributes[myNodeName].weapons[elem].track = 1;
+		}
+		
 		debprint ("Weaps: ", myNodeName, " initialized ", count);
 		count += 1;
 	}
@@ -9264,18 +9290,6 @@ var reduceSpeed = func(myNodeName, factorSlowDown, type) {
 	settimer( func{reduceSpeed(myNodeName, factorSlowDown,type)},1);
 }
 
-########################## vectorModulus ###########################
-
-var vectorModulus = func(vector) {
-	if (size(vector) == 0) return 0;
-	var mod = 0;
-	for (var i = 0; i < size(vector); i += 1)
-	{
-		mod += vector[i] * vector [i];
-	}
-	return math.sqrt(mod);
-}
-
 ########################## trigonometry ###########################
 
 var sin = func(a) { math.sin(a * globals.D2R) }
@@ -9561,13 +9575,13 @@ var findIntercept = func (myNodeName1, myNodeName2, displacement, dist_m, interc
 	var vxy1 = speed1 * math.cos(glideAngle1); # the projection of velocity1 in the x-y plane
 	var vxy2 = speed2 * math.cos(glideAngle2); 
 	var velocity1 = [
-					vxy1 * math.cos(heading1),
 					vxy1 * math.sin(heading1),
+					vxy1 * math.cos(heading1),
 					speedVert1
 					];
 	var velocity2 = [
-					vxy2 * math.cos(heading2),
 					vxy2 * math.sin(heading2),
+					vxy2 * math.cos(heading2),
 					speedVert2
 					];
 	var velocity21 = [
@@ -9601,6 +9615,18 @@ var findIntercept = func (myNodeName1, myNodeName2, displacement, dist_m, interc
 	}); # in earth reference frame
 }	
 
+########################## vectorModulus ###########################
+
+var vectorModulus = func(vector) {
+	if (size(vector) == 0) return 0;
+	var mod = 0;
+	for (var i = 0; i < size(vector); i += 1)
+	{
+		mod += vector[i] * vector [i];
+	}
+	return math.sqrt(mod);
+}
+
 ########################## dotProduct ###########################
 #calculate dot product of two 3D vectors, v1 and v2
 var dotProduct = func(v1, v2)
@@ -9623,12 +9649,25 @@ var vectorSubtract = func(v1, v2)
 	return([v1[0] - v2[0] , v1[1] - v2[1] , v1[2] - v2[2]]);
 }
 
+########################## vectorMultiply ###########################
+#multiply 3D vector v1 by scalar s
+var vectorMultiply = func(v1, s)
+{
+	return([v1[0] * s , v1[1] * s , v1[2] * s]);
+}
+########################## vectorDivide ###########################
+#divide 3D vector v1 by scalar s
+var vectorDivide = func(v1, s)
+{
+	return([v1[0] / s , v1[1] / s , v1[2] / s]);
+}
+
 ########################## normalize ###########################
 #normalize 3D vector v1
-var vectorSum = func(v1)
+var normalize = func(v1)
 {
 	var magnitude = vectorModulus (v1);
-	return([v1[0] / magnitude , v1[1] / magnitude , v1[2] / magnitude]);
+	return(vectorDivide(v1, magnitude));
 }
 
 
