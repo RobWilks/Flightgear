@@ -5818,51 +5818,46 @@ targetSize_m = nil,  weaponSkill = 1, maxDistance_m = 100, weaponAngle_deg = nil
 		# " result.pHit = ", result.pHit);
 	}
 
-	if (weaponAngle_deg.track)
-	{
-		if ( rand() < weaponSkill) {
-			# ensure that newDir is in range of movement of weapon
-			var newElev = math.asin(newDir[2]) * R2D;
-			var newHeading = math.atan2(newDir[0], newDir[1]) * R2D;
-			var changes = 2;
+	if (( rand() < weaponSkill) and (weaponAngle_deg.track)) {
+		# ensure that newDir is in range of movement of weapon
+		var newElev = math.asin(newDir[2]) * R2D;
+		var newHeading = math.atan2(newDir[0], newDir[1]) * R2D;
+		var changes = 2;
 
-			if (newElev < weaponAngle_deg.elevationMin) newElev = weaponAngle_deg.elevationMin;
-			elsif (newElev > weaponAngle_deg.elevationMax) newElev = weaponAngle_deg.elevationMax;
-			else changes -= 1;
+		if (newElev < weaponAngle_deg.elevationMin) newElev = weaponAngle_deg.elevationMin;
+		elsif (newElev > weaponAngle_deg.elevationMax) newElev = weaponAngle_deg.elevationMax;
+		else changes -= 1;
 
-			var headingVal = keepInsideRange(weaponAngle_deg.headingMin, weaponAngle_deg.headingMax, newHeading);
-			if (headingVal.insideRange)
-			{
-				changes -= 1;
-			}
-			else
-			{
-				newHeading = headingVal.newHdg;
-			}
-			
-			
-			if (changes !=0)
-			{
-				var cosNewElev = cos(newElev);
-				newDir = [
-					cosNewElev * sin(newHeading),
-					cosNewElev * cos(newHeading),
-					sin(newElev)
-				];
-			}
-			
-			
-			
-			# change aim of weapon
-			result.weaponDirModelFrame = newDir;
-			result.weaponDirRefFrame = rotate_zxy(newDir, -pitch_deg, -roll_deg, myHeading_deg);
-			
-
-			debprint ("Bombable: Changed aim for ", myNodeName1,
-			sprintf("newElev =%6.1f newHeading =%6.1f", newElev, newHeading));
-
+		var headingVal = keepInsideRange(weaponAngle_deg.headingMin, weaponAngle_deg.headingMax, newHeading);
+		if (headingVal.insideRange)
+		{
+			changes -= 1;
 		}
+		else
+		{
+			newHeading = headingVal.newHdg;
+		}
+		
+		
+		if (changes !=0)
+		{
+			var cosNewElev = cos(newElev);
+			newDir = [
+				cosNewElev * sin(newHeading),
+				cosNewElev * cos(newHeading),
+				sin(newElev)
+			];
+		}
+		debprint ("Bombable: Changed aim for ", myNodeName1,
+		sprintf("newElev =%6.1f newHeading =%6.1f", newElev, newHeading));
 	}
+	else
+	{
+		newDir = weapDir;
+	}
+	# change aim of weapon
+	result.weaponDirModelFrame = newDir;
+	result.weaponDirRefFrame = rotate_zxy(newDir, -pitch_deg, -roll_deg, myHeading_deg);
 	return (result); 	
 }
 
@@ -8482,8 +8477,6 @@ var attack_init_func = func(myNodeName) {
 # weaponsOrientationPositionUpdate_loop
 # to update the position/angle of weapons attached
 # to AI aircraft.  Use for visual weapons effects
-# now but could be used for weapons aim etc in the future.
-# rjw function not used since weapon aim is integrated in checkAim
 
 var weaponsOrientationPositionUpdate_loop = func (id, myNodeName) {
 
@@ -8495,9 +8488,7 @@ var weaponsOrientationPositionUpdate_loop = func (id, myNodeName) {
 	# debprint ("weapsOrientatationPos_loop:  id= ",id," loopid= ",loopid);
 	id == loopid or return;
 	
-	# weaponSkill varies 0-1, average determined by power-skill combo on Bombable menu
-	var weaponSkill = getprop(""~myNodeName~"/bombable/weapons-pilot-ability"); 
-	settimer (func {weaponsOrientationPositionUpdate_loop (id, myNodeName)}, 1/(2 + 4 * weaponSkill));
+	settimer (func {weaponsOrientationPositionUpdate_loop (id, myNodeName)}, 1/3);
 	
 						
 	# no need to do this if any of these are turned off
