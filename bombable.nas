@@ -5597,7 +5597,7 @@ targetSize_m = nil,  weaponSkill = 1, maxDistance_m = 100, weaponAngle_deg = nil
 	#Note weaponAngle is a hash with components heading and elevation
 	#Function called only by main weapons_loop
 	#rjw modified to return a hash
-	var result = {pHit:0, weaponDirModelFrame:[0,0,-1], weaponOffsetRefFrame:[0,0,0], weaponDirRefFrame:[0,0,-1], interceptSpd:0};
+	var result = {pHit:0, weaponDirModelFrame:[0,0,-1], weaponOffsetRefFrame:[0,0,0], weaponDirRefFrame:[0,0,0], interceptSpd:0};
 				
 	#Weapons malfunction in proportion to the damageValue, to 100% of the time when damage = 100%
 	#debprint ("Bombable: AI weapons, ", myNodeName1, ", ", myNodeName2);
@@ -5927,7 +5927,7 @@ var weapons_loop = func (id, myNodeName1 = "", myNodeName2 = "", targetSize_m = 
 		if ( stores.checkWeaponsReadiness ( myNodeName1, elem )) 
 		# Could also check weaponSkill here. However skill of gunner not simply correlated with how frequently they fire
 		{
-			var aim = checkAim (myNodeName1, myNodeName2, 
+			var newAim = checkAim (myNodeName1, myNodeName2, 
 				targetSize_m, weaponSkill,
 				weaps[elem].maxDamageDistance_m, 
 				weaps[elem].weaponAngle_deg,
@@ -5935,27 +5935,32 @@ var weapons_loop = func (id, myNodeName1 = "", myNodeName2 = "", targetSize_m = 
 				damageValue
 			);
 
-			if (aim.weaponDirModelFrame[2] != -1) attributes[myNodeName1].weapons[elem].aim = aim;
+			if (newAim.weaponDirModelFrame[2] != -1) attributes[myNodeName1].weapons[elem].aim = newAim;
 			# stored for use in weaponsOrientationPositionUpdate_loop
 			# -1 is a flag to indicate whether new aim data are available
 
-			# debprint ("Bombable: Weapons_loop ", myNodeName1, " weaponSkill = ",weaponSkill, " weaponPower = ", weaponPower, " aim.pHit = ", aim.pHit);
+			# debprint ("Bombable: Weapons_loop ", myNodeName1, " weaponSkill = ",weaponSkill, " weaponPower = ", weaponPower, " newAim.pHit = ", newAim.pHit);
+			debprint (
+				"Bombable: Weapons_loop " ~ myNodeName1 ~ " " ~ elem, 
+				" heading = ", weaps[elem].weaponAngle_deg.heading, 
+				" elevation = ", weaps[elem].weaponAngle_deg.elevation
+			);
 			
-			if (aim.pHit == -1) break; #flag for no line of sight; assume none of the gunners can see the target so abort loop
+			if (newAim.pHit == -1) break; #flag for no line of sight; assume none of the gunners can see the target so abort loop
 
 			
 			#debprint ("aim-check weapon");
-			if (aim.pHit > (0.01 * weaponSkill))
+			if (newAim.pHit > (0.01 * weaponSkill))
 			# a skilled gunner will fire at 1% pHit; an unskilled one 0.1%
 			{
 				debprint ("Bombable: AI aircraft aimed at main aircraft, ",
 				myNodeName1, " ", weaps[elem].name, " ", elem,
-				" accuracy ", round(aim.pHit * 100 ),"%",
-				" interceptSpd", round(aim.interceptSpd), " mps");
+				" accuracy ", round(newAim.pHit * 100 ),"%",
+				" interceptSpd", round(newAim.interceptSpd), " mps");
 				
 				#fire weapons for visual effect
 				#whenever we're within maxDistance & aimed approximately in the right direction
-				fireAIWeapon(loopTime * 3, myNodeName1, elem, count, aim.interceptSpd);
+				fireAIWeapon(loopTime * 3, myNodeName1, elem, count, newAim.interceptSpd);
 
 
 							
@@ -5969,15 +5974,15 @@ var weapons_loop = func (id, myNodeName1 = "", myNodeName2 = "", targetSize_m = 
 				# There is a smaller chance of doing a fairly high level of damage (up to 3X the regular max),
 				# and the better/closer the hit, the greater chance of doing that significant damage.
 				var r = rand();
-				if (r < aim.pHit) {
+				if (r < newAim.pHit) {
 
 					var ai_callsign = getCallSign (myNodeName1);
 								
-					var damageAdd = aim.pHit * weaponPower * 0;
+					var damageAdd = newAim.pHit * weaponPower * 0;
 					if (damageAdd > weaps[elem].maxDamage_percent / 100) damageAdd = weaps[elem].maxDamage_percent / 100;
 								
 					# Some chance of doing more damage (and a higher chance the closer the hit)
-					# if (r < aim.pHit / 5 ) damageAdd  *=  3 * rand(); # rjw omitted
+					# if (r < newAim.pHit / 5 ) damageAdd  *=  3 * rand(); # rjw omitted
 								
 					weaponName = weaps[elem].name;
 					if (weaponName == nil) weaponName = "Main Weapon";
@@ -8524,6 +8529,8 @@ var weaponsOrientationPositionUpdate_loop = func (id, myNodeName) {
 		# first, point the weapon
 		var newElev = math.asin(aim.weaponDirModelFrame[2]) * R2D;
 		var newHeading = math.atan2(aim.weaponDirModelFrame[0], aim.weaponDirModelFrame[1]) * R2D;
+		var newElev_ref = math.asin(aim.weaponDirRefFrame[2]) * R2D;
+		var newHeading_ref = math.atan2(aim.weaponDirRefFrame[0], aim.weaponDirRefFrame[1]) * R2D;
 		weaps[elem].weaponAngle_deg.heading = newHeading;
 		weaps[elem].weaponAngle_deg.elevation = newElev;
 		setprop("" ~ myNodeName ~ "/surface-positions[" ~ weapCount ~ "]/cannon-elev-deg" , newElev);
@@ -8532,8 +8539,8 @@ var weaponsOrientationPositionUpdate_loop = func (id, myNodeName) {
 		
 		# next, point the projectile
 		# the projectile models follow the aircraft using these orientation and position data from the property tree
-		setprop("" ~ myNodeName ~ "/" ~elem~ "/orientation/pitch-deg", aim.weaponDirRefFrame[2] * R2D);
-		setprop("" ~ myNodeName ~ "/" ~elem~ "/orientation/true-heading-deg", math.atan2(aim.weaponDirRefFrame[0], aim.weaponDirRefFrame[1]) * R2D);
+		setprop("" ~ myNodeName ~ "/" ~elem~ "/orientation/pitch-deg", newElev_ref);
+		setprop("" ~ myNodeName ~ "/" ~elem~ "/orientation/true-heading-deg", newHeading_ref);
 		
 		setprop("" ~ myNodeName ~ "/" ~elem~ "/position/altitude-ft",
 		getprop("" ~ myNodeName ~ "/position/altitude-ft") + aim.weaponOffsetRefFrame[2] * FT2M);
@@ -8547,11 +8554,12 @@ var weaponsOrientationPositionUpdate_loop = func (id, myNodeName) {
 		
 		weapCount += 1;
 		debprint("weaponsOrientationPositionUpdate_loop " ~ elem ~ 
-			sprintf(" newElev =%6.1f newHeading =%6.1f true-heading-deg =%6.1f pitch-deg =%6.1f", 
-			newElev, 
-			newHeading, 
-			math.atan2(aim.weaponDirRefFrame[0], aim.weaponDirRefFrame[1]) * R2D,
-			aim.weaponDirRefFrame[2] * R2D)			
+			sprintf(" newElev =%6.1f pitch-deg =%6.1f newHeading =%6.1f true-heading-deg =%6.1f", 
+				newElev, 
+				newElev_ref,
+				newHeading, 
+				newHeading_ref
+			)			
 		);
 	}
 }
@@ -8667,7 +8675,18 @@ var weapons_init_func = func(myNodeName) {
 		setprop ("/bombable/fire-particles/projectile-tracer[" ~ count ~ "]/projectile-startsize", weaps[elem].weaponSize_m.start);
 		setprop ("/bombable/fire-particles/projectile-tracer[" ~ count ~ "]/projectile-endsize", weaps[elem].weaponSize_m.end);
 		setprop("bombable/fire-particles/projectile-tracer[" ~ count ~ "]/ai-weapon-firing", 0); 
-		attributes[myNodeName].weapons[elem].aim = {pHit:0, weaponDirModelFrame:[0,0,-1], weaponOffsetRefFrame:[0,0,0], weaponDirRefFrame:[0,0,-1]}; 
+		
+		#form vector for weapon direction, weapDir
+		var weapAngle_deg = attributes[myNodeName].weapons[elem].weaponAngle_deg;
+		var cosWeapElev = cos(weapAngle_deg.elevation);
+		var weapDir = [
+			cosWeapElev * sin(weapAngle_deg.heading),
+			cosWeapElev * cos(weapAngle_deg.heading),
+			sin(weapAngle_deg.elevation)
+		];
+		
+		
+		attributes[myNodeName].weapons[elem].aim = {pHit:0, weaponDirModelFrame:weapDir, weaponOffsetRefFrame:[0,0,0], weaponDirRefFrame:[0,0,0]}; 
 		#used to translate weapon position and orientation from frame of reference of model to the frame of reference of the scene
 		
 		debprint ("Weaps: ", myNodeName, " initialized ", count);
