@@ -1146,16 +1146,16 @@ var deleteSmoke = func (smokeType, myNodeName = "",fireNode = "") {
 # smokeTypes are flare, smoketrail, pistonexhaust, contrail, damagedengine
 #
 # This func starts a flare in a given location & associated with a given object
-#object is given by "myNodeName" and directory path to the model in "model"
-#Also sets the fire burning flag on the object itself so it knows it is on fire
-#and saves the name of the fire (model) node so the object can find
-#the fire (model) it is associated with to update it etc.
-#Returns name of the node with the newly started fire object (model)
+# object is given by "myNodeName" and directory path to the model in "model"
+# Also sets the fire burning flag on the object itself so it knows it is on fire
+# and saves the name of the fire (model) node so the object can find
+# the fire (model) it is associated with to update it etc.
+# Returns name of the node with the newly started fire object (model)
 
 
 var startSmoke = func (smokeType, myNodeName = "", model = "")
 {
-	if (myNodeName == "") myNodeName = "";
+	# if (myNodeName == "") myNodeName = "";
 	#if there is already smoke of this type going/associated with this object
 	# then we don't want to start another
 	var currFire = getprop(""~myNodeName~"/bombable/fire-particles/"~smokeType~"-particles-model");
@@ -2507,7 +2507,7 @@ var parse_msg = func (source, msg) {
 # add_damage routines.
 #
 var fire_loop = func(id, myNodeName = "") {
-	if (myNodeName == "") myNodeName = "";
+	# if (myNodeName == "") myNodeName = "";
 	var loopid = getprop(""~myNodeName~"/bombable/loopids/fire-loopid");
 	id == loopid or return;
 			
@@ -5191,7 +5191,7 @@ var getCallSign = func ( myNodeName ) {
 # in case of some packet loss)
 var mp_update_damage = func (myNodeName = "", damageRise = 0, damageTotal = 0, smokeStart = 0, fireStart = 0, callsign = "" ) {
 
-	if (myNodeName == "") myNodeName = "";
+	# if (myNodeName == "") myNodeName = "";
 				
 	#if (myNodeName == "") debprint ("Bombable: Updating main aircraft 2328");
 				
@@ -5460,7 +5460,7 @@ var mp_send_damage = func (myNodeName = "", damageRise = 0 ) {
 	if (!getprop(bomb_menu_pp~"bombable-enabled") ) return;
 				
 	#this makes it the main aircraft if nodename = ""
-	if (myNodeName == "") myNodeName = "";
+	# if (myNodeName == "") myNodeName = "";
 				
 	#messageType 1 is letting another MP aircraft know you have damaged it
 	#messageType 3 is informing all other MP aircraft know about the main
@@ -5524,7 +5524,7 @@ var fireAIWeapon = func (time_sec, myNodeName, elem, count, speed) {
 }
 
 ###################### vertAngle_deg #########################
-#calculates angle (vertical, degrees above or below directly
+# calculates angle (vertical, degrees above or below directly
 # horizontal) between two geocoords, in degrees
 #
 var vertAngle_deg = func (geocoord1, geocoord2) {
