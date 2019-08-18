@@ -8490,18 +8490,15 @@ var attack_init_func = func(myNodeName) {
 
 var weaponsOrientationPositionUpdate_loop = func (id, myNodeName) {
 
-
-	#var myNode = changedNode.getParent().getParent();
-	#var myNodeName = myNode.getPath();
 						
 	var loopid = getprop(""~myNodeName~"/bombable/loopids/weaponsOrientation-loopid");
 	# debprint ("weapsOrientatationPos_loop:  id= ",id," loopid= ",loopid);
 	id == loopid or return;
 	
-	settimer (func {weaponsOrientationPositionUpdate_loop (id, myNodeName)}, 1/3);
+	settimer (func {weaponsOrientationPositionUpdate_loop (id, myNodeName)}, 1);
 	
 						
-	# no need to do this if any of these are turned off
+	# no need to do this if any of these are turned off in the bombable menu
 	# though we may update weapons_loop to rely on these numbers as well
 	if (! getprop ( trigger1_pp~"ai-weapon-fire-visual"~trigger2_pp)
 	or ! getprop(bomb_menu_pp~"bombable-enabled")
@@ -8512,15 +8509,14 @@ var weaponsOrientationPositionUpdate_loop = func (id, myNodeName) {
 	
 	weaps = attributes[myNodeName].weapons;
 						
-	#debprint ("ist: ", myNodeName, " node: ",listenedNode.getName(), " weap:",
-	# weaps[elem].weaponAngle_deg.elevation);
+	#debprint ("ist: ", myNodeName, " node: ",listenedNode.getName(), " weap:", weaps[elem].weaponAngle_deg.elevation);
 
 	
 	# loop to make weapon and projectile point in the direction of the target
 	# the direction is calculated in the checkAim loop
 
 						
-	# loop to point weapon in the direction of the target
+	# first point weapon in the direction of the target
 	# and then the projectile in the direction of the weapon
 
 	
@@ -8531,7 +8527,8 @@ var weaponsOrientationPositionUpdate_loop = func (id, myNodeName) {
 		# stored in weapons_loop 
 
 		
-		# first, point the weapon
+		# first, point the weapon.  The first frame is relative to the model, 
+		# the second is lon-lat-alt (x-y-z), aka 'reference frame'
 		var newElev = math.asin(aim.weaponDirModelFrame[2]) * R2D;
 		var newHeading = math.atan2(aim.weaponDirModelFrame[0], aim.weaponDirModelFrame[1]) * R2D;
 		var newElev_ref = math.asin(aim.weaponDirRefFrame[2]) * R2D;
