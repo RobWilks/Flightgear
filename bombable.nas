@@ -1155,8 +1155,8 @@ var deleteSmoke = func (smokeType, myNodeName = "",fireNode = "") {
 
 var startSmoke = func (smokeType, myNodeName = "", model = "")
 {
-	# if (myNodeName == "") myNodeName = "";
-	#if there is already smoke of this type going/associated with this object
+	if (myNodeName == "") myNodeName = "";
+	# if there is already smoke of this type going/associated with this object
 	# then we don't want to start another
 	var currFire = getprop(""~myNodeName~"/bombable/fire-particles/"~smokeType~"-particles-model");
 	if ((currFire != nil) and (currFire != "")) return currFire;
@@ -1169,18 +1169,18 @@ var startSmoke = func (smokeType, myNodeName = "", model = "")
 	#var fire_node = geo.put_model("Models/bombable/Wildfire/wildfire.xml", lat, lon, alt * feet2meters);
 	#debprint ("started fire! "~ myNodeName);
 	
-	#turn off the flare after user-set amount of time (default 1800 seconds)
+	# turn off the flare after user-set amount of time (default 1800 seconds)
 	var burnTime = getprop (burntime1_pp~smokeType~burntime2_pp);
 	if (burnTime == 0 or burnTime == nil) burnTime = 1800;
-	#burnTime = -1 means leave it on indefinitely
+	# burnTime = -1 means leave it on indefinitely
 	if (burnTime >= 0) settimer (func {deleteSmoke(smokeType, myNodeName,fireNode)}, burnTime);
-	#rjw debug
-	# debprint("smokeType = ",smokeType,"myNodeName = ",myNodeName,"fireNode = ",fireNode,"burnTime = ",burnTime);
+	# rjw debug
+	#debprint("smokeType = ",smokeType,"myNodeName = ",myNodeName,"fireNode = ",fireNode,"burnTime = ",burnTime);
 
-	#name of this prop is "/models" + getname() + [ getindex() ]
+	# name of this prop is "/models" + getname() + [ getindex() ]
 	fireNodeName = "/models/" ~ fireNode.getName() ~ "[" ~ fireNode.getIndex() ~ "]";
 	
-	# if (myNodeName != "") type = props.globals.getNode(myNodeName).getName();
+	#if (myNodeName != "") type = props.globals.getNode(myNodeName).getName();
 	#else type = "";
 	#if (type == "multiplayer") mp_send_damage(myNodeName, 0);
 	
@@ -2507,7 +2507,7 @@ var parse_msg = func (source, msg) {
 # add_damage routines.
 #
 var fire_loop = func(id, myNodeName = "") {
-	# if (myNodeName == "") myNodeName = "";
+	if (myNodeName == "") myNodeName = "";
 	var loopid = getprop(""~myNodeName~"/bombable/loopids/fire-loopid");
 	id == loopid or return;
 			
@@ -3665,7 +3665,7 @@ var cartesianDistance = func  (elem...){
 }
 
 ####################### test_impact #########################
-#FUNCTION test_impact
+# FUNCTION test_impact
 #
 # listener function on ballistic impacts
 # checks if the impact has hit our object and if so, adds the damage
@@ -3675,8 +3675,8 @@ var cartesianDistance = func  (elem...){
 # FG uses a very basic collision detection algorithm that assumes a standard
 # height and length for each type of AI object.  These are actually 'radius'
 # type measurements--ie for the 2nd object, if the ballistic obj strikes 50 ft
-#above OR 50 ft below, and within a circle of radius 100 ft of the lat/lon,
-#then we get a hit.  From the C code:
+# above OR 50 ft below, and within a circle of radius 100 ft of the lat/lon,
+# then we get a hit.  From the C code:
 # // we specify tgt extent (ft) according to the AIObject type
 #    double tgt_ht[]    = {0,  50, 100, 250, 0, 100, 0, 0,  50,  50, 20, 100,  50};
 #    double tgt_length[] = {0, 100, 200, 750, 0,  50, 0, 0, 200, 100, 40, 200, 100};
@@ -3701,7 +3701,7 @@ var cartesianDistance = func  (elem...){
 		
 var test_impact = func(changedNode, myNodeName) {
 
-	#Allow this function to be disabled via bombable menu
+	# Allow this function to be disabled via bombable menu
 	if ( ! getprop(bomb_menu_pp~"bombable-enabled") ) return;
 
 	var impactNodeName = changedNode.getValue();
@@ -3729,13 +3729,13 @@ var test_impact = func(changedNode, myNodeName) {
 	#attributes[myNodeName].dimensions.maxLon;
 			
 			
-	#quick-n-dirty way to tell if an impact is close to our object at all
-	#without processor-intensive calculations
-	#we do this first and then exit if not close, to reduce impact
-	#of impacts on processing time
+	# quick-n-dirty way to tell if an impact is close to our object at all
+	# without processor-intensive calculations
+	# we do this first and then exit if not close, so as to minimise
+	# processing time
 	#
 	#
-	var deltaLat_deg = (oLat_deg-iLat_deg);
+	var deltaLat_deg = (oLat_deg - iLat_deg);
 	if (abs(deltaLat_deg) > maxLat_deg * 1.5 ) {
 		#debprint ("Not close in lat. ", deltaLat_deg);
 		exit_test_impact(impactNodeName, myNodeName);
@@ -3745,7 +3745,7 @@ var test_impact = func(changedNode, myNodeName) {
 	var oLon_deg = getprop (""~myNodeName~"/position/longitude-deg");
 	var iLon_deg = getprop (""~impactNodeName~"/impact/longitude-deg");
 
-	var deltaLon_deg = (oLon_deg-iLon_deg);
+	var deltaLon_deg = (oLon_deg - iLon_deg);
 	if (abs(deltaLon_deg) > maxLon_deg * 1.5 )  {
 		#debprint ("Not close in lon. ", deltaLon_deg);
 		exit_test_impact(impactNodeName, myNodeName);
@@ -3754,7 +3754,7 @@ var test_impact = func(changedNode, myNodeName) {
 
 	var oAlt_m = getprop (""~myNodeName~"/position/altitude-ft") * feet2meters;
 	var iAlt_m = getprop (""~impactNodeName~"/impact/elevation-m");
-	var deltaAlt_m = (oAlt_m-iAlt_m);
+	var deltaAlt_m = (oAlt_m - iAlt_m);
 			
 	if (abs(deltaAlt_m) > 300 ) {
 		#debprint ("Not close in Alt. ", deltaAlt);
@@ -3787,7 +3787,7 @@ var test_impact = func(changedNode, myNodeName) {
 	# ft_per_deg_lon = 365228.16 * cos(pos.getLatitudeRad());
 	# per FG c code, http://gitorious.org/fg/flightgear/blobs/next/src/AIModel/AIBase.cxx line 178
 	# We could speed this up by leaving out the cos term in deg_lat and/or calculating these
-	# occasionally as the main A/C flies around and storing them (they dont change that)
+	# occasionally as the main A/C flies around and storing them (they don't change that)
 	# much from one mile to the next)
 	# var iLat_rad = iLat_deg/rad2degrees;
 	# m_per_deg_lat = 111699.7 - 1132.978 * math.cos (iLat_rad);
@@ -3869,7 +3869,7 @@ var test_impact = func(changedNode, myNodeName) {
 		#var heightDifference_m = math.abs(getprop (""~impactNodeName~"/impact/elevation-m") - getprop (""~nodeName~"/impact/altitude-ft") * feet2meters);
 	}
 
-	var damAdd = 0; #total amoung of damage actually added as the result of the impact
+	var damAdd = 0; #total amount of damage actually added as the result of the impact
 	var impactTerrain = getprop (""~impactNodeName~"/impact/type");
 			
 	#debprint ("Bombable: Possible hit - calculating . . . ", impactTerrain);
@@ -3888,7 +3888,7 @@ var test_impact = func(changedNode, myNodeName) {
 	ballisticMass_lb = getBallisticMass_lb(impactNodeName);
 	var ballisticMass_kg = ballisticMass_lb/2.2;
 			
-	#Only worry about small arms/small cannon fire if it is a direct hit on the object;
+	# Only worry about small arms/small cannon fire if it is a direct hit on the object;
 	# if it hits terrain, then no damage.
 	if (impactTerrain == "terrain" and ballisticMass_lb <= 1.2) {
 		#debprint ("hit on terrain & mass < 1.2 lbs, exiting ");
@@ -3898,24 +3898,24 @@ var test_impact = func(changedNode, myNodeName) {
 
 	var impactVelocity_mps = getImpactVelocity_mps (impactNodeName, ballisticMass_lb);
 
-	#How many shots does it take to down an object?  Supposedly the Red Baron
-	#at times put in as many as 500 machine-gun rounds into a target to * make
-	#sure * it really went down.
+	# How many shots does it take to down an object?  Supposedly the Red Baron
+	# at times put in as many as 500 machine-gun rounds into a target to * make
+	# sure * it really went down.
 			
 	var easyMode = 1;
 	var easyModeProbability = 1;
 			
 	if (myNodeName != "" ) {
-		#Easy Mode increases the damage radius (2X), making it easier to score hits,
-		#but doesn't increase the damage done by armament
+		# Easy Mode increases the damage radius (2X), making it easier to score hits,
+		# but doesn't increase the damage done by armament
 		if (getprop(""~bomb_menu_pp~"easy-mode")) {
 			#easyMode *= 2;
 			damageRadius_m *= 2;
 			vitalDamageRadius_m *= 2;
 		}
 				
-		#Super Easy mode increases both the damage radius AND the damage done
-		#by 3X
+		# Super Easy mode increases both the damage radius AND the damage done
+		# by 3X
 		if (getprop(""~bomb_menu_pp~"super-easy-mode")){
 			easyMode *= 3;
 			easyModeProbability *= 3;
@@ -3924,23 +3924,23 @@ var test_impact = func(changedNode, myNodeName) {
 		}
 	}
 
-	# debprint ("Bombable: Projected closest impact distance delta : ", closestApproachOLDWAY_m-closestApproach_m, "FG Impact Detection Point delta: ", impactDistance_m - cartesianDistance(deltaX_m,deltaY_m,deltaAlt_m), " ballisticMass_lb = ", ballisticMass_lb);
+	#debprint ("Bombable: Projected closest impact distance delta : ", closestApproachOLDWAY_m-closestApproach_m, "FG Impact Detection Point delta: ", impactDistance_m - cartesianDistance(deltaX_m,deltaY_m,deltaAlt_m), " ballisticMass_lb = ", ballisticMass_lb);
 
 	#var tgt_ht_m = 50/.3042 + 5; # AIManager.cxx it is 50 ft for aircraft & multiplayer;extra 5 m is fudge factor
 	#var tgt_length_m = 100/.3024 + 5; # AIManager.cxx it is 100 ft for aircraft & multiplayer; extra 5 m is fudge factor
 			
-	#if impactterrain is aircraft or MP and the impact is within the tgt_alt and tgt_height, we're going to assume it is a direct impact on this object.
+	# if impactterrain is aircraft or MP and the impact is within the tgt_alt and tgt_height, we're going to assume it is a direct impact on this object.
 	# it would be much easier if FG would just pass us the node name of the object that has been hit,
 	# but lacking that vital bit of info, we do it the hard way . . .
+	
 	#if(abs(iAlt_m-oAlt_m) < tgt_ht_m   and impactDistanceXY_m < tgt_length_m   and impactTerrain != "terrain") {
 
 		#OK, it's within the damage radius - direct hit
 		if (closestApproach_m < damageRadius_m) {
-					
-					
+										
 			damagePotential = 0;
 			outsideIDdamagePotential = 0;
-			#Kinetic energy ranges from about 1500 joules (Vickers machine gun round) to
+			# Kinetic energy ranges from about 1500 joules (Vickers machine gun round) to
 			# 200,000 joules (GAU-8 gatling gun round .8 lbs at 1000 MPS typical impact speed)
 			# to 220,000 joules (GAU-8 at muzzle velocity)
 			# to 330,000 joules (1.2 lb projectile at 1500 MPS muzzle velocity)
@@ -3952,7 +3952,7 @@ var test_impact = func(changedNode, myNodeName) {
 			# See http://en.wikipedia.org/wiki/Kinetic_energy
 			#var kineticEnergy_joules = ballisticMass_kg * impactVelocity_mps * impactVelocity_mps /2;
 					
-			#According to this, weapon effectiveness isn't well correlated to kinetic energy, but
+			# According to this, weapon effectiveness isn't well correlated to kinetic energy, but
 			# is better estimated in proportion to momentum
 			# plus a factor for the chemical explosiveness of the round:
 			#             http://eaw.wikispaces.com/Technical+Tools--Gun+Power
@@ -3966,19 +3966,19 @@ var test_impact = func(changedNode, myNodeName) {
 			#
 			momentum_kgmps = ballisticMass_kg * impactVelocity_mps;
 					
-			weaponDamageCapability = momentum_kgmps/(60 * 360);
+			weaponDamageCapability = momentum_kgmps / (60 * 360);
 			#debprint ("mass = ", ballisticMass_lb, " vel = ", impactVelocity_mps, " Ek = ", kineticEnergy_joules, " damageCapability = ", weaponDamageCapability);
 					
 					
 					
-			#likelihood of damage goes up the closer we are to the center; it becomes 1 at vitalDamageRadius
+			# likelihood of damage goes up the closer we are to the center; it becomes 1 at vitalDamageRadius
 					
 			if (closestApproach_m <= vitalDamageRadius_m )impactLikelihood = 1;
 			else impactLikelihood = (damageRadius_m - closestApproach_m)/(damageRadius_m -vitalDamageRadius_m);
 					
 					
 					
-			#It's within vitalDamageRadius, this is the core of the object--engines pilot, fuel tanks,
+			# It's within vitalDamageRadius, this is the core of the object--engines pilot, fuel tanks,
 			# etc.  #So, some chance of doing high damage and near certainty of doing some damage
 			if (closestApproach_m <= vitalDamageRadius_m )  {
 				#damagePotential = (damageRadius_m - closestApproach_m)/damageRadius_m;
@@ -3995,7 +3995,7 @@ var test_impact = func(changedNode, myNodeName) {
 						
 				damagePotential = impactLikelihood * vuls.damageVulnerability / 2000;
 						
-				#Think of a typical aircraft projected onto the 2D plane with damage radius &
+				# Think of a typical aircraft projected onto the 2D plane with damage radius &
 				# vital damage radius superimposed over them.  For vital damage radius, it's right near
 				# the center and  most of the area enclosed would be a hit.
 				# But for the area between vital damage radius & damage
@@ -4020,9 +4020,9 @@ var test_impact = func(changedNode, myNodeName) {
 				# gun/small ammo
 						
 						
-				#Guarantee of some damage, maybe big damage if it hits some vital parts
+				# Guarantee of some damage, maybe big damage if it hits some vital parts
 				# (the 'if' is a model for the percentage chance of it hitting some vital part,
-				#  which should happen only occasionally--and less occasionally for well-armored targets)
+				# which should happen only occasionally--and less occasionally for well-armored targets)
 				# it always does at least 100% of weaponDamageCapability and up to 300%
 				if ( rand() < damagePotential * easyModeProbability) {
 					damageCaused = (weaponDamageCapability + rand() * weaponDamageCapability * 2) * vuls.damageVulnerability * easyMode;
@@ -4077,8 +4077,8 @@ var test_impact = func(changedNode, myNodeName) {
 					} else {
 					#case of AI or MP Aircraft, we draw it at point of closest impact
 							
-					#Code below calculates < crossProdObj_Imp > , the vector from the
-					#   object location to the closest approach/impact point
+					# Code below calculates < crossProdObj_Imp > , the vector from the
+					# object location to the closest approach/impact point
 					# Vector < crossProd > has the right magnitude but is perpendicular to the plane
 					# containing the impact detection point, the closest approach point, and the
 					# object location.  Doing the cross product of < crossProd > with < impactorDirection > (which
@@ -4111,7 +4111,7 @@ var test_impact = func(changedNode, myNodeName) {
 
 			#debprint ("near hit, not direct");
 			if (myNodeName == "") {
-				#case of MainAC, we just draw the impact where FG has detected it,
+				# In case of MainAC, we just draw the impact where FG has detected it,
 				# not calculating any refinements, which just case problems in case of the
 				# mainAC, anyway.
 
@@ -4156,29 +4156,31 @@ var test_impact = func(changedNode, myNodeName) {
 				} elsif (ballisticMass_lb < 10 and ballisticMass_lb >= 1.2 )  {
 				if(closestApproach_m <= 10 + damageRadius_m)
 				damAdd = add_damage(.1 * vuls.damageVulnerability * ballisticMass_lb / 10 * easyMode, myNodeName, "weapon", impactNodeName, ballisticMass_lb, iLat_deg, iLon_deg, iAlt_m);
-				elsif((closestApproach_m > 10 + damageRadius_m) and (closestApproach_m < 30 + damageRadius_m)){
-					var damFactor = (30-closestApproach_m)/30;
-					if (damFactor < 0) damFactor = 0;
 
+				elsif((closestApproach_m > 10 + damageRadius_m) and (closestApproach_m < 30 + damageRadius_m)){
+					var damFactor = (30 - closestApproach_m)/30;
+					if (damFactor < 0) damFactor = 0;
 					if (rand() < damFactor) damAdd = add_damage(0.0002 * vuls.damageVulnerability * ballisticMass_lb/10 * easyMode, myNodeName, "weapon", impactNodeName, ballisticMass_lb, iLat_deg, iLon_deg, iAlt_m);
 				}
 						
 				} elsif  (ballisticMass_lb < 50 and ballisticMass_lb >= 10 ) {
 				if(closestApproach_m <= .75 + damageRadius_m)
 				damAdd = add_damage(.3 * vuls.damageVulnerability * ballisticMass_lb /50 * easyMode, myNodeName, "weapon", impactNodeName, ballisticMass_lb, iLat_deg, iLon_deg, iAlt_m);
+
 				elsif((closestApproach_m > .75 + damageRadius_m) and (closestApproach_m <= 10 + damageRadius_m))
 				damAdd = add_damage(.0001 * vuls.damageVulnerability * ballisticMass_lb /50 * easyMode, myNodeName, "weapon", impactNodeName, ballisticMass_lb, iLat_deg, iLon_deg, iAlt_m);
 
 				elsif((closestApproach_m > 10 + damageRadius_m) and (closestApproach_m < 30 + damageRadius_m))
 				damAdd = add_damage(0.00005 * vuls.damageVulnerability * ballisticMass_lb /50 * easyMode, myNodeName, "weapon", impactNodeName, ballisticMass_lb, iLat_deg, iLon_deg, iAlt_m);
-				elsif((closestApproach_m > 30 + damageRadius_m) and (closestApproach_m < 60 + damageRadius_m)){
-					var damFactor = (60-closestApproach_m)/60;
-					if (damFactor < 0) damFactor = 0;
 
+				elsif((closestApproach_m > 30 + damageRadius_m) and (closestApproach_m < 60 + damageRadius_m)){
+					var damFactor = (60 - closestApproach_m)/60;
+					if (damFactor < 0) damFactor = 0;
 					if (rand() < damFactor) damAdd = add_damage(0.0002 * vuls.damageVulnerability * ballisticMass_lb/50 * easyMode, myNodeName, "weapon", impactNodeName, ballisticMass_lb, iLat_deg, iLon_deg, iAlt_m);
 				}
+
 				else{
-					var damFactor = (100-closestApproach_m)/100;
+					var damFactor = (100 - closestApproach_m)/100;
 					if (damFactor < 0) damFactor = 0;
 					if (rand() < damFactor) damAdd = add_damage(0.0001 * vuls.damageVulnerability * ballisticMass_lb/350 * easyMode, myNodeName, "weapon", impactNodeName, ballisticMass_lb, iLat_deg, iLon_deg, iAlt_m);
 				}
@@ -4316,9 +4318,9 @@ var test_impact = func(changedNode, myNodeName) {
 			var skill = calcPilotSkill (myNodeName);
 			if ( closestApproach_m < 500 and rand() < skill/14 ) dodge (myNodeName);
 					
-			#but even numbskull pilots start dodging if there is a direct hit!
+			# but even numbskull pilots start dodging if there is a direct hit!
 			# Unless distracted ((rand() < .20 - 2 * skill/100)) is a formula for
-			#       distraction, assumed to be lower for more skilled pilots
+			# distraction, assumed to be lower for more skilled pilots
 					
 			elsif ( damAdd > 0 and (rand() < .20 - 2 * skill/100) ) dodge (myNodeName);
 		}
@@ -5191,7 +5193,7 @@ var getCallSign = func ( myNodeName ) {
 # in case of some packet loss)
 var mp_update_damage = func (myNodeName = "", damageRise = 0, damageTotal = 0, smokeStart = 0, fireStart = 0, callsign = "" ) {
 
-	# if (myNodeName == "") myNodeName = "";
+	if (myNodeName == "") myNodeName = "";
 				
 	#if (myNodeName == "") debprint ("Bombable: Updating main aircraft 2328");
 				
@@ -5460,7 +5462,7 @@ var mp_send_damage = func (myNodeName = "", damageRise = 0 ) {
 	if (!getprop(bomb_menu_pp~"bombable-enabled") ) return;
 				
 	#this makes it the main aircraft if nodename = ""
-	# if (myNodeName == "") myNodeName = "";
+	if (myNodeName == "") myNodeName = "";
 				
 	#messageType 1 is letting another MP aircraft know you have damaged it
 	#messageType 3 is informing all other MP aircraft know about the main
@@ -5871,7 +5873,7 @@ targetSize_m = nil,  weaponSkill = 1, maxDistance_m = 100, weaponAngle_deg = nil
 # of AI objects.
 #
 # We could implement an approach to finding distance/direction more like the one
-# in test_impact, where we just use an local coordinate system of lat/lon/eleve
+# in test_impact, where we just use a local coordinate system of lat/lon/elev
 # to calculate target distance. That seems far more frugal of CPU time than
 # geoCoord and directdistanceto, which both seem quite expensive of CPU.
 			
@@ -8198,7 +8200,7 @@ var bombable_init_func = func(myNodeName) {
 						
 	#impactReporters is the list of (theoretically) all places in the property
 	#tree where impacts/collisions will be reported.  It is set in the main
-	#bombableIinit function
+	#bombableInit function
 	foreach (var i; bombable.impactReporters) {
 		#debprint ("i: " , i);
 		listenerid = setlistener(i, func ( changedImpactReporterNode ) {
@@ -8922,13 +8924,13 @@ var countmsg = 0;
 
 
 ###########################################################
-#initializers
+# initializers
 #
-
-#Turn fire/smoke on globally for the fire-particles system.
-#As soon as a fire-particle model is placed it will
-#start burning.  To stop it from burning, simply remove the model.
-#You can turn off all smoke/fires globally by setting the trigger to false
+#
+# Turn fire/smoke on globally for the fire-particles system.
+# As soon as a fire-particle model is placed it will
+# start burning.  To stop it from burning, simply remove the model.
+# You can turn off all smoke/fires globally by setting the trigger to false
 
 
 var broadcast = nil;
@@ -8985,13 +8987,13 @@ var m_per_deg_lon = 111321.5 * math.cos (aLat_rad);
 #where we'll save the attributes for each AI object & the main aircraft, too
 var attributes = {};
 
-#List of nodes that listeners will use when checking for impact damage.
-#FG aircraft use a wide variety of nodes to report impact of armament
-#So we try to check them all.  There is no real overhead to this as
-#only the one(s) active with a particular aircraft will ever get any activity.
-#This should make all aircraft in the CVS version of FG (as of Aug 2009),
-#which have armament that reports an impact, work with bombable.nas AI
-#objects.
+# List of nodes that listeners will use when checking for impact damage.
+# FG aircraft use a wide variety of nodes to report impact of armament
+# So we try to check them all.  There is no real overhead to this as
+# only the one(s) active with a particular aircraft will ever get any activity.
+# This should make all aircraft in the CVS version of FG (as of Aug 2009),
+# which have armament that reports an impact, work with bombable.nas AI
+# objects.
 #
 var impactReporters = [
 "ai/models/model-impact",  #this is the FG default reporter
@@ -9007,20 +9009,20 @@ var impactReporters = [
 
 
 ####################################
-#Set up initial variables for the mpsend/receive/queue system
+# Set up initial variables for the mpsend/receive/queue system
 #
-#The location we use for exchanging the messages
+# The location we use for exchanging the messages
 # send at MP_message_pp and receive at myNodeName~MP_message_pp
 # ie, "/ai/models/multiplayer[3]"~MP_message_pp
 var MP_message_pp = "/sim/multiplay/generic/string[9]";
 var msgTable = {};
-#we'll make delaySend 2X delayReceive--should make message receipt more reliable
+# we'll make delaySend 2X delayReceive--should make message receipt more reliable
 var mpTimeDelayReceive = .12409348; #delay between checking for mp messages in seconds
 var mpTimeDelaySend = .25100234; #delay between sending messages.
 var mpsendqueue = [];
 settimer (func {mpprocesssendqueue()}, 5.2534241); #wait ~5 seconds before initial send
 
-#Add damage when aircraft is accelerated beyond reasonable bounds
+# Add damage when aircraft is accelerated beyond reasonable bounds
 var damageCheckTime = 1 + rand()/10;
 settimer (func {damageCheck () }, 60.11); #wait 30 sec before first damage check because sometimes there is a very high transient g-force on initial startup
 					
@@ -9042,16 +9044,16 @@ var bombableInit = func {
 	}
 
 						
-	#read any existing bombable-startup-settings.xml  file if it exists
+	# read any existing bombable-startup-settings.xml  file if it exists
 	# getprop("/sim/fg-home") = fg-home directory
 						
-	#for some reason this isn't work; trying a 5 sec delay to
+	# for some reason this isn't working; trying a 5 sec delay to
 	# see if that fixes it.  Something is maybe coming along
-	# afterward an overwriting the values?
+	# afterward and overwriting the values?
 	# settimer (setupBombableMenu, 5.12);
 	setupBombableMenu();
 						
-	#these are for the "mothership" not the AI or MP objects
+	# these are for the "mothership" not the AI or MP objects
 	#setprop("/bombable/fire-particles/fire-trigger", 0);
 	#setprop("/bombable/attributes/damage", 0);
 						
@@ -9075,23 +9077,23 @@ var bombableInit = func {
 
 	props.globals.getNode("/bombable/attributes/damage", 1).setDoubleValue(0.0);
 
-	#turn on the loop to occasionally re-calc the m_per_deg lat & lon
+	# turn on the loop to occasionally re-calc the m_per_deg lat & lon
 	# must be done before setMaxLatLon
 	var loopid = inc_loopid("", "update_m_per_deg_latlon");
 	settimer (func { update_m_per_deg_latlon_loop(loopid);}, 5.5435);
 
-	#sets max lat & lon for test_impact for main aircraft
+	# sets max lat & lon for test_impact for main aircraft
 	settimer (func { setMaxLatLon("", 500);}, 6.2398471);
 
 						
-	#this is zero if no AI or MP models have impact detection loaded, and > 0 otherwise
+	# this is zero if no AI or MP models have impact detection loaded, and > 0 otherwise
 	var numModelImpactListeners = 0;
 						
 	#adds the main aircraft to the impact report detection list
 	foreach (var i; bombable.impactReporters) {
 		#debprint ("i: " , i);
 		listenerid = setlistener(i, func ( changedImpactReporterNode ) {
-			if (!getprop(bomb_menu_pp~"bombable-enabled") ) return 0;
+		if (!getprop(bomb_menu_pp~"bombable-enabled") ) return 0;
 		test_impact( changedImpactReporterNode, "" ); });
 		#append(listenerids, listenerid);
 							
